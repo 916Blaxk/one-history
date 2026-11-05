@@ -3,7 +3,9 @@ export type Token = {
   name: string
   x: number
   y: number
-  size: 1 | 2 | 3 | 4
+  /* Largura, em células. Sem `altura`, o token é tão alto quanto largo, como os tokens antigos. */
+  size: number
+  altura?: number
   rotation: number
   spriteIds: string[]
   activeSpriteId: string | null
@@ -66,3 +68,7 @@ export function migrateLegacyToken(token: LegacyImageToken) {
 }
 
 export type TokenPosition = Pick<Token, 'x' | 'y'>
+
+export const TAMANHO_MINIMO = 0.25
+export const TAMANHO_MAXIMO = 10
+export const alturaDoToken = (token: Pick<Token, 'size' | 'altura'>) => token.altura ?? token.size

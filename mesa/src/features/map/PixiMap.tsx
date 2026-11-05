@@ -7,7 +7,9 @@ import { useTokenStore } from '@mesa/features/tokens/token-store'
 import { isRoomMode, sendRoomMove } from '@mesa/features/rooms/room-commands'
 import { useRoomStore } from '@mesa/features/rooms/room-store'
 import type { TokenSprite } from '@mesa/features/tokens/token-types'
-import type { RoomScene } from '@mesa/shared/room-protocol'
+import type { OpNevoa, RoomScene } from '@mesa/shared/room-protocol'
+import { CAMADA_MUNDO, limitesDaOp } from '@mesa/shared/nevoa'
+import { CamadaNevoa, type Limites } from '@mesa/features/map/camada-nevoa'
 import {
   createTokenView,
   destroyTokenView,
@@ -21,6 +23,12 @@ import {
 const MIN_ZOOM = 0.2
 const MAX_ZOOM = 4
 const clampZoom = (zoom: number) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, zoom))
+/* O mestre precisa ver o que está por baixo para preparar; o jogador não pode. */
+const ALFA_NEVOA_MESTRE = 0.55
+const ALFA_CENARIO_OCULTO = 0.65
+const FOLGA_CAMADA_MUNDO = 256
+const INTERVALO_TRACO_MS = 40
+const MAX_NUMEROS_POR_ENVIO = 250
 
 export function PixiMap({
   onMapInteraction,
@@ -50,7 +58,10 @@ export function PixiMap({
     let currentGridEnabled = useUiStore.getState().grid.enabled
     let tokensLayer: Container | undefined
     let sceneLayer: Container | undefined
-    let fogGraphics: Graphics | undefined
+    let fogContainer: Container | undefined
+    const camadasNevoa = new Map<string, CamadaNevoa>()
+    let opsMundoVistas: readonly OpNevoa[] | undefined
+    let limitesMundo: Limites | undefined
     let unsubscribeTokens = () => {}
     const tokenViews = new Map<string, TokenView>()
     let spaceDown = false
@@ -81,7 +92,18 @@ export function PixiMap({
       | undefined
     let sceneDrag: { id: string; pointerId: number; offsetX: number; offsetY: number } | undefined
     let fogPointerId: number | null = null
-    let lastFogCell = ''
+    let tracoNevoa:
+      | {
+          camada: string
+          origemX: number
+          origemY: number
+          revelar: boolean
+          raio: number
+          pendentes: number[]
+          ultimo?: [number, number]
+          timer?: ReturnType<typeof setTimeout>
+        }
+      | undefined
 
     const initialize = async () => {
       const pixi = new Application()
@@ -117,8 +139,10 @@ export function PixiMap({
       pixi.stage.addChild(world)
       const gridGraphics = new Graphics()
       gridLayer.addChild(gridGraphics)
-      fogGraphics = new Graphics()
-      fogLayer.addChild(fogGraphics)
+      fogContainer = fogLayer
+      fogLayer.sortableChildren = true
+      const cursorNevoa = new Graphics()
+      uiLayer.addChild(cursorNevoa)
 
       const renderTokens = () => {
         const tokenState = useTokenStore.getState()
@@ -277,17 +301,64 @@ export function PixiMap({
         }
         for (const scene of state.scenes) {
           const sprite = sceneSprites.get(scene.id)
-          if (sprite) sprite.position.set(scene.x, scene.y)
-          else void loadScene(scene)
+          if (sprite) {
+            sprite.position.set(scene.x, scene.y)
+            sprite.alpha = scene.oculto ? ALFA_CENARIO_OCULTO : 1
+          } else void loadScene(scene)
         }
-        fogGraphics?.clear()
-        for (const cell of state.fogCells) {
-          const [x, y] = cell.split(',').map(Number)
-          if (!Number.isFinite(x) || !Number.isFinite(y)) continue
-          fogGraphics?.rect(x * grid.cellSize, y * grid.cellSize, grid.cellSize, grid.cellSize)
-        }
-        if (state.fogCells.length) fogGraphics?.fill({ color: 0x090a0d, alpha: 0.94 })
+        if (!state.fogMode) cursorNevoa.clear()
+        renderNevoa(state)
         renderTokens()
+      }
+
+      /* A camada do mapa não tem borda: cresce quando um traço passa do que ela já cobre. */
+      const calcularLimitesMundo = (ops: readonly OpNevoa[]) => {
+        if (ops === opsMundoVistas && limitesMundo) return limitesMundo
+        let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity
+        for (const op of ops) {
+          const l = limitesDaOp(op)
+          if (!l) continue
+          x0 = Math.min(x0, l.x0); y0 = Math.min(y0, l.y0); x1 = Math.max(x1, l.x1); y1 = Math.max(y1, l.y1)
+        }
+        opsMundoVistas = ops
+        const justos = { x: x0, y: y0, largura: x1 - x0, altura: y1 - y0 }
+        if (!limitesMundo || !camadasNevoa.get(CAMADA_MUNDO)?.contem(justos)) {
+          limitesMundo = {
+            x: Math.floor(x0 - FOLGA_CAMADA_MUNDO), y: Math.floor(y0 - FOLGA_CAMADA_MUNDO),
+            largura: Math.ceil(x1 - x0 + FOLGA_CAMADA_MUNDO * 2), altura: Math.ceil(y1 - y0 + FOLGA_CAMADA_MUNDO * 2),
+          }
+        }
+        return limitesMundo
+      }
+
+      const renderNevoa = (state: ReturnType<typeof useUiStore.getState>) => {
+        const alfa = !isRoomMode() || useRoomStore.getState().role === 'gm' ? ALFA_NEVOA_MESTRE : 1
+        const vivas = new Set<string>()
+        for (const [camada, ops] of Object.entries(state.nevoa)) {
+          if (!ops.length) continue
+          const scene = state.scenes.find((item) => item.id === camada)
+          if (!scene && camada !== CAMADA_MUNDO) continue
+          const limites = scene
+            ? { x: -scene.width / 2, y: -scene.height / 2, largura: scene.width, altura: scene.height }
+            : calcularLimitesMundo(ops)
+          let view = camadasNevoa.get(camada)
+          if (!view) {
+            view = new CamadaNevoa()
+            view.sprite.zIndex = scene ? 1 : 0
+            camadasNevoa.set(camada, view)
+            fogContainer?.addChild(view.sprite)
+          }
+          view.atualizar(ops, limites)
+          view.posicionar(scene?.x ?? 0, scene?.y ?? 0)
+          view.sprite.alpha = alfa
+          vivas.add(camada)
+        }
+        for (const [camada, view] of camadasNevoa) {
+          if (vivas.has(camada)) continue
+          view.destruir()
+          camadasNevoa.delete(camada)
+          if (camada === CAMADA_MUNDO) { limitesMundo = undefined; opsMundoVistas = undefined }
+        }
       }
 
       const loadScene = async (scene: RoomScene) => {
@@ -303,6 +374,7 @@ export function PixiMap({
           const sprite = new Sprite(texture)
           sprite.anchor.set(0.5)
           sprite.position.set(scene.x, scene.y)
+          sprite.alpha = useUiStore.getState().scenes.find((item) => item.id === scene.id)?.oculto ? ALFA_CENARIO_OCULTO : 1
           sprite.width = scene.width
           sprite.height = scene.height
           sceneSprites.set(scene.id, sprite)
@@ -342,6 +414,7 @@ export function PixiMap({
       canvas.addEventListener('wheel', onWheel, { passive: false })
       canvas.addEventListener('pointerdown', onPointerDown)
       canvas.addEventListener('pointermove', onPointerMove)
+      canvas.addEventListener('pointerleave', limparCursorNevoa)
       canvas.addEventListener('pointerup', onPointerEnd)
       canvas.addEventListener('pointercancel', onPointerEnd)
       canvas.addEventListener('lostpointercapture', onPointerEnd)
@@ -410,8 +483,7 @@ export function PixiMap({
         const fogMode = useUiStore.getState().fogMode
         if (canSelect && fogMode && (!isRoomMode() || role === 'gm')) {
           fogPointerId = event.pointerId
-          lastFogCell = ''
-          paintFogAt(worldX, worldY)
+          iniciarTracoNevoa(worldX, worldY)
           return
         }
         const tokenState = useTokenStore.getState()
@@ -504,6 +576,7 @@ export function PixiMap({
 
       function onPointerMove(event: PointerEvent) {
         const rect = canvas.getBoundingClientRect()
+        desenharCursorNevoa(event.clientX - rect.left, event.clientY - rect.top)
         const point = pointers.get(event.pointerId)
         if (!point) return
         point.x = event.clientX - rect.left
@@ -547,7 +620,11 @@ export function PixiMap({
 
       function onPointerEnd(event: PointerEvent) {
         if (!pointers.has(event.pointerId)) return
-        if (fogPointerId === event.pointerId) fogPointerId = null
+        if (fogPointerId === event.pointerId) {
+          fogPointerId = null
+          enviarTracoNevoa()
+          tracoNevoa = undefined
+        }
         if (sceneDrag?.pointerId === event.pointerId) sceneDrag = undefined
         if (tokenDrag?.pointerId === event.pointerId) {
           if (tokenDrag.moved) finalizeTokenMove(tokenDrag.id)
@@ -576,14 +653,66 @@ export function PixiMap({
         }
       }
 
-      function paintFogAt(x: number, y: number) {
+      function limparCursorNevoa() {
+        cursorNevoa.clear()
+      }
+
+      /* Mostra exatamente a área do pincel, já que ele não segue mais a grade. */
+      function desenharCursorNevoa(telaX: number, telaY: number) {
+        cursorNevoa.clear()
         const state = useUiStore.getState()
-        const cellX = Math.floor(x / state.grid.cellSize)
-        const cellY = Math.floor(y / state.grid.cellSize)
-        const key = `${cellX},${cellY}`
-        if (key === lastFogCell) return
-        lastFogCell = key
-        state.paintFog(x, y, state.fogBrushRadius, state.fogMode === 'reveal')
+        if (!state.fogMode || (isRoomMode() && useRoomStore.getState().role !== 'gm')) return
+        const { camera } = state
+        cursorNevoa
+          .circle((telaX - camera.x) / camera.zoom, (telaY - camera.y) / camera.zoom, state.fogBrushRadius)
+          .stroke({ color: state.fogMode === 'reveal' ? 0xf2d18d : 0xffffff, alpha: 0.9, width: 1.5 / camera.zoom })
+      }
+
+      function iniciarTracoNevoa(x: number, y: number) {
+        const state = useUiStore.getState()
+        /* O traço pertence ao cenário onde começou, para acompanhá-lo quando ele for movido. */
+        const scene = [...state.scenes].reverse().find((item) =>
+          Math.abs(x - item.x) <= item.width / 2 && Math.abs(y - item.y) <= item.height / 2)
+        tracoNevoa = {
+          camada: scene?.id ?? CAMADA_MUNDO,
+          origemX: scene?.x ?? 0,
+          origemY: scene?.y ?? 0,
+          revelar: state.fogMode === 'reveal',
+          raio: state.fogBrushRadius,
+          pendentes: [],
+        }
+        paintFogAt(x, y)
+      }
+
+      function paintFogAt(x: number, y: number) {
+        const traco = tracoNevoa
+        if (!traco) return
+        const px = Math.round(x - traco.origemX)
+        const py = Math.round(y - traco.origemY)
+        if (traco.ultimo?.[0] === px && traco.ultimo[1] === py) return
+        /* Cada envio recomeça no último ponto do anterior, para o traço não ficar com falhas. */
+        if (!traco.pendentes.length && traco.ultimo) traco.pendentes.push(...traco.ultimo)
+        traco.pendentes.push(px, py)
+        traco.ultimo = [px, py]
+        if (traco.pendentes.length >= MAX_NUMEROS_POR_ENVIO) enviarTracoNevoa()
+        else traco.timer ??= setTimeout(enviarTracoNevoa, INTERVALO_TRACO_MS)
+      }
+
+      function enviarTracoNevoa() {
+        const traco = tracoNevoa
+        if (!traco) return
+        if (traco.timer) clearTimeout(traco.timer)
+        traco.timer = undefined
+        if (!traco.pendentes.length) return
+        const pontos = traco.pendentes
+        traco.pendentes = []
+        const state = useUiStore.getState()
+        state.pintarNevoa(traco.camada, pontos, traco.raio, traco.revelar)
+        /* Névoa pintada fora de um cenário pode cobri-lo. Revelar precisa abrir essa camada também. */
+        if (traco.revelar && traco.camada !== CAMADA_MUNDO && state.nevoa[CAMADA_MUNDO]?.length) {
+          const noMapa = pontos.map((valor, i) => Math.round(valor + (i % 2 === 0 ? traco.origemX : traco.origemY)))
+          state.pintarNevoa(CAMADA_MUNDO, noMapa, traco.raio, true)
+        }
       }
 
       function onKeyDown(event: KeyboardEvent) {
@@ -631,6 +760,7 @@ export function PixiMap({
         canvas.removeEventListener('wheel', onWheel)
         canvas.removeEventListener('pointerdown', onPointerDown)
         canvas.removeEventListener('pointermove', onPointerMove)
+        canvas.removeEventListener('pointerleave', limparCursorNevoa)
         canvas.removeEventListener('pointerup', onPointerEnd)
         canvas.removeEventListener('pointercancel', onPointerEnd)
         canvas.removeEventListener('lostpointercapture', onPointerEnd)
@@ -643,6 +773,7 @@ export function PixiMap({
     void initialize()
     return () => {
       disposed = true
+      if (tracoNevoa?.timer) clearTimeout(tracoNevoa.timer)
       unsubscribe()
       unsubscribeTokens()
       resizeObserver?.disconnect()
@@ -651,6 +782,8 @@ export function PixiMap({
       tokenViews.clear()
       for (const sprite of sceneSprites.values()) sprite.destroy({ texture: true, textureSource: true })
       sceneSprites.clear()
+      for (const camada of camadasNevoa.values()) camada.destruir()
+      camadasNevoa.clear()
       if (app && appInitialized) {
         app.destroy(true, {
           children: true,

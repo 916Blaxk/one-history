@@ -1,5 +1,5 @@
 import { Container, Graphics, Sprite, Text, Texture } from 'pixi.js'
-import type { Token, TokenSprite } from '@mesa/features/tokens/token-types'
+import { alturaDoToken, type Token, type TokenSprite } from '@mesa/features/tokens/token-types'
 
 type AlphaMask = { data: Uint8ClampedArray; width: number; height: number }
 
@@ -111,6 +111,8 @@ export function updateTokenView(
 ) {
   const diameter = token.size * cellSize
   const radius = diameter / 2
+  const alturaBase = alturaDoToken(token) * cellSize
+  const radiusY = alturaBase / 2
   const hasImage = Boolean(
     sprite &&
     view.sprite.visible &&
@@ -120,7 +122,7 @@ export function updateTokenView(
   const color = Number.parseInt(token.color.replace('#', ''), 16)
   view.root.position.set(token.x, token.y)
   view.circle.clear()
-  if (!hasImage) view.circle.circle(0, 0, radius).fill(color)
+  if (!hasImage) view.circle.ellipse(0, 0, radius, radiusY).fill(color)
 
   view.direction.position.set(0, hasImage ? cellSize * 0.1 : -cellSize * 0.28)
   view.direction.rotation = (token.rotation * Math.PI) / 180
@@ -133,11 +135,11 @@ export function updateTokenView(
 
   if (view.texture && hasImage) {
     view.sprite.width = diameter
-    view.sprite.height = diameter * (view.texture.height / view.texture.width)
+    view.sprite.height = alturaBase * (view.texture.height / view.texture.width)
     view.sprite.scale.x = Math.abs(view.sprite.scale.x) * (token.flipX ? -1 : 1)
   }
   view.initials.text = token.name.trim().charAt(0).toLocaleUpperCase() || '?'
-  view.initials.style.fontSize = Math.max(14, diameter * 0.46)
+  view.initials.style.fontSize = Math.max(14, Math.min(diameter, alturaBase) * 0.46)
   view.initials.visible = !hasImage
 
   view.selection.clear()
@@ -148,20 +150,20 @@ export function updateTokenView(
         .stroke({ color: 0xe0b35d, width: 2 / zoom })
     else
       view.selection
-        .circle(0, 0, radius)
+        .ellipse(0, 0, radius, radiusY)
         .stroke({ color: 0xe0b35d, width: 2 / zoom })
   }
   view.ownerMark.clear()
   if (playerKey && token.ownerIds.includes(playerKey)) {
     view.ownerMark
-      .circle(radius * 0.62, radius * 0.62, Math.max(3, 5 / zoom))
+      .circle(radius * 0.62, radiusY * 0.62, Math.max(3, 5 / zoom))
       .fill({ color: 0x17181a, alpha: 0.9 })
     view.ownerMark
-      .circle(radius * 0.62, radius * 0.62, Math.max(2, 3.2 / zoom))
+      .circle(radius * 0.62, radiusY * 0.62, Math.max(2, 3.2 / zoom))
       .fill(0xe0b35d)
   }
 
-  const belowBase = radius + 5
+  const belowBase = radiusY + 5
   const hasHealth = token.hpMax !== undefined && token.hpMax > 0
   const hasMana = token.manaMax !== undefined && token.manaMax > 0
   view.health.clear()
@@ -274,17 +276,18 @@ export function tokenHitTest(
   cellSize: number,
 ) {
   const diameter = token.size * cellSize
+  const alturaBase = alturaDoToken(token) * cellSize
   const localX = x - token.x
   const localY = y - token.y
-  if (!sprite) return Math.hypot(localX, localY) <= diameter / 2
+  if (!sprite) return Math.hypot(localX / (diameter / 2), localY / (alturaBase / 2)) <= 1
 
   // The ground footprint remains draggable even in transparent gaps around a standee.
-  if (Math.abs(localX) <= diameter / 2 && Math.abs(localY) <= diameter / 2)
+  if (Math.abs(localX) <= diameter / 2 && Math.abs(localY) <= alturaBase / 2)
     return true
   const mask = view?.alphaMask
   if (!mask || !view?.sprite.visible || view.activeSpriteId !== sprite.id)
     return false
-  const imageHeight = (diameter * mask.height) / mask.width
+  const imageHeight = (alturaBase * mask.height) / mask.width
   if (
     localX < -diameter / 2 ||
     localX > diameter / 2 ||

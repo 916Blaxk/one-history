@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { isRoomMode, sendRoomCommand } from '@mesa/features/rooms/room-commands'
-import type { RoomScene } from '@mesa/shared/room-protocol'
+import type { NevoaDaMesa, OpNevoa, RoomScene } from '@mesa/shared/room-protocol'
 
 type Camera = { x: number; y: number; zoom: number }
 type GridSettings = { enabled: boolean; cellSize: number; opacity: number }
@@ -10,7 +10,7 @@ type UiState = {
   camera: Camera
   grid: GridSettings
   scenes: RoomScene[]
-  fogCells: string[]
+  nevoa: NevoaDaMesa
   fogMode: 'hide' | 'reveal' | null
   fogBrushRadius: number
   increment: () => void
@@ -19,14 +19,19 @@ type UiState = {
   applyRoomGrid: (grid: GridSettings) => void
   addScene: (scene: RoomScene) => void
   moveScene: (id: string, x: number, y: number) => void
+  updateScene: (id: string, changes: { nome?: string; oculto?: boolean }) => void
+  focarEm: (x: number, y: number) => void
   removeScene: (id: string) => void
   applyRoomScenes: (scenes: RoomScene[]) => void
   setFogMode: (mode: 'hide' | 'reveal' | null) => void
   setFogBrushRadius: (radius: number) => void
-  paintFog: (x: number, y: number, radius: number, reveal: boolean) => void
+  pintarNevoa: (camada: string, pontos: number[], raio: number, revelar: boolean) => void
+  cobrirNevoa: (camada: string) => void
+  limparNevoa: (camada: string) => void
   clearFog: () => void
-  applyFogCells: (cells: string[]) => void
-  applyFogUpdate: (cells: string[], reveal: boolean) => void
+  applyNevoa: (nevoa: NevoaDaMesa) => void
+  applyNevoaOp: (camada: string, op: OpNevoa) => void
+  applyNevoaCamada: (camada: string, ops: OpNevoa[]) => void
 }
 
 export const useUiStore = create<UiState>((set) => ({
@@ -34,9 +39,9 @@ export const useUiStore = create<UiState>((set) => ({
   camera: { x: 0, y: 0, zoom: 1 },
   grid: { enabled: true, cellSize: 70, opacity: 0.24 },
   scenes: [],
-  fogCells: [],
+  nevoa: {},
   fogMode: null,
-  fogBrushRadius: 2,
+  fogBrushRadius: 30,
   increment: () => set((state) => ({ counter: state.counter + 1 })),
   setCamera: (camera) => set({ camera }),
   setGrid: (grid) => {
@@ -56,36 +61,37 @@ export const useUiStore = create<UiState>((set) => ({
     if (isRoomMode()) { sendRoomCommand({ type: 'scene:move', id, x, y }); return }
     set((state) => ({ scenes: state.scenes.map((scene) => scene.id === id ? { ...scene, x, y } : scene) }))
   },
+  updateScene: (id, changes) => {
+    if (isRoomMode()) { sendRoomCommand({ type: 'scene:update', id, ...changes }); return }
+    set((state) => ({ scenes: state.scenes.map((scene) => scene.id === id ? { ...scene, ...changes } : scene) }))
+  },
+  focarEm: (x, y) => set((state) => ({ camera: { zoom: state.camera.zoom, x: window.innerWidth / 2 - x * state.camera.zoom, y: window.innerHeight / 2 - y * state.camera.zoom } })),
   removeScene: (id) => {
     if (isRoomMode()) { sendRoomCommand({ type: 'scene:remove', id }); return }
+    useUiStore.getState().applyNevoaCamada(id, [])
     set((state) => ({ scenes: state.scenes.filter((scene) => scene.id !== id) }))
   },
   applyRoomScenes: (scenes) => set({ scenes }),
   setFogMode: (fogMode) => set({ fogMode }),
   setFogBrushRadius: (fogBrushRadius) => set({ fogBrushRadius }),
-  paintFog: (x, y, radius, reveal) => {
-    if (isRoomMode()) { sendRoomCommand({ type: 'fog:paint', x, y, radius, reveal }); return }
-    const { grid, fogCells } = useUiStore.getState()
-    const next = new Set(fogCells)
-    const centerX = Math.floor(x / grid.cellSize), centerY = Math.floor(y / grid.cellSize)
-    for (let dx = -radius; dx <= radius; dx++) for (let dy = -radius; dy <= radius; dy++) {
-      if (dx * dx + dy * dy > radius * radius + 0.5) continue
-      const key = `${centerX + dx},${centerY + dy}`
-      if (reveal) next.delete(key); else next.add(key)
-    }
-    set({ fogCells: [...next] })
+  /* O traço aparece na hora para quem pinta: o servidor só o repassa aos outros. */
+  pintarNevoa: (camada, pontos, raio, revelar) => {
+    useUiStore.getState().applyNevoaOp(camada, { tipo: 'traco', revelar, raio, pontos })
+    sendRoomCommand({ type: 'fog:traco', camada, revelar, raio, pontos })
   },
-  applyFogCells: (fogCells) => set({ fogCells }),
-  applyFogUpdate: (cells, reveal) => set((state) => {
-    const next = new Set(state.fogCells)
-    for (const cell of cells) {
-      if (reveal) next.delete(cell)
-      else next.add(cell)
-    }
-    return { fogCells: [...next] }
-  }),
+  cobrirNevoa: (camada) => {
+    if (sendRoomCommand({ type: 'fog:cobrir', camada })) return
+    useUiStore.getState().applyNevoaCamada(camada, [{ tipo: 'cobrir' }])
+  },
+  limparNevoa: (camada) => {
+    if (sendRoomCommand({ type: 'fog:limpar', camada })) return
+    useUiStore.getState().applyNevoaCamada(camada, [])
+  },
+  applyNevoa: (nevoa) => set({ nevoa }),
+  applyNevoaOp: (camada, op) => set((state) => ({ nevoa: { ...state.nevoa, [camada]: [...(state.nevoa[camada] ?? []), op] } })),
+  applyNevoaCamada: (camada, ops) => set((state) => ({ nevoa: { ...state.nevoa, [camada]: ops } })),
   clearFog: () => {
-    if (isRoomMode()) { sendRoomCommand({ type: 'fog:clear' }); return }
-    set({ fogCells: [] })
+    if (sendRoomCommand({ type: 'fog:clear' })) return
+    set({ nevoa: {} })
   },
 }))

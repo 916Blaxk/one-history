@@ -164,3 +164,79 @@ test('a ficha continua igual fora da mesa, com rolagem e chat do site', async ({
   await expect(jogador.locator('.chat-flutuante')).toBeVisible();
   await expect(jogador.locator('.msg').first().locator('.msg-det')).toHaveText(/^d20 \(\d+\) \+ 7$/);
 });
+
+/* Lê um pixel da tela: a névoa e os tokens são desenhados em WebGL, sem nada no HTML para conferir. */
+async function corNaTela(p: Page, x: number, y: number) {
+  const imagem = (await p.screenshot()).toString('base64');
+  return p.evaluate(async ({ imagem, x, y }) => {
+    const bitmap = new Image();
+    bitmap.src = `data:image/png;base64,${imagem}`;
+    await bitmap.decode();
+    const canvas = document.createElement('canvas');
+    canvas.width = bitmap.naturalWidth;
+    canvas.height = bitmap.naturalHeight;
+    const contexto = canvas.getContext('2d')!;
+    contexto.drawImage(bitmap, 0, 0);
+    const [r, g, b] = contexto.getImageData(x, y, 1, 1).data;
+    return { r, g, b };
+  }, { imagem, x, y });
+}
+
+test('mesa: o mestre prepara o cenário oculto com névoa livre e mostra quando quiser', async ({ browser }) => {
+  test.setTimeout(90_000);
+  const { mestre, jogador, campanhaId } = await montar(browser);
+  await abrirMesa(mestre, campanhaId);
+  await abrirMesa(jogador, campanhaId);
+
+  const imagem = await mestre.evaluate(() => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 600;
+    canvas.height = 400;
+    const contexto = canvas.getContext('2d')!;
+    contexto.fillStyle = '#e02020';
+    contexto.fillRect(0, 0, 600, 400);
+    return canvas.toDataURL('image/png').split(',')[1]!;
+  });
+  await mestre.locator('input[type=file]').first().setInputFiles({ name: 'caverna.png', mimeType: 'image/png', buffer: Buffer.from(imagem, 'base64') });
+  await expect(mestre.locator('.scene-status')).toHaveText('Oculto');
+
+  /* O centro da tela é o centro do cenário. Os pontos fogem das linhas da grade. */
+  const CENTRO = { x: 712, y: 512 };
+  const ACIMA = { x: 712, y: 412 };
+  await expect.poll(async () => (await corNaTela(mestre, CENTRO.x, CENTRO.y)).r).toBeGreaterThan(90);
+  expect((await corNaTela(jogador, CENTRO.x, CENTRO.y)).r).toBeLessThan(40);
+
+  await mestre.getByRole('button', { name: 'Cobrir de névoa: caverna' }).click();
+  await expect.poll(async () => (await corNaTela(mestre, ACIMA.x, ACIMA.y)).r).toBeLessThan(90);
+  const coberto = await corNaTela(mestre, CENTRO.x, CENTRO.y);
+
+  /* O pincel abre um caminho estreito, que não segue a grade. */
+  await mestre.getByRole('button', { name: 'Revelar', exact: true }).click();
+  await mestre.mouse.move(600, 512);
+  await mestre.mouse.down();
+  await mestre.mouse.move(800, 512, { steps: 12 });
+  await mestre.mouse.up();
+  await mestre.getByRole('button', { name: 'Revelar', exact: true }).click();
+  await expect.poll(async () => (await corNaTela(mestre, CENTRO.x, CENTRO.y)).r).toBeGreaterThan(coberto.r + 20);
+  expect((await corNaTela(mestre, ACIMA.x, ACIMA.y)).r).toBeLessThan(90);
+  expect((await corNaTela(jogador, CENTRO.x, CENTRO.y)).r).toBeLessThan(40);
+
+  /* Ao mostrar, o jogador vai direto ao cenário, com a névoa já opaca fora do caminho. */
+  await mestre.getByRole('button', { name: 'Mostrar aos jogadores: caverna' }).click();
+  await expect(mestre.locator('.scene-status')).toHaveText('Visível');
+  await expect.poll(async () => (await corNaTela(jogador, CENTRO.x, CENTRO.y)).r).toBeGreaterThan(180);
+  const fora = await corNaTela(jogador, ACIMA.x, ACIMA.y);
+  expect(fora.r).toBeLessThan(25);
+
+  /* A névoa continua igual depois de recarregar. */
+  await expect.poll(async () => { await jogador.waitForTimeout(1200); await jogador.reload(); await expect(jogador.getByText('Conectado')).toBeVisible({ timeout: 15000 }); return (await corNaTela(jogador, ACIMA.x, ACIMA.y)).r; }).toBeLessThan(25);
+  await expect.poll(async () => (await corNaTela(jogador, CENTRO.x, CENTRO.y)).r).toBeGreaterThan(180);
+
+  /* Largura e altura mudam separadas. */
+  await mestre.getByRole('button', { name: 'Novo token' }).first().click();
+  await expect(mestre.getByLabel('Largura do token')).toBeVisible();
+  await mestre.getByLabel('Largura do token').fill('1.5');
+  await mestre.getByLabel('Altura do token').fill('3');
+  await expect(mestre.locator('.range-control', { hasText: 'Largura' })).toContainText('1,5 células');
+  await expect(mestre.locator('.range-control', { hasText: 'Altura' })).toContainText('3 células');
+});

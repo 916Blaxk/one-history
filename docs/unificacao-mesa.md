@@ -116,6 +116,7 @@ O último comando abre o site em http://localhost:3457 com banco temporário. `n
 ## Limites conhecidos
 
 - **Uma instância só:** duas instâncias teriam mesas diferentes na memória.
+- **Névoa:** cenário oculto não sai do servidor para os jogadores. Em cenário visível, a imagem chega inteira ao navegador, e a névoa só a cobre na tela. Cada traço fica guardado, até 100 mil pontos por mesa; Cobrir ou Limpar um cenário libera espaço.
 - **Tamanho:** as imagens ficam no banco, até 12 sprites por token e 30 cenários por mesa, com menos de 1 MB cada. Vale acompanhar o tamanho do arquivo.
 - **Última gravação vence:** se a ficha e a mesa mudarem a vida ao mesmo tempo, fica a última.
 - **Chat de texto:** guarda as 500 mensagens mais recentes por campanha, como as rolagens.

@@ -9,8 +9,11 @@ import { useBottomSheetDismiss } from '@mesa/hooks/use-bottom-sheet-dismiss'
 import { isRoomMode } from '@mesa/features/rooms/room-commands'
 import { useRoomStore } from '@mesa/features/rooms/room-store'
 import { FichaDoToken } from '@mesa/features/tokens/FichaDoToken'
+import { TAMANHO_MAXIMO, TAMANHO_MINIMO, alturaDoToken } from '@mesa/features/tokens/token-types'
 
 const EMPTY_SPRITES: TokenSprite[] = []
+
+const celulas = (n: number) => `${n.toLocaleString('pt-BR')} ${n === 1 ? 'célula' : 'células'}`
 
 export function TokenProperties({
   campanhaId,
@@ -72,16 +75,19 @@ export function TokenProperties({
     (sprite) => sprite.id === selectedToken.activeSpriteId,
   )
 
-  function changeSize(size: Token['size']) {
+  /* Largura e altura mudam separadas. Na grade, cada eixo se alinha pela própria medida. */
+  function changeSize(changes: { size?: number; altura?: number }) {
     const grid = useUiStore.getState().grid
     if (!grid.enabled) {
-      setValue({ size })
+      setValue(changes)
       return
     }
     const cellSize = grid.cellSize
-    const snap = (value: number) =>
+    const snap = (value: number, size: number) =>
       (Math.round(value / cellSize - size / 2) + size / 2) * cellSize
-    setValue({ size, x: snap(selectedToken.x), y: snap(selectedToken.y) })
+    const size = changes.size ?? selectedToken.size
+    const altura = changes.altura ?? alturaDoToken(selectedToken)
+    setValue({ ...changes, x: snap(selectedToken.x, size), y: snap(selectedToken.y, altura) })
   }
 
   return (
@@ -145,21 +151,21 @@ export function TokenProperties({
             />
           </label>
           {isGM && (
+            <label className="range-control">
+              <span>Largura <b>{celulas(selectedToken.size)}</b></span>
+              <input type="range" aria-label="Largura do token" min={TAMANHO_MINIMO} max={TAMANHO_MAXIMO} step="0.25" value={selectedToken.size}
+                onChange={(event) => changeSize({ size: Number(event.target.value), altura: alturaDoToken(selectedToken) })} />
+            </label>
+          )}
+          {isGM && (
+            <label className="range-control">
+              <span>Altura <b>{celulas(alturaDoToken(selectedToken))}</b></span>
+              <input type="range" aria-label="Altura do token" min={TAMANHO_MINIMO} max={TAMANHO_MAXIMO} step="0.25" value={alturaDoToken(selectedToken)}
+                onChange={(event) => changeSize({ altura: Number(event.target.value) })} />
+            </label>
+          )}
+          {isGM && (
             <div className="token-field-row">
-              <label className="token-field">
-                Tamanho
-                <select
-                  value={selectedToken.size}
-                  onChange={(event) =>
-                    changeSize(Number(event.target.value) as Token['size'])
-                  }
-                >
-                  <option value={1}>1 célula</option>
-                  <option value={2}>2 células</option>
-                  <option value={3}>3 células</option>
-                  <option value={4}>4 células</option>
-                </select>
-              </label>
               <label className="token-field">
                 Cor
                 <input

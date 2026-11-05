@@ -181,16 +181,74 @@ describe('papéis vêm do banco', () => {
     const negados = () => j.eventos.filter(e => e.type === 'permission:error').length;
     for (const [i, comando] of ([
       { type: 'grid:update', grid: { enabled: false, cellSize: 50, opacity: 0.3 } },
-      { type: 'fog:paint', x: 0, y: 0, radius: 2, reveal: false },
+      { type: 'fog:traco', camada: 'mundo', revelar: false, raio: 2, pontos: [0, 0] },
+      { type: 'fog:cobrir', camada: 'c1' },
+      { type: 'fog:limpar', camada: 'mundo' },
       { type: 'fog:clear' },
+      { type: 'scene:update', id: 'c1', oculto: false },
       { type: 'player:role', playerKey: jogador.id, role: 'spectator' },
       { type: 'player:remove', playerKey: mestre.id },
     ] as object[]).entries()) {
       j.comando(comando);
       await ate(() => negados() === i + 1);
     }
-    m.comando({ type: 'fog:paint', x: 0, y: 0, radius: 1, reveal: false });
-    await ate(() => m.eventos.some(e => e.type === 'fog:updated'));
+    m.comando({ type: 'fog:traco', camada: 'mundo', revelar: false, raio: 1, pontos: [0, 0] });
+    await ate(() => j.eventos.some(e => e.type === 'fog:traco'));
+  });
+
+  it('cenário oculto só chega ao jogador quando o mestre mostra, já com a névoa pronta', async () => {
+    const { mestre, jogador, id } = await mesaCompleta();
+    const m = await entrar(mestre, id);
+    const j = await entrar(jogador, id);
+    m.comando({ type: 'scene:add', scene: { id: 'prep', imageUrl: PIXEL, x: 500, y: 0, width: 100, height: 100, nome: 'Caverna', oculto: true } });
+    await ate(() => m.eventos.some(e => e.type === 'scene:added' && e.scene.id === 'prep'));
+    m.comando({ type: 'fog:cobrir', camada: 'prep' });
+    m.comando({ type: 'fog:traco', camada: 'prep', revelar: true, raio: 1, pontos: [0, 0, 3, 4] });
+    m.comando({ type: 'scene:move', id: 'prep', x: 600, y: 10 });
+    await ate(() => m.eventos.some(e => e.type === 'scene:moved'));
+    expect(m.eventos.some(e => e.type === 'fog:camada' && e.camada === 'prep')).toBe(true);
+    m.comando({ type: 'chat:send', message: { type: 'normal', text: 'barreira' } });
+    await ate(() => j.eventos.some(e => e.message?.text === 'barreira'));
+    expect(j.eventos.some(e => /^(scene|fog):/.test(e.type))).toBe(false);
+
+    /* Quem entra depois também não recebe a imagem. */
+    const outra = await entrar(jogador, id);
+    expect(outra.snapshot.scenes).toEqual([]);
+    expect(outra.snapshot.nevoa).toEqual({});
+
+    m.comando({ type: 'scene:update', id: 'prep', oculto: false });
+    const chegou = await ate(() => j.eventos.find(e => e.type === 'scene:added'));
+    expect(chegou.scene).toMatchObject({ id: 'prep', nome: 'Caverna', x: 600, y: 10, oculto: false });
+    expect(chegou.focar).toBe(true);
+    expect(chegou.nevoa).toEqual([{ tipo: 'cobrir' }, { tipo: 'traco', revelar: true, raio: 1, pontos: [0, 0, 3, 4] }]);
+
+    m.comando({ type: 'fog:traco', camada: 'prep', revelar: true, raio: 2, pontos: [9, 9] });
+    await ate(() => j.eventos.some(e => e.type === 'fog:traco' && e.camada === 'prep'));
+    /* Quem pinta já desenhou o traço: receber de volta o repetiria na lista. */
+    expect(m.eventos.some(e => e.type === 'fog:traco')).toBe(false);
+
+    m.comando({ type: 'scene:update', id: 'prep', oculto: true });
+    await ate(() => j.eventos.some(e => e.type === 'scene:removed' && e.id === 'prep'));
+    const depois = await entrar(jogador, id);
+    expect(depois.snapshot.scenes).toEqual([]);
+    expect((await entrar(mestre, id)).snapshot.nevoa.prep).toHaveLength(3);
+  });
+
+  it('token tem largura e altura próprias, dentro dos limites, e cada eixo se alinha à grade', async () => {
+    const { mestre, jogador, id } = await mesaCompleta();
+    const m = await entrar(mestre, id);
+    const j = await entrar(jogador, id);
+    const t = await criarToken(m, { name: 'Alto' });
+    m.comando({ type: 'token:update', id: t, changes: { size: 1.5, altura: 3 } });
+    await ate(() => m.ultimoToken(t).altura === 3);
+    expect(m.ultimoToken(t).size).toBe(1.5);
+    for (const ruim of [{ altura: 99 }, { size: 0 }, { altura: 1.1 }]) m.comando({ type: 'token:update', id: t, changes: ruim });
+    m.comando({ type: 'token:update', id: t, changes: { name: 'Depois' } });
+    await ate(() => m.ultimoToken(t).name === 'Depois');
+    expect(m.ultimoToken(t)).toMatchObject({ size: 1.5, altura: 3 });
+    m.comando({ type: 'token:move', id: t, position: { x: 100, y: 100 }, final: true });
+    const movido = await ate(() => j.eventos.find(e => e.type === 'token:moved' && e.final));
+    expect(movido.position).toEqual({ x: 122.5, y: 105 });
   });
 
   it('ninguém vira GM, e espectador só assiste', async () => {
@@ -385,7 +443,7 @@ describe('rolagens e chat', () => {
   it('comando malformado é ignorado sem derrubar a conexão', async () => {
     const { mestre, id } = await mesaCompleta();
     const m = await entrar(mestre, id);
-    for (const ruim of [null, 'texto', {}, { type: 'inventado' }, { type: 'token:create', token: 5, sprites: [] }, { type: 'fog:paint', x: 'a', y: 0, radius: 99, reveal: true }, { type: 'chat:roll', expression: 'x'.repeat(500) }]) {
+    for (const ruim of [null, 'texto', {}, { type: 'inventado' }, { type: 'token:create', token: 5, sprites: [] }, { type: 'fog:traco', camada: 'mundo', revelar: true, raio: 999, pontos: ['a'] }, { type: 'fog:traco', camada: 'mundo', revelar: true, raio: 1, pontos: [1, 2, 3] }, { type: 'chat:roll', expression: 'x'.repeat(500) }]) {
       m.socket.emit('room:command', ruim);
     }
     m.comando({ type: 'chat:send', message: { type: 'normal', text: 'ainda aqui' } });
@@ -404,13 +462,13 @@ describe('persistência', () => {
     m.comando({ type: 'token:update', id: t, changes: { characterId: ficha.id } });
     await ate(() => m.ultimoToken(t).characterId === ficha.id);
     m.comando({ type: 'grid:update', grid: { enabled: true, cellSize: 50, opacity: 0.3 } });
-    m.comando({ type: 'fog:paint', x: 0, y: 0, radius: 1, reveal: false });
-    m.comando({ type: 'scene:add', scene: { id: 'c1', imageUrl: PIXEL, x: 10, y: 20, width: 100, height: 200 } });
+    m.comando({ type: 'fog:traco', camada: 'mundo', revelar: false, raio: 1, pontos: [0, 0] });
+    m.comando({ type: 'scene:add', scene: { id: 'c1', imageUrl: PIXEL, x: 10, y: 20, width: 100, height: 200, nome: 'Salão', oculto: true } });
     m.comando({ type: 'player:role', playerKey: jogador.id, role: 'spectator' });
     m.comando({ type: 'chat:send', message: { type: 'normal', text: 'antes de cair' } });
     m.comando({ type: 'chat:roll', expression: '1d6' });
     await ate(() => m.eventos.filter(e => e.type === 'chat:message').length >= 2);
-    await ate(() => m.eventos.some(e => e.type === 'fog:updated') && m.eventos.some(e => e.type === 'scene:added'));
+    await ate(() => m.eventos.some(e => e.type === 'scene:added'));
     /* Mais que o intervalo de salvamento. A queda é sem aviso: nada de salvar ao sair. */
     await new Promise(ok => setTimeout(ok, 1600));
     derrubar();
@@ -421,8 +479,8 @@ describe('persistência', () => {
     const s = volta.snapshot;
     expect(s.role).toBe('gm');
     expect(s.grid).toEqual({ enabled: true, cellSize: 50, opacity: 0.3 });
-    expect(s.fogCells.length).toBeGreaterThan(0);
-    expect(s.scenes).toEqual([{ id: 'c1', imageUrl: PIXEL, x: 10, y: 20, width: 100, height: 200 }]);
+    expect(s.nevoa.mundo).toEqual([{ tipo: 'traco', revelar: false, raio: 1, pontos: [0, 0] }]);
+    expect(s.scenes).toEqual([{ id: 'c1', imageUrl: PIXEL, x: 10, y: 20, width: 100, height: 200, nome: 'Salão', oculto: true }]);
     const token = s.tokens.find((x: any) => x.id === t);
     expect(token).toMatchObject({ name: 'Salvo', hidden: true, characterId: ficha.id, hpCurrent: 25, activeSpriteId: 's1' });
     expect(s.spritesByTokenId[t]).toEqual([{ id: 's1', label: 'Rosto', imageUrl: PIXEL }]);

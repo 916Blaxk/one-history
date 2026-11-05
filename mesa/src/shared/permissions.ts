@@ -35,6 +35,7 @@ export const GM_TOKEN_FIELDS = [
   'x',
   'y',
   'size',
+  'altura',
   'color',
   'ownerIds',
   'hidden',

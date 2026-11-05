@@ -6,7 +6,13 @@ import type {
 } from '../features/tokens/token-types.js'
 
 export type RoomGrid = { enabled: boolean; cellSize: number; opacity: number }
-export type RoomScene = { id: string; imageUrl: string; x: number; y: number; width: number; height: number }
+/* `oculto`: só o mestre recebe a imagem e a névoa. É como ele prepara o cenário antes da sessão. */
+export type RoomScene = { id: string; imageUrl: string; x: number; y: number; width: number; height: number; nome?: string; oculto?: boolean }
+export type OpNevoa =
+  | { tipo: 'traco'; revelar: boolean; raio: number; pontos: number[] }
+  | { tipo: 'ret'; x: number; y: number; largura: number; altura: number }
+  | { tipo: 'cobrir' }
+export type NevoaDaMesa = Record<string, OpNevoa[]>
 export type RoomPlayer = {
   id: string
   name: string
@@ -18,7 +24,7 @@ export type RoomSnapshot = {
   spritesByTokenId: Record<string, TokenSprite[]>
   grid: RoomGrid
   scenes: RoomScene[]
-  fogCells: string[]
+  nevoa: NevoaDaMesa
   messages: ChatMessage[]
   players: RoomPlayer[]
   role: RoomPlayer['role']
@@ -43,8 +49,11 @@ export type RoomCommand =
   | { type: 'player:remove'; playerKey: string }
   | { type: 'scene:add'; scene: RoomScene }
   | { type: 'scene:move'; id: string; x: number; y: number }
+  | { type: 'scene:update'; id: string; nome?: string; oculto?: boolean }
   | { type: 'scene:remove'; id: string }
-  | { type: 'fog:paint'; x: number; y: number; radius: number; reveal: boolean }
+  | { type: 'fog:traco'; camada: string; revelar: boolean; raio: number; pontos: number[] }
+  | { type: 'fog:cobrir'; camada: string }
+  | { type: 'fog:limpar'; camada: string }
   | { type: 'fog:clear' }
   | {
       type: 'chat:send'
@@ -73,10 +82,12 @@ export type ServerRoomMessage =
       final: boolean
       playerId: string
     }
-  | { type: 'scene:added'; scene: RoomScene }
+  | { type: 'scene:added'; scene: RoomScene; nevoa?: OpNevoa[]; focar?: boolean }
+  | { type: 'scene:updated'; id: string; nome?: string; oculto?: boolean }
   | { type: 'scene:moved'; id: string; x: number; y: number }
   | { type: 'scene:removed'; id: string }
-  | { type: 'fog:updated'; cells: string[]; reveal: boolean }
+  | { type: 'fog:traco'; camada: string; op: OpNevoa }
+  | { type: 'fog:camada'; camada: string; ops: OpNevoa[] }
   | { type: 'fog:cleared' }
   | { type: 'chat:message'; message: ChatMessage }
   | { type: 'chat:error'; text: string }

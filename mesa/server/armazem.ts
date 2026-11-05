@@ -2,7 +2,7 @@ import { and, desc, eq, inArray, notInArray, sql } from 'drizzle-orm'
 import type { DiceRollResult } from '../src/features/chat/dice-types.js'
 import type { ChatMessage, ChatMessageType } from '../src/features/chat/chat-types.js'
 import type { Token, TokenSprite } from '../src/features/tokens/token-types.js'
-import type { RoomGrid, RoomScene } from '../src/shared/room-protocol.js'
+import type { NevoaDaMesa, RoomGrid, RoomScene } from '../src/shared/room-protocol.js'
 import * as R from '../../lib/regras'
 import type { LinhaRolagem } from '../../lib/servidor/barramento'
 import { db } from '../../lib/servidor/db'
@@ -79,7 +79,9 @@ export interface EstadoMesa {
   sprites: Record<string, Omit<TokenSprite, 'imageUrl'>[]>
   grid: RoomGrid
   scenes: Omit<RoomScene, 'imageUrl'>[]
-  fogCells: string[]
+  nevoa?: NevoaDaMesa
+  /* Só em mesas salvas antes do pincel livre: é convertido ao carregar. */
+  fogCells?: string[]
   espectadores: string[]
 }
 

@@ -2,6 +2,11 @@ import { useRef, useState } from 'react'
 import {
   ChevronDown,
   ChevronUp,
+  CloudFog,
+  Crosshair,
+  Eraser,
+  Eye,
+  EyeOff,
   ImagePlus,
   RotateCcw,
   Trash2,
@@ -30,6 +35,10 @@ export function MapControls({
   const scenes = useUiStore((state) => state.scenes)
   const addScene = useUiStore((state) => state.addScene)
   const removeScene = useUiStore((state) => state.removeScene)
+  const updateScene = useUiStore((state) => state.updateScene)
+  const focarEm = useUiStore((state) => state.focarEm)
+  const cobrirNevoa = useUiStore((state) => state.cobrirNevoa)
+  const limparNevoa = useUiStore((state) => state.limparNevoa)
   const fogMode = useUiStore((state) => state.fogMode)
   const fogRadius = useUiStore((state) => state.fogBrushRadius)
   const setFogBrushRadius = useUiStore((state) => state.setFogBrushRadius)
@@ -45,19 +54,23 @@ export function MapControls({
 
   async function selectImages(files: FileList | null) {
     if (!files?.length) return
-    let sceneIndex = scenes.length
+    /* Lado a lado: cenários empilhados não dariam para pintar nem arrastar separados na preparação. */
+    const { camera: cameraInicial, scenes: atuais } = useUiStore.getState()
+    let bordaDireita = atuais.length ? Math.max(...atuais.map((scene) => scene.x + scene.width / 2)) + grid.cellSize * 2 : null
     for (const file of Array.from(files)) {
       const objectUrl = URL.createObjectURL(file)
       try {
         const image = new Image()
         image.src = objectUrl
         await image.decode()
-        const { camera } = useUiStore.getState()
-        const x = (window.innerWidth / 2 - camera.x) / camera.zoom + sceneIndex * 36
-        const y = (window.innerHeight / 2 - camera.y) / camera.zoom + sceneIndex * 36
+        const x = bordaDireita === null ? (window.innerWidth / 2 - cameraInicial.x) / cameraInicial.zoom : bordaDireita + image.naturalWidth / 2
+        const y = (window.innerHeight / 2 - cameraInicial.y) / cameraInicial.zoom
         const imageUrl = isRoomMode() ? await fileToRoomScene(file) : objectUrl
-        addScene({ id: crypto.randomUUID(), imageUrl, x, y, width: image.naturalWidth, height: image.naturalHeight })
-        sceneIndex += 1
+        addScene({
+          id: crypto.randomUUID(), imageUrl, x, y, width: image.naturalWidth, height: image.naturalHeight,
+          nome: file.name.replace(/\.[^.]+$/, '').slice(0, 60), oculto: true,
+        })
+        bordaDireita = x + image.naturalWidth / 2 + grid.cellSize * 2
         if (isRoomMode()) URL.revokeObjectURL(objectUrl)
       } catch (error) {
         URL.revokeObjectURL(objectUrl)
@@ -133,27 +146,51 @@ export function MapControls({
                 <ImagePlus size={17} /> Adicionar cenários
               </button>
               <div className="scene-list">
-                {scenes.map((scene, index) => (
-                  <div className="scene-list-item" key={scene.id}>
-                    <span>Cenário {index + 1}</span>
-                    <button type="button" aria-label={`Remover cenário ${index + 1}`} onClick={() => {
-                      if (scene.imageUrl.startsWith('blob:')) URL.revokeObjectURL(scene.imageUrl)
-                      removeScene(scene.id)
-                    }}><Trash2 size={15} /></button>
-                  </div>
-                ))}
+                {scenes.map((scene, index) => {
+                  const nome = scene.nome || `Cenário ${index + 1}`
+                  return (
+                    <div className={`scene-list-item ${scene.oculto ? 'is-hidden' : ''}`} key={scene.id}>
+                      <div className="scene-list-top">
+                        <input
+                          key={scene.nome ?? ''}
+                          aria-label={`Nome de ${nome}`}
+                          maxLength={60}
+                          defaultValue={scene.nome ?? ''}
+                          placeholder={`Cenário ${index + 1}`}
+                          onBlur={(event) => { if (event.target.value.trim() !== (scene.nome ?? '')) updateScene(scene.id, { nome: event.target.value }) }}
+                        />
+                        <span className="scene-status">{scene.oculto ? 'Oculto' : 'Visível'}</span>
+                      </div>
+                      <div className="scene-list-actions">
+                        <button type="button" title={scene.oculto ? 'Mostrar aos jogadores' : 'Esconder dos jogadores'}
+                          aria-label={`${scene.oculto ? 'Mostrar aos jogadores' : 'Esconder dos jogadores'}: ${nome}`}
+                          onClick={() => updateScene(scene.id, { oculto: !scene.oculto })}>
+                          {scene.oculto ? <Eye size={15} /> : <EyeOff size={15} />}
+                        </button>
+                        <button type="button" title="Ir até o cenário" aria-label={`Ir até ${nome}`} onClick={() => focarEm(scene.x, scene.y)}><Crosshair size={15} /></button>
+                        <button type="button" title="Cobrir de névoa" aria-label={`Cobrir de névoa: ${nome}`} onClick={() => cobrirNevoa(scene.id)}><CloudFog size={15} /></button>
+                        <button type="button" title="Tirar toda a névoa" aria-label={`Tirar a névoa: ${nome}`} onClick={() => limparNevoa(scene.id)}><Eraser size={15} /></button>
+                        <button type="button" title="Remover cenário" aria-label={`Remover ${nome}`} onClick={() => {
+                          if (!window.confirm(`Remover ${nome}? A imagem e a névoa dele serão apagadas.`)) return
+                          if (scene.imageUrl.startsWith('blob:')) URL.revokeObjectURL(scene.imageUrl)
+                          removeScene(scene.id)
+                        }}><Trash2 size={15} /></button>
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
               <div className="fog-controls">
                 <span>Fog of war</span>
                 <div>
                   <button type="button" className={fogMode === 'hide' ? 'is-active' : ''} onClick={() => setFogMode(fogMode === 'hide' ? null : 'hide')}>Ocultar</button>
                   <button type="button" className={fogMode === 'reveal' ? 'is-active' : ''} onClick={() => setFogMode(fogMode === 'reveal' ? null : 'reveal')}>Revelar</button>
-                  <button type="button" onClick={clearFog}>Limpar</button>
+                  <button type="button" onClick={() => { if (window.confirm('Tirar a névoa de todos os cenários e do mapa?')) clearFog() }}>Limpar tudo</button>
                 </div>
-                <label className="range-control"><span>Pincel <b>{fogRadius} células</b></span>
-                  <input type="range" min="1" max="8" value={fogRadius} onChange={(event) => setFogBrushRadius(Number(event.target.value))} />
+                <label className="range-control"><span>Raio do pincel <b>{fogRadius} px</b></span>
+                  <input type="range" min="1" max="200" value={fogRadius} onChange={(event) => setFogBrushRadius(Number(event.target.value))} />
                 </label>
-                {fogMode && <small>Arraste no mapa para {fogMode === 'hide' ? 'ocultar' : 'revelar'} áreas.</small>}
+                {fogMode && <small>Arraste para {fogMode === 'hide' ? 'ocultar' : 'revelar'}. A névoa fica presa ao cenário onde o traço começa.</small>}
               </div>
               <label className="map-toggle">
                 <span>Grid quadrado</span>

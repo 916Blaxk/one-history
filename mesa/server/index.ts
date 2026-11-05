@@ -3,14 +3,15 @@ import { Server, type Socket } from 'socket.io'
 import { z } from 'zod'
 import { DiceExpressionError, rollDice } from '../src/features/chat/dice-parser.js'
 import type { ChatMessage } from '../src/features/chat/chat-types.js'
-import type { Token, TokenPosition, TokenSprite } from '../src/features/tokens/token-types.js'
+import { TAMANHO_MAXIMO, TAMANHO_MINIMO, alturaDoToken, type Token, type TokenPosition, type TokenSprite } from '../src/features/tokens/token-types.js'
 import type {
-  ClientToServerEvents, RoomCommand, RoomGrid, RoomPlayer, RoomScene, RoomSnapshot,
+  ClientToServerEvents, NevoaDaMesa, RoomCommand, RoomGrid, RoomPlayer, RoomScene, RoomSnapshot,
   ServerRoomMessage, ServerToClientEvents,
 } from '../src/shared/room-protocol.js'
 import {
   GM_TOKEN_FIELDS, NULLABLE_TOKEN_FIELDS, PLAYER_TOKEN_FIELDS, can, validCharacterId, validRollLabel,
 } from '../src/shared/permissions.js'
+import { CAMADA_MUNDO, MAX_NUMEROS_NEVOA, MAX_OPS_NEVOA, celulasParaOps, tamanhoDaNevoa } from '../src/shared/nevoa.js'
 import * as R from '../../lib/regras'
 import { expressaoDaAcao, itemDaAcao } from '../../lib/resumoFicha'
 import { ouvirMesa, type EventoMesa } from '../../lib/servidor/barramento'
@@ -53,9 +54,15 @@ function validScene(value: unknown): value is string {
     (value.match(/,([A-Za-z0-9+/]+={0,2})$/)?.[1].length ?? Infinity) * 0.75 <= 700_000
 }
 function isRoomScene(value: unknown): value is RoomScene {
-  return isRecord(value) && typeof value.id === 'string' && value.id.length <= 80 && validScene(value.imageUrl) &&
+  return isRecord(value) && typeof value.id === 'string' && value.id.length <= 80 && value.id !== CAMADA_MUNDO && validScene(value.imageUrl) &&
+    (value.nome === undefined || (typeof value.nome === 'string' && value.nome.length <= 60)) &&
+    (value.oculto === undefined || typeof value.oculto === 'boolean') &&
     isFiniteNumber(value.x) && isFiniteNumber(value.y) && Number.isFinite(value.width) && Number(value.width) > 0 && Number(value.width) <= 10000 &&
     Number.isFinite(value.height) && Number(value.height) > 0 && Number(value.height) <= 10000
+}
+/* Em quartos de célula: o bastante para ajuste fino, e os valores continuam exatos na grade. */
+function tamanhoValido(value: unknown) {
+  return typeof value === 'number' && value >= TAMANHO_MINIMO && value <= TAMANHO_MAXIMO && Number.isInteger(value * 4)
 }
 function validSprite(value: unknown): value is TokenSprite {
   if (!isRecord(value) || typeof value.id !== 'string' || value.id.length > 80 ||
@@ -74,7 +81,7 @@ function validToken(value: unknown, sprites: TokenSprite[]): value is Token {
   const resource = (n: unknown) => n === undefined || (typeof n === 'number' && Number.isFinite(n) && n >= 0 && n <= 999_999)
   return typeof value.id === 'string' && value.id.length <= 80 && typeof value.name === 'string' &&
     value.name.length >= 1 && value.name.length <= 32 && isFiniteNumber(value.x) && isFiniteNumber(value.y) &&
-    [1, 2, 3, 4].includes(value.size as number) && Number.isInteger(value.size) && typeof value.rotation === 'number' &&
+    tamanhoValido(value.size) && (value.altura === undefined || tamanhoValido(value.altura)) && typeof value.rotation === 'number' &&
     Number.isFinite(value.rotation) && value.rotation >= 0 && value.rotation < 360 && Array.isArray(ids) &&
     ids.length <= MAX_SPRITES_PER_TOKEN && ids.every((id) => typeof id === 'string') && ids.length === sprites.length &&
     ids.every((id, i) => id === sprites[i]?.id) && (value.activeSpriteId === null ||
@@ -105,8 +112,14 @@ const esquemaComando = z.discriminatedUnion('type', [
   z.object({ type: z.literal('player:remove'), playerKey: z.string().max(100) }),
   z.object({ type: z.literal('scene:add'), scene: z.unknown().refine(isRoomScene) }),
   z.object({ type: z.literal('scene:move'), id: idCurto, x: numero, y: numero }),
+  z.object({ type: z.literal('scene:update'), id: idCurto, nome: z.string().max(60).optional(), oculto: z.boolean().optional() }),
   z.object({ type: z.literal('scene:remove'), id: idCurto }),
-  z.object({ type: z.literal('fog:paint'), x: numero, y: numero, radius: z.number().int().min(1).max(8), reveal: z.boolean() }),
+  z.object({
+    type: z.literal('fog:traco'), camada: idCurto, revelar: z.boolean(), raio: z.number().int().min(1).max(300),
+    pontos: z.array(z.number().int().min(-1_000_000).max(1_000_000)).min(2).max(256).refine((p) => p.length % 2 === 0),
+  }),
+  z.object({ type: z.literal('fog:cobrir'), camada: idCurto }),
+  z.object({ type: z.literal('fog:limpar'), camada: idCurto }),
   z.object({ type: z.literal('fog:clear') }),
   z.object({
     type: z.literal('chat:send'),
@@ -121,7 +134,7 @@ const esquemaComando = z.discriminatedUnion('type', [
 ])
 const esquemaEntrada = z.object({ campanhaId: z.string().min(1).max(80) })
 
-function snap(value: number, size: Token['size'], cellSize: number) {
+function snap(value: number, size: number, cellSize: number) {
   return (Math.round(value / cellSize - size / 2) + size / 2) * cellSize
 }
 
@@ -135,7 +148,7 @@ class RoomState {
   privateMessages = new Map<string, ChatMessage[]>()
   grid: RoomGrid = { ...defaultGrid }
   scenes: RoomScene[] = []
-  fogCells = new Set<string>()
+  nevoa: NevoaDaMesa = {}
   lastMoveAt = new Map<string, number>()
   cleanupTimer?: ReturnType<typeof setTimeout>
   /* Só para saber quem vê a vida e a mana de um token vinculado, sem consultar o banco a cada envio. */
@@ -156,8 +169,8 @@ class RoomState {
       tokens: tokens.map((token) => visaoDoToken(this, token, player)),
       spritesByTokenId: Object.fromEntries([...this.sprites].filter(([id]) => ids.has(id))),
       grid: this.grid,
-      scenes: this.scenes,
-      fogCells: [...this.fogCells],
+      scenes: player.role === 'gm' ? this.scenes : this.scenes.filter((scene) => !scene.oculto),
+      nevoa: player.role === 'gm' ? this.nevoa : Object.fromEntries(Object.entries(this.nevoa).filter(([camada]) => !camadaOculta(this, camada))),
       messages: [...this.messages, ...(this.privateMessages.get(player.id) ?? [])]
         .sort((a, b) => a.timestamp - b.timestamp).slice(-200),
       players: [...this.players.values()],
@@ -180,6 +193,19 @@ const rooms = new Map<string, RoomState>()
 const carregando = new Map<string, Promise<RoomState>>()
 
 function broadcast(room: RoomState, message: ServerRoomMessage) { io.to(room.code).emit('room:event', message) }
+function camadaOculta(room: RoomState, camada: string) {
+  return room.scenes.some((scene) => scene.id === camada && scene.oculto)
+}
+/* O que é de cenário oculto vai só para o mestre: é isso que mantém a preparação escondida dos jogadores. */
+function paraQuemVe(room: RoomState, oculto: boolean, message: ServerRoomMessage, exceto?: string) {
+  const destino = oculto ? io.to(playerRoom(room.code, room.mestreId)) : io.to(room.code)
+  ;(exceto ? destino.except(exceto) : destino).emit('room:event', message)
+}
+function paraJogadores(room: RoomState, message: ServerRoomMessage) {
+  for (const player of room.players.values()) {
+    if (player.status === 'connected' && player.role !== 'gm') io.to(playerRoom(room.code, player.id)).emit('room:event', message)
+  }
+}
 function deny(socket: TableSocket) { socket.emit('room:event', { type: 'permission:error' }) }
 function playerRoom(code: string, playerKey: string) { return `${code}:player:${playerKey}` }
 function broadcastPlayers(room: RoomState) {
@@ -240,8 +266,8 @@ function estadoDaSala(room: RoomState) {
     tokens: [...room.tokens.values()],
     sprites: Object.fromEntries([...room.sprites].map(([id, lista]) => [id, lista.map(({ id: sid, label }) => ({ id: sid, label }))])),
     grid: room.grid,
-    scenes: room.scenes.map(({ id, x, y, width, height }) => ({ id, x, y, width, height })),
-    fogCells: [...room.fogCells],
+    scenes: room.scenes.map(({ id, x, y, width, height, nome, oculto }) => ({ id, x, y, width, height, nome, oculto })),
+    nevoa: room.nevoa,
     espectadores: [...room.espectadores],
   }
   return { estado, imagens }
@@ -402,7 +428,7 @@ async function handleCommand(socket: TableSocket, room: RoomState, player: RoomP
       if (!can(player.role, 'token:move', token, player.id)) return deny(socket)
       const now = Date.now(); if (!message.final && now - (room.lastMoveAt.get(player.id) ?? 0) < 35) return
       room.lastMoveAt.set(player.id, now)
-      const position = message.final && room.grid.enabled ? { x: snap(message.position.x, token.size, room.grid.cellSize), y: snap(message.position.y, token.size, room.grid.cellSize) } : message.position
+      const position = message.final && room.grid.enabled ? { x: snap(message.position.x, token.size, room.grid.cellSize), y: snap(message.position.y, alturaDoToken(token), room.grid.cellSize) } : message.position
       room.tokens.set(message.id, { ...token, ...position })
       if (!token.hidden) {
         socket.to(room.code).emit('room:event', { type: 'token:moved', id: message.id, position, final: message.final, playerId: socket.id })
@@ -419,41 +445,73 @@ async function handleCommand(socket: TableSocket, room: RoomState, player: RoomP
       if (!can(player.role, 'grid:update')) return deny(socket)
       if (!validGrid(message.grid)) return
       room.grid = message.grid
-      if (room.grid.enabled) for (const [id, token] of room.tokens) room.tokens.set(id, { ...token, x: snap(token.x, token.size, room.grid.cellSize), y: snap(token.y, token.size, room.grid.cellSize) })
+      if (room.grid.enabled) for (const [id, token] of room.tokens) room.tokens.set(id, { ...token, x: snap(token.x, token.size, room.grid.cellSize), y: snap(token.y, alturaDoToken(token), room.grid.cellSize) })
       broadcastSnapshots(room); return
     }
     case 'scene:add':
       if (!can(player.role, 'fog:update')) return deny(socket)
       if (!isRoomScene(message.scene) || room.scenes.length >= 30 || room.scenes.some((item) => item.id === message.scene.id)) return
       room.scenes = [...room.scenes, message.scene]
-      broadcast(room, { type: 'scene:added', scene: message.scene }); return
+      paraQuemVe(room, Boolean(message.scene.oculto), { type: 'scene:added', scene: message.scene }); return
     case 'scene:move': {
       if (!can(player.role, 'fog:update')) return deny(socket)
       const scene = room.scenes.find((item) => item.id === message.id); if (!scene) return
       room.scenes = room.scenes.map((item) => item.id === scene.id ? { ...item, x: message.x, y: message.y } : item)
-      broadcast(room, { type: 'scene:moved', id: message.id, x: message.x, y: message.y }); return
+      paraQuemVe(room, Boolean(scene.oculto), { type: 'scene:moved', id: message.id, x: message.x, y: message.y }); return
     }
-    case 'scene:remove':
+    case 'scene:update': {
       if (!can(player.role, 'fog:update')) return deny(socket)
-      if (!room.scenes.some((item) => item.id === message.id)) return
+      const scene = room.scenes.find((item) => item.id === message.id); if (!scene) return
+      const atualizado: RoomScene = { ...scene }
+      if (message.nome !== undefined) atualizado.nome = message.nome.trim()
+      if (message.oculto !== undefined) atualizado.oculto = message.oculto
+      room.scenes = room.scenes.map((item) => item.id === scene.id ? atualizado : item)
+      const aviso: ServerRoomMessage = { type: 'scene:updated', id: scene.id, nome: atualizado.nome, oculto: atualizado.oculto }
+      io.to(playerRoom(room.code, room.mestreId)).emit('room:event', aviso)
+      /* Para os jogadores, mostrar é o cenário chegar, com a névoa já pronta, e esconder é ele sumir. */
+      if (Boolean(scene.oculto) !== Boolean(atualizado.oculto)) {
+        paraJogadores(room, atualizado.oculto
+          ? { type: 'scene:removed', id: scene.id }
+          : { type: 'scene:added', scene: atualizado, nevoa: room.nevoa[scene.id] ?? [], focar: true })
+      } else if (!atualizado.oculto) paraJogadores(room, aviso)
+      return
+    }
+    case 'scene:remove': {
+      if (!can(player.role, 'fog:update')) return deny(socket)
+      const scene = room.scenes.find((item) => item.id === message.id); if (!scene) return
       room.scenes = room.scenes.filter((item) => item.id !== message.id)
-      broadcast(room, { type: 'scene:removed', id: message.id }); return
-    case 'fog:paint': {
-      if (!can(player.role, 'fog:update')) return deny(socket)
-      const cellSize = room.grid.cellSize
-      const centerX = Math.floor(message.x / cellSize), centerY = Math.floor(message.y / cellSize)
-      const changed: string[] = []
-      for (let dx = -message.radius; dx <= message.radius; dx++) for (let dy = -message.radius; dy <= message.radius; dy++) {
-        if (dx * dx + dy * dy > message.radius * message.radius + 0.5) continue
-        const key = `${centerX + dx},${centerY + dy}`
-        if (message.reveal) { if (room.fogCells.delete(key)) changed.push(key) }
-        else if (room.fogCells.size < 40000 && !room.fogCells.has(key)) { room.fogCells.add(key); changed.push(key) }
-      }
-      if (changed.length) broadcast(room, { type: 'fog:updated', cells: changed, reveal: message.reveal }); return
+      delete room.nevoa[message.id]
+      paraQuemVe(room, Boolean(scene.oculto), { type: 'scene:removed', id: message.id }); return
     }
+    case 'fog:traco': {
+      if (!can(player.role, 'fog:update')) return deny(socket)
+      if (message.camada !== CAMADA_MUNDO && !room.scenes.some((item) => item.id === message.camada)) return
+      const tamanho = tamanhoDaNevoa(room.nevoa)
+      if (tamanho.ops >= MAX_OPS_NEVOA || tamanho.numeros + message.pontos.length > MAX_NUMEROS_NEVOA) {
+        socket.emit('room:event', { type: 'chat:error', text: 'A névoa desta mesa chegou ao limite. Use Cobrir ou Limpar em um cenário para liberar espaço.' })
+        /* O navegador já pintou o traço: isto o traz de volta ao que ficou guardado. */
+        socket.emit('room:snapshot', room.snapshot(player), socket.id)
+        return
+      }
+      const op = { tipo: 'traco' as const, revelar: message.revelar, raio: message.raio, pontos: message.pontos }
+      room.nevoa[message.camada] = [...(room.nevoa[message.camada] ?? []), op]
+      paraQuemVe(room, camadaOculta(room, message.camada), { type: 'fog:traco', camada: message.camada, op }, socket.id)
+      return
+    }
+    case 'fog:cobrir':
+      if (!can(player.role, 'fog:update')) return deny(socket)
+      if (!room.scenes.some((item) => item.id === message.camada)) return
+      room.nevoa[message.camada] = [{ tipo: 'cobrir' }]
+      paraQuemVe(room, camadaOculta(room, message.camada), { type: 'fog:camada', camada: message.camada, ops: room.nevoa[message.camada]! })
+      return
+    case 'fog:limpar':
+      if (!can(player.role, 'fog:update')) return deny(socket)
+      delete room.nevoa[message.camada]
+      paraQuemVe(room, camadaOculta(room, message.camada), { type: 'fog:camada', camada: message.camada, ops: [] })
+      return
     case 'fog:clear':
       if (!can(player.role, 'fog:update')) return deny(socket)
-      room.fogCells.clear(); broadcast(room, { type: 'fog:cleared' }); return
+      room.nevoa = {}; broadcast(room, { type: 'fog:cleared' }); return
     case 'chat:send': {
       const text = message.message.text.trim().slice(0, MAX_MESSAGE_LENGTH); if (!text) return
       const type = message.message.type
@@ -554,7 +612,8 @@ async function carregarSala(campanhaId: string) {
   if (salva) {
     const e = salva.estado
     room.grid = e.grid
-    room.fogCells = new Set(e.fogCells)
+    room.nevoa = e.nevoa ?? {}
+    if (e.fogCells?.length && !room.nevoa[CAMADA_MUNDO]) room.nevoa[CAMADA_MUNDO] = celulasParaOps(e.fogCells, e.grid.cellSize)
     room.espectadores = new Set(e.espectadores)
     room.scenes = e.scenes.flatMap((c) => {
       const imageUrl = salva.imagens.get(c.id)

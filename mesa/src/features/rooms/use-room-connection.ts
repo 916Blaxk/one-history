@@ -22,6 +22,7 @@ export function useRoomConnection(campanhaId: string) {
     }) as Socket<ServerToClientEvents, ClientToServerEvents>
     let active = true
     let ready = false
+    let primeiroSnapshot = true
     const pending: RoomCommand[] = []
     const send = (message: RoomCommand) => {
       if (!active) return
@@ -61,15 +62,20 @@ export function useRoomConnection(campanhaId: string) {
     }
     const onSnapshot = (snapshot: Parameters<ServerToClientEvents['room:snapshot']>[0], playerId: string) => {
       if (!active) return
+      /* Antes de tudo: o mapa usa o papel para decidir como desenhar a névoa. */
+      useRoomStore.getState().setRole(snapshot.role)
       useTokenStore.getState().applyRoomSnapshot(snapshot.tokens, snapshot.spritesByTokenId)
       useUiStore.getState().applyRoomGrid(snapshot.grid)
       useUiStore.getState().applyRoomScenes(snapshot.scenes)
-      useUiStore.getState().applyFogCells(snapshot.fogCells)
+      useUiStore.getState().applyNevoa(snapshot.nevoa)
       useChatStore.getState().replaceRoomMessages(snapshot.messages)
       useRoomStore.getState().setPlayers(snapshot.players)
       useRoomStore.getState().setPlayerId(playerId)
       useRoomStore.getState().setPlayerKey(snapshot.selfId)
-      useRoomStore.getState().setRole(snapshot.role)
+      /* O cenário pode estar longe do centro do mapa: quem chega não precisa procurá-lo. */
+      const ultimoCenario = snapshot.scenes[snapshot.scenes.length - 1]
+      if (primeiroSnapshot && snapshot.role !== 'gm' && ultimoCenario) useUiStore.getState().focarEm(ultimoCenario.x, ultimoCenario.y)
+      primeiroSnapshot = false
       useRoomStore.getState().setStatus('connected')
       ready = true
       while (pending.length) socket.emit('room:command', pending.shift()!)
@@ -93,18 +99,27 @@ export function useRoomConnection(campanhaId: string) {
         case 'scene:added':
           useUiStore.setState((state) => state.scenes.some((scene) => scene.id === message.scene.id)
             ? state : { scenes: [...state.scenes, message.scene] })
+          if (message.nevoa) useUiStore.getState().applyNevoaCamada(message.scene.id, message.nevoa)
+          if (message.focar) useUiStore.getState().focarEm(message.scene.x, message.scene.y)
+          break
+        case 'scene:updated':
+          useUiStore.setState((state) => ({ scenes: state.scenes.map((scene) => scene.id === message.id ? { ...scene, nome: message.nome, oculto: message.oculto } : scene) }))
           break
         case 'scene:moved':
           useUiStore.setState((state) => ({ scenes: state.scenes.map((scene) => scene.id === message.id ? { ...scene, x: message.x, y: message.y } : scene) }))
           break
         case 'scene:removed':
           useUiStore.setState((state) => ({ scenes: state.scenes.filter((scene) => scene.id !== message.id) }))
+          useUiStore.getState().applyNevoaCamada(message.id, [])
           break
-        case 'fog:updated':
-          useUiStore.getState().applyFogUpdate(message.cells, message.reveal)
+        case 'fog:traco':
+          useUiStore.getState().applyNevoaOp(message.camada, message.op)
+          break
+        case 'fog:camada':
+          useUiStore.getState().applyNevoaCamada(message.camada, message.ops)
           break
         case 'fog:cleared':
-          useUiStore.getState().applyFogCells([])
+          useUiStore.getState().applyNevoa({})
           break
         case 'chat:message':
           useChatStore.getState().receiveRoomMessage(message.message)

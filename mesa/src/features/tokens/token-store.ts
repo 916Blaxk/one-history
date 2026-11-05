@@ -4,6 +4,7 @@ import type {
   TokenPosition,
   TokenSprite,
 } from '@mesa/features/tokens/token-types'
+import { alturaDoToken } from '@mesa/features/tokens/token-types'
 import {
   isRoomMode,
   sendRoomCommand,
@@ -48,7 +49,7 @@ type TokenState = {
   applyRoomPosition: (id: string, position: TokenPosition) => void
 }
 
-function snapCenter(value: number, size: Token['size'], cellSize: number) {
+function snapCenter(value: number, size: number, cellSize: number) {
   return (Math.round(value / cellSize - size / 2) + size / 2) * cellSize
 }
 
@@ -217,7 +218,7 @@ export const useTokenStore = create<TokenState>((set) => ({
     if (!token) return
     const position = {
       x: snapCenter(token.x, token.size, cellSize),
-      y: snapCenter(token.y, token.size, cellSize),
+      y: snapCenter(token.y, alturaDoToken(token), cellSize),
     }
     set((state) => ({
       tokens: state.tokens.map((token) =>
@@ -237,7 +238,7 @@ export const useTokenStore = create<TokenState>((set) => ({
       tokens: state.tokens.map((token) => ({
         ...token,
         x: snapCenter(token.x, token.size, cellSize),
-        y: snapCenter(token.y, token.size, cellSize),
+        y: snapCenter(token.y, alturaDoToken(token), cellSize),
       })),
     }))
   },
