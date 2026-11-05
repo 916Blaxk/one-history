@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "rootDir": ".",
+    "outDir": "dist-server",
+    "strict": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "baseUrl": ".",
+    "paths": { "@/*": ["./src/*"] },
+    "types": ["node"]
+  },
+  "include": [
+    "server/**/*.ts",
+    "src/shared/room-protocol.ts",
+    "src/features/chat/dice-parser.ts",
+    "src/features/chat/dice-types.ts",
+    "src/features/chat/chat-types.ts",
+    "src/features/tokens/token-types.ts",
+    "src/shared/permissions.ts"
+  ]
+}
