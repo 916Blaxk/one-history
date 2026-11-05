@@ -19,7 +19,7 @@ const ALFABETO_CODIGO = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 const FOTO_VALIDA = /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/;
 const CAMPOS_FICHA = new Set(['player', 'nome', 'idade', 'raca', 'estilo', 'tier', 'inventario', 'notas', 'manaPerdida', 'fadiga', 'vidaAtual', 'manaAtual', 'magias']);
 /* O núcleo define os SP: se o jogador pudesse mudá-lo, o limite de SP não valeria nada. */
-const CAMPOS_MESTRE = new Set(['ajustes', 'limites', 'nucleo']);
+const CAMPOS_MESTRE = new Set(['ajustes', 'limites', 'nucleo', 'publica']);
 const JANELA_MS = 15 * 60 * 1000;
 
 export class Erro extends Error {
@@ -172,7 +172,7 @@ function resumoFicha(f: LinhaFicha, usuarioId: string, mestreId: string, nomes: 
   /* Vida, mana e fadiga dos outros não saem do servidor para quem não é mestre. */
   if (f.donoId !== usuarioId && mestreId !== usuarioId) return { ...base, completo: false };
   return {
-    ...base, completo: true, estilo: f.dados.estilo, tier: f.dados.tier, fadiga: f.dados.fadiga,
+    ...base, completo: true, ...(mestreId === usuarioId && f.donoId === mestreId ? { privada: R.fichaPrivada(f, mestreId) } : {}), estilo: f.dados.estilo, tier: f.dados.tier, fadiga: f.dados.fadiga,
     vidaAtual: f.dados.vidaAtual, vidaMax: R.vidaMax(f.dados), manaAtual: f.dados.manaAtual, manaMax: R.manaMax(f.dados),
   };
 }
@@ -395,7 +395,7 @@ rota('POST', '/api/fichas', async ctx => {
   const [{ n }] = await db.select({ n: count() }).from(fichas).where(eq(fichas.donoId, ctx.usuario.id));
   if (n >= LIMITE_FICHAS) throw new Erro(400, `Sua conta chegou ao limite de ${LIMITE_FICHAS} fichas. Apague alguma para criar outra.`);
   /* Quem cria ou importa uma ficha ainda não tem mestre: um arquivo editado não pode trazer núcleo, bônus nem passar dos SP. */
-  const dados = R.normalizar({ ...ctx.corpo.dados, ajustes: undefined, limites: undefined, nucleo: undefined });
+  const dados = R.normalizar({ ...ctx.corpo.dados, ajustes: undefined, limites: undefined, nucleo: undefined, publica: undefined });
   R.aplicarTravasDoJogador(dados, R.normalizar({}));
   if (!dados.player) dados.player = ctx.usuario.nome;
   const foto = fotoDaEntrada(ctx.corpo.dados?.foto);
@@ -411,9 +411,13 @@ rota('GET', '/api/fichas/:id/resumo', async ctx => resumoDaFicha(await fichaEdit
 
 rota('GET', '/api/fichas/:id', async ctx => ({ ficha: await comContexto(await fichaEditavel(ctx.params.id, ctx.usuario), ctx.usuario) }));
 
+async function fotoLiberada(f: { donoId: string; dados: R.DadosFicha }, campanhaId: string, usuarioId: string) {
+  const [c] = await db.select({ mestreId: campanhas.mestreId }).from(campanhas).where(eq(campanhas.id, campanhaId));
+  return c?.mestreId === usuarioId || !R.fichaPrivada(f, c?.mestreId ?? '');
+}
 rota('GET', '/api/fichas/:id/foto', async ctx => {
-  const [f] = await db.select({ foto: fichas.foto, donoId: fichas.donoId, campanhaId: fichas.campanhaId }).from(fichas).where(eq(fichas.id, ctx.params.id));
-  const pode = f && (f.donoId === ctx.usuario.id || (f.campanhaId && await papelEm(f.campanhaId, ctx.usuario.id)));
+  const [f] = await db.select({ foto: fichas.foto, donoId: fichas.donoId, campanhaId: fichas.campanhaId, dados: fichas.dados }).from(fichas).where(eq(fichas.id, ctx.params.id));
+  const pode = f && (f.donoId === ctx.usuario.id || (f.campanhaId && await papelEm(f.campanhaId, ctx.usuario.id) && await fotoLiberada(f, f.campanhaId, ctx.usuario.id)));
   if (!pode || !f.foto) throw new Erro(404, 'Foto não encontrada.');
   return respostaFoto(f.foto, 'private, max-age=31536000, immutable');
 });
@@ -478,6 +482,9 @@ rota('POST', '/api/fichas/:id/rolar', async ctx => {
   } else {
     r = rolar(Number(ctx.corpo.lados), R.inteiro(ctx.corpo.bonus, -999, 999));
   }
+  const [campanha] = f.campanhaId ? await db.select({ mestreId: campanhas.mestreId }).from(campanhas).where(eq(campanhas.id, f.campanhaId)) : [];
+  /* Todos da mesa veem a rolagem: o nome, a foto e o id entregariam a ficha privada. */
+  if (campanha && R.fichaPrivada(f, campanha.mestreId)) return { rolagem: await registrarRolagem(f.campanhaId, null, ctx.usuario, 'Mestre', rotulo, r) };
   return { rolagem: await registrarRolagem(f.campanhaId, f.id, ctx.usuario, nomeFicha(f.dados), rotulo, r, f.fotoV) };
 });
 
@@ -494,7 +501,9 @@ rota('GET', '/api/campanhas', async ctx => {
   const nomes = await nomesDe(minhas.map(m => m.c.mestreId));
   const resumos = await Promise.all(minhas.map(async ({ c, papel }) => {
     const [{ n: jogadores }] = await db.select({ n: count() }).from(membros).where(and(eq(membros.campanhaId, c.id), eq(membros.papel, 'jogador')));
-    const [{ n: qtdFichas }] = await db.select({ n: count() }).from(fichas).where(eq(fichas.campanhaId, c.id));
+    /* A contagem também não pode revelar que o mestre tem fichas privadas. */
+    const visiveis = papel === 'mestre' ? undefined : sql`(${fichas.donoId} <> ${c.mestreId} or json_extract(${fichas.dados}, '$.publica') = 1)`;
+    const [{ n: qtdFichas }] = await db.select({ n: count() }).from(fichas).where(and(eq(fichas.campanhaId, c.id), visiveis));
     return { id: c.id, nome: c.nome, descricao: c.descricao, papel, mestreNome: nomes.get(c.mestreId) ?? 'Conta removida', jogadores, fichas: qtdFichas };
   }));
   return { mestre: resumos.filter(c => c.papel === 'mestre'), jogador: resumos.filter(c => c.papel === 'jogador') };
@@ -517,7 +526,8 @@ rota('GET', '/api/campanhas/:id', async ctx => {
   const c = await campanhaDoMembro(ctx.params.id, ctx.usuario);
   const souMestre = c.mestreId === ctx.usuario.id;
   const listaMembros = await db.select().from(membros).where(eq(membros.campanhaId, c.id));
-  const linhasFichas = await db.select(colunasFicha).from(fichas).where(eq(fichas.campanhaId, c.id));
+  const todasFichas = await db.select(colunasFicha).from(fichas).where(eq(fichas.campanhaId, c.id));
+  const linhasFichas = souMestre ? todasFichas : todasFichas.filter(f => !R.fichaPrivada(f, c.mestreId));
   const nomes = await nomesDe([...listaMembros.map(m => m.usuarioId), ...linhasFichas.map(f => f.donoId), c.mestreId]);
   const livres = await db.select({ id: fichas.id, dados: fichas.dados }).from(fichas)
     .where(and(eq(fichas.donoId, ctx.usuario.id), isNull(fichas.campanhaId)));

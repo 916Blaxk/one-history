@@ -221,6 +221,54 @@ describe('campanhas', () => {
     expect((await jog.c('DELETE', `/api/campanhas/${c.id}`)).status).toBe(403);
   });
 
+  it('ficha do mestre é privada para os jogadores até ele tornar pública', async () => {
+    const { mestre, jog, c, codigo, f: doJogador } = await mesa();
+    await jog.c('POST', `/api/convites/${codigo}/entrar`);
+    await jog.c('POST', `/api/campanhas/${c.id}/fichas`, { fichaId: doJogador.id });
+    /* Um arquivo importado não pode já vir público. */
+    const npc = (await mestre.c('POST', '/api/fichas', { dados: { nome: 'Vilão', raca: 'Lich', publica: true } })).corpo.ficha;
+    expect(npc.publica).toBe(false);
+    await mestre.c('POST', `/api/campanhas/${c.id}/fichas`, { fichaId: npc.id });
+    await mestre.c('PATCH', `/api/fichas/${npc.id}`, { foto: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==' });
+    const foto = `/api/fichas/${npc.id}/foto`;
+
+    const verJogador = async () => (await jog.c('GET', `/api/campanhas/${c.id}`)).corpo.fichas;
+    expect((await verJogador()).map((x: { nome: string }) => x.nome)).toEqual(['Kael']);
+    expect((await jog.c('GET', '/api/campanhas')).corpo.jogador[0].fichas).toBe(1);
+    expect((await jog.c('GET', foto)).status).toBe(404);
+    expect((await jog.c('GET', `/api/fichas/${npc.id}`)).status).toBe(404);
+    expect((await jog.c('PATCH', `/api/fichas/${npc.id}`, { publica: true })).status).toBe(404);
+
+    const doMestre = (await mestre.c('GET', `/api/campanhas/${c.id}`)).corpo.fichas;
+    expect(doMestre.find((x: { id: string }) => x.id === npc.id).privada).toBe(true);
+    expect(doMestre.find((x: { id: string }) => x.id === doJogador.id).privada).toBeUndefined();
+    expect((await mestre.c('GET', '/api/campanhas')).corpo.mestre[0].fichas).toBe(2);
+    expect((await mestre.c('GET', foto)).status).toBe(200);
+
+    /* A rolagem aparece para a mesa toda: não pode entregar nome, foto nem id. */
+    const privada = (await mestre.c('POST', `/api/fichas/${npc.id}/rolar`, { atributo: 'corpo.destreza' })).corpo.rolagem;
+    expect(privada).toMatchObject({ autor: 'Mestre', fichaId: null, fotoV: 0 });
+    const noChat = (await jog.c('GET', `/api/campanhas/${c.id}/chat`)).corpo.mensagens.at(-1);
+    expect(noChat).toMatchObject({ autor: 'Mestre', fichaId: null, fotoV: 0 });
+
+    /* Jogador não torna a própria ficha privada nem pública: o campo é ignorado. */
+    expect((await jog.c('PATCH', `/api/fichas/${doJogador.id}`, { publica: true })).corpo.ficha.publica).toBe(false);
+
+    expect((await mestre.c('PATCH', `/api/fichas/${npc.id}`, { publica: true })).corpo.ficha.publica).toBe(true);
+    const publica = (await verJogador()).find((x: { id: string }) => x.id === npc.id);
+    expect(publica).toMatchObject({ nome: 'Vilão', raca: 'Lich', completo: false });
+    for (const campo of ['fadiga', 'vidaAtual', 'manaAtual', 'vidaMax', 'manaMax', 'privada']) expect(publica[campo]).toBeUndefined();
+    expect((await jog.c('GET', '/api/campanhas')).corpo.jogador[0].fichas).toBe(2);
+    expect((await jog.c('GET', foto)).status).toBe(200);
+    expect((await jog.c('GET', `/api/fichas/${npc.id}`)).status).toBe(404);
+    const comNome = (await mestre.c('POST', `/api/fichas/${npc.id}/rolar`, { atributo: 'corpo.destreza' })).corpo.rolagem;
+    expect(comNome).toMatchObject({ autor: 'Vilão', fichaId: npc.id });
+
+    await mestre.c('PATCH', `/api/fichas/${npc.id}`, { publica: false });
+    expect((await verJogador()).map((x: { nome: string }) => x.nome)).toEqual(['Kael']);
+    expect((await jog.c('GET', foto)).status).toBe(404);
+  });
+
   it('mestre edita a ficha do jogador; colega não vê vida nem fadiga; mestre não apaga', async () => {
     const { mestre, jog, c, codigo, f } = await mesa();
     const colega = await novaConta('Colega');

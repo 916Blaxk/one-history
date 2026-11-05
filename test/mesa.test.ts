@@ -234,6 +234,21 @@ describe('papéis vêm do banco', () => {
     expect((await entrar(mestre, id)).snapshot.nevoa.prep).toHaveLength(3);
   });
 
+  it('rolagem de ficha privada do mestre aparece na mesa como Mestre', async () => {
+    const { mestre, jogador, id } = await mesaCompleta();
+    const npc = (await mestre.c('POST', '/api/fichas', { dados: { nome: 'Vilão', corpo: { destreza: 3 } } })).corpo.ficha;
+    await mestre.c('POST', `/api/campanhas/${id}/fichas`, { fichaId: npc.id });
+    const m = await entrar(mestre, id);
+    const j = await entrar(jogador, id);
+    m.comando({ type: 'ficha:rolar', fichaId: npc.id, acao: 'corpo.destreza' });
+    const privada = (await ate(() => j.eventos.find(e => e.type === 'chat:message'))).message;
+    expect(privada.author).toBe('Mestre');
+    expect(JSON.stringify(privada)).not.toContain('Vilão');
+    await mestre.c('PATCH', `/api/fichas/${npc.id}`, { publica: true });
+    m.comando({ type: 'ficha:rolar', fichaId: npc.id, acao: 'corpo.destreza' });
+    await ate(() => j.eventos.some(e => e.type === 'chat:message' && e.message.author === 'Vilão'));
+  });
+
   it('token tem largura e altura próprias, dentro dos limites, e cada eixo se alinha à grade', async () => {
     const { mestre, jogador, id } = await mesaCompleta();
     const m = await entrar(mestre, id);

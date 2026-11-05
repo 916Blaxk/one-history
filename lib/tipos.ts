@@ -28,6 +28,8 @@ export interface ResumoCampanha {
 
 export interface ResumoFicha {
   id: string; nome: string; raca: string; fotoV: number; donoId: string; donoNome: string; completo: boolean;
+  /* Só chega ao mestre, nas fichas dele. */
+  privada?: boolean;
   estilo?: string; tier?: number; fadiga?: number;
   vidaAtual?: number; vidaMax?: number; manaAtual?: number; manaMax?: number;
 }

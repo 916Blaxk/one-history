@@ -73,6 +73,8 @@ export interface DadosFicha {
   /* Só o mestre da campanha altera estes dois. `limites` usa chaves "grupo.item"; sem chave, não há limite. */
   ajustes: AjustesMestre; limites: Record<string, number>;
   magias: Magia[];
+  /* Só vale para ficha do mestre na própria campanha: sem isto, os jogadores não sabem que ela existe. */
+  publica: boolean;
 }
 
 type BaseVida = Pick<DadosFicha, 'corpo' | 'ajustes' | 'nucleo'>;
@@ -89,6 +91,7 @@ export function bonusNucleo(estagioNucleo: number | undefined) {
 export const spGastos = (f: Pick<DadosFicha, 'pericias'>) => Object.values(f.pericias).reduce((soma, v) => soma + v, 0);
 export const spTotal = (f: Pick<DadosFicha, 'nucleo' | 'ajustes'>) => Math.max(0, bonusNucleo(f.nucleo).sp + f.ajustes.sp);
 export const chaveLimite = (g: Grupo, k: string) => `${g}.${k}`;
+export const fichaPrivada = (f: { donoId: string; dados: Pick<DadosFicha, 'publica'> }, mestreId: string) => f.donoId === mestreId && !f.dados.publica;
 /* Lados do dado que a perícia soma à rolagem. O documento do sistema vai até 25; acima disso, o mestre pode liberar o valor, e o dado fica no maior. */
 export const dadoAdicional = (valor: number) => (valor <= 0 ? 0 : valor <= 5 ? 2 : valor <= 10 ? 4 : valor <= 15 ? 6 : valor <= 20 ? 8 : 10);
 /* O gasto universal do núcleo desconta do custo de toda magia, sem deixar o custo negativo. */
@@ -180,6 +183,7 @@ export function normalizar(entrada: unknown): DadosFicha {
     },
     limites: {},
     magias: normalizarMagias(o.magias),
+    publica: o.publica === true,
   };
   for (const g of NOMES_GRUPOS) for (const [k] of GRUPOS[g]) {
     f[g][k] = inteiro(o[g]?.[k], 0, 999);

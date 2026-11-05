@@ -561,8 +561,10 @@ async function handleCommand(socket: TableSocket, room: RoomState, player: RoomP
       /* O bônus vem da ficha guardada: o navegador só diz qual atributo rolar. */
       const expression = expressaoDaAcao(item.grupo, ficha.dados[item.grupo][item.chave])
       const roll = rollDice(expression)
+      /* Todos da mesa veem a rolagem: o nome e o id entregariam a ficha privada. */
+      const privada = R.fichaPrivada(ficha, room.mestreId)
       await gravarRolagem({
-        campanhaId: room.code, fichaId: ficha.id, usuarioId: player.id, autor: ficha.dados.nome || 'Sem nome',
+        campanhaId: room.code, fichaId: privada ? null : ficha.id, usuarioId: player.id, autor: privada ? 'Mestre' : ficha.dados.nome || 'Sem nome',
         rotulo: item.rotulo, det: textoDaRolagem(roll), total: roll.total, expressao: expression, detalhe: roll,
       })
       return

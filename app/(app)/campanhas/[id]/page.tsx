@@ -98,9 +98,14 @@ export default function PaginaCampanha() {
                   <ul>
                     {fichas.map(f => (
                       <li className="rol-item rol-item-acao" key={f.id}>
-                        <LinhaFicha f={f} meta={[`Jogador: ${f.donoNome}`, f.raca, f.estilo].filter(Boolean).join(' · ')} />
+                        <LinhaFicha f={f} meta={[f.privada === undefined ? `Jogador: ${f.donoNome}` : f.privada ? 'Privada: os jogadores não veem' : 'Pública: os jogadores veem nome, foto e raça', f.raca, f.estilo].filter(Boolean).join(' · ')} />
                         {/* O espaço fica reservado mesmo sem botão, para as colunas continuarem alinhadas com o cabeçalho. */}
                         <div className="rol-acao">
+                          {f.privada !== undefined && (
+                            <button type="button" className="btn btn-pequeno" onClick={() => agir(() => api('PATCH', `/api/fichas/${f.id}`, { publica: f.privada }), f.privada ? 'Agora os jogadores veem esta ficha.' : 'Agora os jogadores não veem esta ficha.')}>
+                              {f.privada ? 'Tornar pública' : 'Tornar privada'}
+                            </button>
+                          )}
                           {f.completo && (
                             <BotaoConfirmar className="btn btn-pequeno" rotulo="Retirar" confirmar="Confirmar" aoConfirmar={() => agir(() => api('DELETE', `${url}/fichas/${f.id}`), 'Ficha retirada da campanha.')} />
                           )}

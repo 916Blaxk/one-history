@@ -360,3 +360,26 @@ test('conta: trocar nome atualiza a navegação; código errado explica o proble
   await p.goto('/convite/NAOEXISTE');
   await expect(p.getByText('Esse código não abre nenhuma campanha.')).toBeVisible();
 });
+
+test('ficha do mestre: o jogador só vê depois que ele a torna pública', async ({ browser }) => {
+  const mestre = await novaPessoa(browser, 'Mestra Ana');
+  const jogador = await novaPessoa(browser, 'Jogador Bia');
+  const { campanha } = await (await mestre.request.post('/api/campanhas', { data: { nome: 'Segredos', descricao: '' } })).json();
+  const detalhe = await (await mestre.request.get(`/api/campanhas/${campanha.id}`)).json();
+  await jogador.request.post(`/api/convites/${detalhe.campanha.codigo}/entrar`, { data: {} });
+  const { ficha } = await (await mestre.request.post('/api/fichas', { data: { dados: { nome: 'Vilão Oculto' } } })).json();
+  await mestre.request.post(`/api/campanhas/${campanha.id}/fichas`, { data: { fichaId: ficha.id } });
+
+  await mestre.goto(`/campanhas/${campanha.id}`);
+  await jogador.goto(`/campanhas/${campanha.id}`);
+  await expect(mestre.getByText('Privada: os jogadores não veem')).toBeVisible();
+  await expect(jogador.getByRole('heading', { name: 'Segredos' })).toBeVisible();
+  await expect(jogador.getByText('Vilão Oculto')).toHaveCount(0);
+
+  await mestre.getByRole('button', { name: 'Tornar pública' }).click();
+  await expect(mestre.getByText('Pública: os jogadores veem nome, foto e raça')).toBeVisible();
+  await expect(jogador.getByText('Vilão Oculto')).toBeVisible({ timeout: 8000 });
+
+  await mestre.getByRole('button', { name: 'Tornar privada' }).click();
+  await expect(jogador.getByText('Vilão Oculto')).toHaveCount(0, { timeout: 8000 });
+});
