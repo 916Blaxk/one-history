@@ -1,0 +1,64 @@
+# Unificação do Tablebola no One History
+
+Registro do diagnóstico (Fase 0), das decisões e do andamento. O pedido autorizou seguir sem pausas entre as fases, então as recomendações abaixo foram aplicadas como padrão. Cada uma pode ser trocada depois.
+
+## Arquitetura escolhida
+
+**Opção 1: o cliente do Tablebola vira uma rota só de cliente do Next, com um servidor Node próprio que roda o Next e o Socket.IO no mesmo processo e na mesma porta.**
+
+| | Opção 1: dentro do Next | Opção 2: Vite em monorepo |
+|---|---|---|
+| Mesmo login | Direto: mesma origem, cookie no handshake | Exige proxy para manter a mesma origem |
+| `npm run dev` único | Sim | Precisa de dois processos |
+| Build e deploy | Um só | Dois builds e cópia dos arquivos do Vite |
+| Tempo real entre ficha e mesa | Mesmo processo: um evento interno basta | Mesmo servidor só se houver proxy e integração extra |
+| Custo | Servidor próprio em vez de `next start` | Menos mudança no código, mais peças para sempre |
+
+### Impacto no deploy
+
+- **Vercel não serve:** ela não mantém conexões Socket.IO.
+- **Serve:** um serviço Node de longa duração, com **uma única instância** (Railway, Render, Fly.io ou VPS). O estado da mesa e o aviso entre ficha e mesa ficam na memória do processo.
+- **Banco:** disco permanente com SQLite (`dados/`), ou Turso se a hospedagem não tiver disco. O plano completo está na seção "Deploy".
+
+## Dependências novas no One History
+
+| Pacote | Por quê |
+|---|---|
+| `pixi.js` | Desenha o mapa, os tokens e a névoa |
+| `socket.io` | Servidor de tempo real da mesa |
+| `socket.io-client` | Conexão do navegador, na mesa e na ficha |
+| `zustand` | Estado da mesa no navegador, como o Tablebola já usa |
+| `lucide-react` | Ícones dos painéis da mesa |
+| `tsx` | Roda `servidor.ts` e o código TypeScript da mesa em produção, sem etapa extra de compilação |
+
+Ficam de fora: `react-router-dom` (o Next faz as rotas), `tailwindcss`, `clsx`, `tailwind-merge` e `class-variance-authority` (só serviam a dois componentes, trocados por CSS simples), `dotenv` (o Next já carrega o ambiente), `vite` e `concurrently`.
+
+## O que vira uma coisa só
+
+| Tema | One History | Tablebola | Como fica |
+|---|---|---|---|
+| Identidade | Conta e sessão em cookie | UUID no cliente | Conta do One History; o cookie é validado no handshake |
+| Sala | Campanha | Código de 6 letras | A campanha é a sala |
+| GM | Mestre da campanha | Primeiro a entrar | Mestre da campanha, sempre lido do banco |
+| Jogador | Membro da campanha | Quem entrou | Membro da campanha |
+| Dados | `crypto.randomInt`, d20 + bônus | Parser completo | Parser do Tablebola para tudo, mantendo o formato das rolagens atuais |
+| Chat | Só rolagens, no banco | Tudo, na memória | Rolagens em `rolagens`, texto em `mensagens_mesa` |
+| Vida e mana | `fichas.dados` | Campos do token | O token vinculado espelha a ficha; quem manda é a ficha |
+| Tempo real | Consulta a cada 3 s | Socket.IO | Socket.IO; a consulta continua como reserva |
+| Persistência | Banco | Memória | Tabelas `mesas` e `mesa_imagens` |
+
+## Decisões tomadas
+
+1. **Pasta do código:** `mesa/`, trazida com `git subtree`, preservando o histórico.
+2. **Idioma do código portado:** os nomes em inglês do Tablebola ficam como estão, porque renomear milhares de linhas só traria risco. Código novo segue em português.
+3. **Estilos isolados:** a página da mesa carrega só o próprio CSS, para as classes `chat-*` dos dois projetos não colidirem. Por isso, o caminho entre o site e a mesa recarrega a página.
+4. **Visual:** a mesa adota as fontes do One History e mantém o tema escuro com dourado, que combina com o mapa. A troca de tema é só CSS, se preferir outro.
+5. **Espectador:** não existe no banco. O mestre pode marcar um membro como espectador dentro da mesa, e isso fica salvo com a mesa. Mestre nunca deixa de ser GM, e ninguém mais pode virar GM.
+6. **Remover na mesa:** tira a pessoa só da mesa até o servidor reiniciar. Remover da campanha continua sendo na página da campanha, e também tira a pessoa da mesa na hora.
+7. **Privacidade da vida:** hoje um colega não vê vida nem mana de outra ficha. Isso vale na mesa: em token vinculado, esses valores só chegam ao mestre e ao dono da ficha. Tokens sem ficha seguem visíveis para todos, como no Tablebola.
+8. **Vínculo:** só o mestre ou o dono da ficha vincula, e a ficha precisa estar na campanha. Se a ficha sair da campanha ou for apagada, o token é desvinculado sozinho.
+9. **Vida e mana no token vinculado:** só o mestre e o dono da ficha alteram. O máximo vem sempre da ficha.
+10. **Chat do site:** as páginas de ficha e de campanha continuam mostrando só rolagens. A mesa mostra rolagens e texto.
+11. **Migração do chat:** nenhum dado é reescrito. Rolagens antigas aparecem na mesa como texto, e as novas guardam também os dados completos.
+12. **Integração antiga:** removida com sua aprovação: rotas `/api/integracao`, chaves, `/embutido` e mini-ficha por chave. A tabela `chaves_integracao` continua no banco, sem uso, porque as migrações são só aditivas.
+13. **Merge:** o trabalho acontece na branch `mesa-unificada`, com merge em `main` deste repositório depois de testado, como você autorizou. A produção passa a exigir o servidor próprio em vez de `next start`. O repositório `Table_Bola` não é alterado.
