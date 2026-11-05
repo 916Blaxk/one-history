@@ -423,7 +423,7 @@ io.on('connection', (socket) => {
     const connections = room.connections.get(playerKey) ?? new Set<string>()
     connections.add(client.id)
     room.connections.set(playerKey, connections)
-    client.emit('room:snapshot', room.snapshot(player), player.id)
+    client.emit('room:snapshot', room.snapshot(player), client.id)
     broadcastPlayers(room)
   })
   client.on('room:command', (value) => {
