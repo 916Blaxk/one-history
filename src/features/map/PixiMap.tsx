@@ -3,7 +3,9 @@ import { Application, Container, Graphics, Sprite, Texture } from 'pixi.js'
 import { useUiStore } from '@/stores/ui-store'
 import { useTokenStore } from '@/features/tokens/token-store'
 import { isRoomMode, sendRoomMove } from '@/features/rooms/room-commands'
+import { useRoomStore } from '@/features/rooms/room-store'
 import type { TokenSprite } from '@/features/tokens/token-types'
+import type { RoomScene } from '@/shared/room-protocol'
 import {
   createTokenView,
   destroyTokenView,
@@ -40,12 +42,13 @@ export function PixiMap({
     let resizeObserver: ResizeObserver | undefined
     let cleanupPixi = () => {}
     let unsubscribe = () => {}
-    let backgroundSprite: Sprite | undefined
-    let backgroundVersion = 0
-    let currentBackgroundUrl: string | null = null
+    const sceneSprites = new Map<string, Sprite>()
+    const sceneVersions = new Map<string, number>()
     let currentCellSize = useUiStore.getState().grid.cellSize
     let currentGridEnabled = useUiStore.getState().grid.enabled
     let tokensLayer: Container | undefined
+    let sceneLayer: Container | undefined
+    let fogGraphics: Graphics | undefined
     let unsubscribeTokens = () => {}
     const tokenViews = new Map<string, TokenView>()
     let spaceDown = false
@@ -74,6 +77,9 @@ export function PixiMap({
           moved: boolean
         }
       | undefined
+    let sceneDrag: { id: string; pointerId: number; offsetX: number; offsetY: number } | undefined
+    let fogPointerId: number | null = null
+    let lastFogCell = ''
 
     const initialize = async () => {
       const pixi = new Application()
@@ -100,17 +106,22 @@ export function PixiMap({
       const world = new Container()
       const backgroundLayer = new Container()
       const gridLayer = new Container()
+      const fogLayer = new Container()
       const tokenContainer = new Container()
       const uiLayer = new Container()
-      world.addChild(backgroundLayer, gridLayer, tokenContainer, uiLayer)
+      world.addChild(backgroundLayer, gridLayer, tokenContainer, fogLayer, uiLayer)
       tokensLayer = tokenContainer
+      sceneLayer = backgroundLayer
       pixi.stage.addChild(world)
       const gridGraphics = new Graphics()
       gridLayer.addChild(gridGraphics)
+      fogGraphics = new Graphics()
+      fogLayer.addChild(fogGraphics)
 
       const renderTokens = () => {
         const tokenState = useTokenStore.getState()
         const state = useUiStore.getState()
+        const { playerKey, role } = useRoomStore.getState()
         const currentIds = new Set(tokenState.tokens.map((token) => token.id))
         for (const [id, view] of tokenViews) {
           if (!currentIds.has(id)) {
@@ -137,6 +148,12 @@ export function PixiMap({
             state.grid.cellSize,
             tokenState.selectedTokenId,
             state.camera.zoom,
+            playerKey,
+            !isRoomMode() ||
+              role === 'gm' ||
+              (role === 'player' &&
+                !token.hidden &&
+                Boolean(playerKey && token.ownerIds.includes(playerKey))),
           )
           if (
             view.activeSpriteId !== (activeSprite?.id ?? null) ||
@@ -198,6 +215,17 @@ export function PixiMap({
             useUiStore.getState().grid.cellSize,
             useTokenStore.getState().selectedTokenId,
             useUiStore.getState().camera.zoom,
+            useRoomStore.getState().playerKey,
+            !isRoomMode() ||
+              useRoomStore.getState().role === 'gm' ||
+              (useRoomStore.getState().role === 'player' &&
+                !currentToken.hidden &&
+                Boolean(
+                  useRoomStore.getState().playerKey &&
+                    currentToken.ownerIds.includes(
+                      useRoomStore.getState().playerKey!,
+                    ),
+                )),
           )
         } catch {
           if (!disposed && version === view.imageVersion)
@@ -240,31 +268,45 @@ export function PixiMap({
             width: 1 / camera.zoom,
           })
         }
-        if (state.backgroundUrl !== currentBackgroundUrl) {
-          currentBackgroundUrl = state.backgroundUrl
-          void setBackground(state.backgroundUrl)
+        const liveSceneIds = new Set(state.scenes.map((scene) => scene.id))
+        for (const [id, sprite] of sceneSprites) if (!liveSceneIds.has(id)) {
+          sprite.destroy({ texture: true, textureSource: true })
+          sceneSprites.delete(id)
         }
+        for (const scene of state.scenes) {
+          const sprite = sceneSprites.get(scene.id)
+          if (sprite) sprite.position.set(scene.x, scene.y)
+          else void loadScene(scene)
+        }
+        fogGraphics?.clear()
+        for (const cell of state.fogCells) {
+          const [x, y] = cell.split(',').map(Number)
+          if (!Number.isFinite(x) || !Number.isFinite(y)) continue
+          fogGraphics?.rect(x * grid.cellSize, y * grid.cellSize, grid.cellSize, grid.cellSize)
+        }
+        if (state.fogCells.length) fogGraphics?.fill({ color: 0x090a0d, alpha: 0.94 })
         renderTokens()
       }
 
-      const setBackground = async (url: string | null) => {
-        const version = ++backgroundVersion
-        backgroundSprite?.destroy({ texture: true, textureSource: true })
-        backgroundSprite = undefined
-        backgroundLayer.removeChildren()
-        if (!url) return
+      const loadScene = async (scene: RoomScene) => {
+        const version = (sceneVersions.get(scene.id) ?? 0) + 1
+        sceneVersions.set(scene.id, version)
         const image = new Image()
-        image.src = url
+        image.src = scene.imageUrl
         try {
           await image.decode()
-          if (disposed || version !== backgroundVersion || !app) return
+          if (disposed || sceneVersions.get(scene.id) !== version || !app ||
+              !useUiStore.getState().scenes.some((item) => item.id === scene.id)) return
           const texture = Texture.from(image)
           const sprite = new Sprite(texture)
           sprite.anchor.set(0.5)
-          backgroundSprite = sprite
-          backgroundLayer.addChild(sprite)
+          sprite.position.set(scene.x, scene.y)
+          sprite.width = scene.width
+          sprite.height = scene.height
+          sceneSprites.set(scene.id, sprite)
+          sceneLayer?.addChild(sprite)
         } catch {
-          // Invalid or not-yet-readable local images leave the themed canvas visible.
+          // Ignore broken images and keep other scene layers available.
         }
       }
 
@@ -362,6 +404,14 @@ export function PixiMap({
         const worldX = (point.x - camera.x) / camera.zoom
         const worldY = (point.y - camera.y) / camera.zoom
         const canSelect = event.pointerType === 'touch' || event.button === 0
+        const { role } = useRoomStore.getState()
+        const fogMode = useUiStore.getState().fogMode
+        if (canSelect && fogMode && (!isRoomMode() || role === 'gm')) {
+          fogPointerId = event.pointerId
+          lastFogCell = ''
+          paintFogAt(worldX, worldY)
+          return
+        }
         const tokenState = useTokenStore.getState()
         const selectedToken = tokenState.tokens.find(
           (token) => token.id === tokenState.selectedTokenId,
@@ -404,16 +454,33 @@ export function PixiMap({
             : undefined
         if (hitToken) {
           tokenState.selectToken(hitToken.id)
-          tokenDrag = {
-            id: hitToken.id,
-            pointerId: event.pointerId,
-            offsetX: worldX - hitToken.x,
-            offsetY: worldY - hitToken.y,
-            moved: false,
-          }
+          const { playerKey, role } = useRoomStore.getState()
+          const canMove =
+            !isRoomMode() ||
+            role === 'gm' ||
+            (role === 'player' &&
+              !hitToken.hidden &&
+              Boolean(playerKey && hitToken.ownerIds.includes(playerKey)))
+          tokenDrag = canMove
+            ? {
+                id: hitToken.id,
+                pointerId: event.pointerId,
+                offsetX: worldX - hitToken.x,
+                offsetY: worldY - hitToken.y,
+                moved: false,
+              }
+            : undefined
           panStart = undefined
           canvas.classList.remove('is-panning')
           return
+        }
+        if (canSelect && (!isRoomMode() || role === 'gm') && !spaceDown) {
+          const hitScene = [...useUiStore.getState().scenes].reverse().find((scene) =>
+            Math.abs(worldX - scene.x) <= scene.width / 2 && Math.abs(worldY - scene.y) <= scene.height / 2)
+          if (hitScene) {
+            sceneDrag = { id: hitScene.id, pointerId: event.pointerId, offsetX: worldX - hitScene.x, offsetY: worldY - hitScene.y }
+            return
+          }
         }
         if (canSelect && event.button !== 1 && !spaceDown)
           tokenState.selectToken(null)
@@ -439,7 +506,15 @@ export function PixiMap({
         if (!point) return
         point.x = event.clientX - rect.left
         point.y = event.clientY - rect.top
-        if (tokenDrag?.pointerId === event.pointerId) {
+        if (fogPointerId === event.pointerId) {
+          const camera = useUiStore.getState().camera
+          paintFogAt((point.x - camera.x) / camera.zoom, (point.y - camera.y) / camera.zoom)
+        } else if (sceneDrag?.pointerId === event.pointerId) {
+          const camera = useUiStore.getState().camera
+          useUiStore.getState().moveScene(sceneDrag.id,
+            (point.x - camera.x) / camera.zoom - sceneDrag.offsetX,
+            (point.y - camera.y) / camera.zoom - sceneDrag.offsetY)
+        } else if (tokenDrag?.pointerId === event.pointerId) {
           const camera = useUiStore.getState().camera
           useTokenStore.getState().updateTokenPosition(tokenDrag.id, {
             x: (point.x - camera.x) / camera.zoom - tokenDrag.offsetX,
@@ -470,6 +545,8 @@ export function PixiMap({
 
       function onPointerEnd(event: PointerEvent) {
         if (!pointers.has(event.pointerId)) return
+        if (fogPointerId === event.pointerId) fogPointerId = null
+        if (sceneDrag?.pointerId === event.pointerId) sceneDrag = undefined
         if (tokenDrag?.pointerId === event.pointerId) {
           if (tokenDrag.moved) finalizeTokenMove(tokenDrag.id)
           tokenDrag = undefined
@@ -495,6 +572,16 @@ export function PixiMap({
             cameraY: camera.y,
           }
         }
+      }
+
+      function paintFogAt(x: number, y: number) {
+        const state = useUiStore.getState()
+        const cellX = Math.floor(x / state.grid.cellSize)
+        const cellY = Math.floor(y / state.grid.cellSize)
+        const key = `${cellX},${cellY}`
+        if (key === lastFogCell) return
+        lastFogCell = key
+        state.paintFog(x, y, state.fogBrushRadius, state.fogMode === 'reveal')
       }
 
       function onKeyDown(event: KeyboardEvent) {
@@ -560,7 +647,8 @@ export function PixiMap({
       cleanupPixi()
       for (const view of tokenViews.values()) destroyTokenView(view)
       tokenViews.clear()
-      backgroundSprite?.destroy({ texture: true, textureSource: true })
+      for (const sprite of sceneSprites.values()) sprite.destroy({ texture: true, textureSource: true })
+      sceneSprites.clear()
       if (app && appInitialized) {
         app.destroy(true, {
           children: true,

@@ -1,5 +1,5 @@
 const MAX_SCENE_SIDE = 3072
-const MAX_SCENE_DATA_URL_LENGTH = 4_000_000
+const MAX_SCENE_DATA_URL_LENGTH = 920_000
 
 export async function fileToRoomScene(file: File) {
   const objectUrl = URL.createObjectURL(file)
@@ -16,7 +16,7 @@ export async function fileToRoomScene(file: File) {
     if (!context)
       throw new Error('Este navegador não conseguiu processar o cenário.')
 
-    for (const sizeScale of [1, 0.8, 0.65, 0.5]) {
+    for (const sizeScale of [1, 0.8, 0.65, 0.5, 0.4, 0.3, 0.2, 0.15]) {
       canvas.width = Math.max(
         1,
         Math.round(image.naturalWidth * initialScale * sizeScale),

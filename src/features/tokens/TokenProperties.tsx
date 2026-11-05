@@ -6,6 +6,8 @@ import { useUiStore } from '@/stores/ui-store'
 import type { Token } from '@/features/tokens/token-types'
 import type { TokenSprite } from '@/features/tokens/token-types'
 import { useBottomSheetDismiss } from '@/hooks/use-bottom-sheet-dismiss'
+import { isRoomMode } from '@/features/rooms/room-commands'
+import { useRoomStore } from '@/features/rooms/room-store'
 
 const EMPTY_SPRITES: TokenSprite[] = []
 
@@ -32,12 +34,30 @@ export function TokenProperties({
   const renameTokenSprite = useTokenStore((state) => state.renameTokenSprite)
   const selectTokenSprite = useTokenStore((state) => state.selectTokenSprite)
   const removeTokenSprite = useTokenStore((state) => state.removeTokenSprite)
+  const players = useRoomStore((state) => state.players)
+  const playerKey = useRoomStore((state) => state.playerKey)
+  const role = useRoomStore((state) => state.role)
   const mobileMode = mobileOpen !== undefined
   const contentVisible = mobileMode ? mobileOpen : !collapsed
   const dragHandlers = useBottomSheetDismiss(Boolean(mobileOpen), onMobileClose)
 
   if (!token) return null
   const selectedToken = token
+  const inRoom = isRoomMode()
+  const canEdit =
+    !inRoom ||
+    role === 'gm' ||
+    (role === 'player' &&
+      !selectedToken.hidden &&
+      Boolean(playerKey && selectedToken.ownerIds.includes(playerKey)))
+  const isGM = !inRoom || role === 'gm'
+  const canRemove =
+    !inRoom ||
+    role === 'gm' ||
+    (role === 'player' &&
+      selectedToken.createdByPlayerKey === playerKey &&
+      !selectedToken.hidden)
+  if (!canEdit) return null
 
   function setValue(changes: Partial<Omit<Token, 'id'>>) {
     updateToken(selectedToken.id, changes)
@@ -87,15 +107,17 @@ export function TokenProperties({
           >
             {collapsed ? <ChevronDown size={17} /> : <ChevronUp size={17} />}
           </button>
-          <button
-            className="token-remove-icon"
-            type="button"
-            aria-label="Remover token"
-            title="Remover token"
-            onClick={() => removeToken(token.id)}
-          >
-            <X size={17} />
-          </button>
+          {canRemove && (
+            <button
+              className="token-remove-icon"
+              type="button"
+              aria-label="Remover token"
+              title="Remover token"
+              onClick={() => removeToken(token.id)}
+            >
+              <X size={17} />
+            </button>
+          )}
           <button
             className="mobile-sheet-close"
             type="button"
@@ -117,32 +139,67 @@ export function TokenProperties({
               onChange={(event) => setValue({ name: event.target.value })}
             />
           </label>
-          <div className="token-field-row">
-            <label className="token-field">
-              Tamanho
-              <select
-                value={selectedToken.size}
-                onChange={(event) =>
-                  changeSize(Number(event.target.value) as Token['size'])
-                }
-              >
-                <option value={1}>1 célula</option>
-                <option value={2}>2 células</option>
-                <option value={3}>3 células</option>
-                <option value={4}>4 células</option>
-              </select>
-            </label>
-            <label className="token-field">
-              Cor
-              <input
-                className="token-color"
-                aria-label="Cor do token"
-                type="color"
-                value={selectedToken.color}
-                onChange={(event) => setValue({ color: event.target.value })}
-              />
-            </label>
-          </div>
+          {isGM && (
+            <div className="token-field-row">
+              <label className="token-field">
+                Tamanho
+                <select
+                  value={selectedToken.size}
+                  onChange={(event) =>
+                    changeSize(Number(event.target.value) as Token['size'])
+                  }
+                >
+                  <option value={1}>1 célula</option>
+                  <option value={2}>2 células</option>
+                  <option value={3}>3 células</option>
+                  <option value={4}>4 células</option>
+                </select>
+              </label>
+              <label className="token-field">
+                Cor
+                <input
+                  className="token-color"
+                  aria-label="Cor do token"
+                  type="color"
+                  value={selectedToken.color}
+                  onChange={(event) => setValue({ color: event.target.value })}
+                />
+              </label>
+            </div>
+          )}
+          {isGM && inRoom && (
+            <>
+              <label className="token-field">
+                Jogadores donos
+                <select
+                  multiple
+                  value={selectedToken.ownerIds}
+                  onChange={(event) =>
+                    setValue({
+                      ownerIds: Array.from(
+                        event.currentTarget.selectedOptions,
+                        (option) => option.value,
+                      ),
+                    })
+                  }
+                >
+                  {players.map((player) => (
+                    <option key={player.id} value={player.id}>
+                      {player.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="token-flip-toggle">
+                <input
+                  type="checkbox"
+                  checked={selectedToken.hidden}
+                  onChange={(event) => setValue({ hidden: event.target.checked })}
+                />
+                <span>Oculto para jogadores</span>
+              </label>
+            </>
+          )}
           <label className="token-field token-rotation">
             Rotação <b>{selectedToken.rotation}°</b>
             <input
@@ -317,13 +374,15 @@ export function TokenProperties({
               </label>
             </div>
           </section>
-          <button
-            className="token-delete-button"
-            type="button"
-            onClick={() => removeToken(selectedToken.id)}
-          >
-            <Trash2 size={15} /> Remover token
-          </button>
+          {canRemove && (
+            <button
+              className="token-delete-button"
+              type="button"
+              onClick={() => removeToken(selectedToken.id)}
+            >
+              <Trash2 size={15} /> Remover token
+            </button>
+          )}
         </CardContent>
       )}
     </Card>

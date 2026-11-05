@@ -516,6 +516,55 @@ button {
 .reset-button:hover {
   background: #c49a5229;
 }
+.scene-list {
+  display: grid;
+  gap: 4px;
+  margin: 8px 0 14px;
+}
+.scene-list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 38px;
+  padding: 0 8px 0 10px;
+  border-radius: 6px;
+  color: #ddd5c8;
+  background: #ffffff08;
+  font-size: 12px;
+}
+.scene-list-item button,
+.fog-controls button {
+  display: inline-grid;
+  place-items: center;
+  min-width: 40px;
+  min-height: 40px;
+  border: 0;
+  border-radius: 6px;
+  color: #cfc5b4;
+  background: transparent;
+}
+.scene-list-item button:hover,
+.fog-controls button:hover,
+.fog-controls button.is-active {
+  color: #f2d18d;
+  background: #c49a5222;
+}
+.fog-controls {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid #ffffff12;
+  color: #ddd5c8;
+  font-size: 12px;
+}
+.fog-controls > div {
+  display: flex;
+  gap: 4px;
+  margin-top: 4px;
+}
+.fog-controls small {
+  color: #d0c5b4;
+  font-size: 12px;
+}
 .map-toggle {
   display: flex;
   align-items: center;
@@ -1773,6 +1822,54 @@ button {
 }
 .room-copy-link:hover {
   background: #c49a5214;
+}
+.room-player-management {
+  display: grid;
+  gap: 5px;
+  max-height: 180px;
+  overflow: auto;
+  padding-top: 5px;
+  border-top: 1px solid #ffffff16;
+}
+.room-player-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 5px;
+  color: #d8d0c3;
+  font-size: 11px;
+}
+.room-player-row span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.room-player-row select,
+.room-player-row button {
+  min-height: 27px;
+  border: 1px solid #ffffff20;
+  border-radius: 5px;
+  background: #101114;
+  color: #e8e1d3;
+  font: 11px 'DM Sans', sans-serif;
+}
+.room-player-row button {
+  padding: 0 6px;
+  color: #d8a19a;
+}
+.room-notice {
+  position: fixed;
+  z-index: 20;
+  top: 72px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 9px 14px;
+  border: 1px solid #c49a5255;
+  border-radius: 7px;
+  background: #17181af2;
+  color: #eee8dc;
+  font: 13px 'DM Sans', sans-serif;
+  box-shadow: 0 8px 26px #0008;
 }
 @keyframes room-pulse {
   to {

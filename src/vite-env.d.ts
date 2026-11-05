@@ -1,5 +1,5 @@
 interface ImportMetaEnv {
-  readonly VITE_PARTYKIT_HOST?: string
+  readonly VITE_SERVER_URL?: string
 }
 
 interface ImportMeta {

@@ -4,6 +4,7 @@ import {
   ChevronUp,
   ImagePlus,
   RotateCcw,
+  Trash2,
   UserRoundPlus,
   X,
 } from 'lucide-react'
@@ -13,6 +14,7 @@ import { useTokenStore } from '@/features/tokens/token-store'
 import { useBottomSheetDismiss } from '@/hooks/use-bottom-sheet-dismiss'
 import { isRoomMode } from '@/features/rooms/room-commands'
 import { fileToRoomScene } from '@/features/rooms/scene-serializer'
+import { useRoomStore } from '@/features/rooms/room-store'
 
 export function MapControls({
   mobileOpen,
@@ -23,33 +25,45 @@ export function MapControls({
 }) {
   const [collapsed, setCollapsed] = useState(false)
   const fileInput = useRef<HTMLInputElement>(null)
-  const previousUrl = useRef<string | null>(null)
   const grid = useUiStore((state) => state.grid)
   const setGrid = useUiStore((state) => state.setGrid)
-  const setBackgroundUrl = useUiStore((state) => state.setBackgroundUrl)
+  const scenes = useUiStore((state) => state.scenes)
+  const addScene = useUiStore((state) => state.addScene)
+  const removeScene = useUiStore((state) => state.removeScene)
+  const fogMode = useUiStore((state) => state.fogMode)
+  const fogRadius = useUiStore((state) => state.fogBrushRadius)
+  const setFogBrushRadius = useUiStore((state) => state.setFogBrushRadius)
+  const setFogMode = useUiStore((state) => state.setFogMode)
+  const clearFog = useUiStore((state) => state.clearFog)
   const addToken = useTokenStore((state) => state.addToken)
+  const role = useRoomStore((state) => state.role)
+  const gmControls = !isRoomMode() || role === 'gm'
+  const canCreateToken = !isRoomMode() || role === 'gm' || role === 'player'
   const mobileMode = mobileOpen !== undefined
   const contentVisible = mobileMode ? mobileOpen : !collapsed
   const dragHandlers = useBottomSheetDismiss(Boolean(mobileOpen), onMobileClose)
 
-  async function selectImage(file?: File) {
-    if (!file) return
-    if (isRoomMode()) {
+  async function selectImages(files: FileList | null) {
+    if (!files?.length) return
+    let sceneIndex = scenes.length
+    for (const file of Array.from(files)) {
+      const objectUrl = URL.createObjectURL(file)
       try {
-        setBackgroundUrl(await fileToRoomScene(file))
+        const image = new Image()
+        image.src = objectUrl
+        await image.decode()
+        const { camera } = useUiStore.getState()
+        const x = (window.innerWidth / 2 - camera.x) / camera.zoom + sceneIndex * 36
+        const y = (window.innerHeight / 2 - camera.y) / camera.zoom + sceneIndex * 36
+        const imageUrl = isRoomMode() ? await fileToRoomScene(file) : objectUrl
+        addScene({ id: crypto.randomUUID(), imageUrl, x, y, width: image.naturalWidth, height: image.naturalHeight })
+        sceneIndex += 1
+        if (isRoomMode()) URL.revokeObjectURL(objectUrl)
       } catch (error) {
-        window.alert(
-          error instanceof Error
-            ? error.message
-            : 'Não foi possível preparar o cenário.',
-        )
+        URL.revokeObjectURL(objectUrl)
+        window.alert(error instanceof Error ? error.message : 'Não foi possível preparar a imagem.')
       }
-      return
     }
-    if (previousUrl.current) URL.revokeObjectURL(previousUrl.current)
-    const url = URL.createObjectURL(file)
-    previousUrl.current = url
-    setBackgroundUrl(url)
   }
 
   function resetView() {
@@ -98,68 +112,98 @@ export function MapControls({
       </div>
       {contentVisible && (
         <CardContent className="map-panel-content mobile-sheet-content">
-          <input
-            ref={fileInput}
-            className="visually-hidden"
-            type="file"
-            accept="image/*"
-            onChange={(event) => {
-              void selectImage(event.currentTarget.files?.[0])
-              event.currentTarget.value = ''
-            }}
-          />
-          <button
-            className="upload-button"
-            type="button"
-            onClick={() => fileInput.current?.click()}
-          >
-            <ImagePlus size={17} /> Escolher imagem de fundo
-          </button>
-          <button
-            className="new-token-button"
-            type="button"
-            onClick={createToken}
-          >
-            <UserRoundPlus size={17} /> Novo token
-          </button>
-          <label className="map-toggle">
-            <span>Grid quadrado</span>
-            <input
-              type="checkbox"
-              checked={grid.enabled}
-              onChange={(event) => setGrid({ enabled: event.target.checked })}
-            />
-          </label>
-          <label className="range-control">
-            <span>
-              Tamanho da c&eacute;lula <b>{grid.cellSize} px</b>
-            </span>
-            <input
-              type="range"
-              min="30"
-              max="160"
-              step="5"
-              value={grid.cellSize}
-              onChange={(event) =>
-                setGrid({ cellSize: Number(event.target.value) })
-              }
-            />
-          </label>
-          <label className="range-control">
-            <span>
-              Opacidade <b>{Math.round(grid.opacity * 100)}%</b>
-            </span>
-            <input
-              type="range"
-              min="5"
-              max="70"
-              step="1"
-              value={Math.round(grid.opacity * 100)}
-              onChange={(event) =>
-                setGrid({ opacity: Number(event.target.value) / 100 })
-              }
-            />
-          </label>
+          {gmControls && (
+            <>
+              <input
+                ref={fileInput}
+                className="visually-hidden"
+                type="file"
+                multiple
+                accept="image/*"
+                onChange={(event) => {
+                  void selectImages(event.currentTarget.files)
+                  event.currentTarget.value = ''
+                }}
+              />
+              <button
+                className="upload-button"
+                type="button"
+                onClick={() => fileInput.current?.click()}
+              >
+                <ImagePlus size={17} /> Adicionar cenários
+              </button>
+              <div className="scene-list">
+                {scenes.map((scene, index) => (
+                  <div className="scene-list-item" key={scene.id}>
+                    <span>Cenário {index + 1}</span>
+                    <button type="button" aria-label={`Remover cenário ${index + 1}`} onClick={() => {
+                      if (scene.imageUrl.startsWith('blob:')) URL.revokeObjectURL(scene.imageUrl)
+                      removeScene(scene.id)
+                    }}><Trash2 size={15} /></button>
+                  </div>
+                ))}
+              </div>
+              <div className="fog-controls">
+                <span>Fog of war</span>
+                <div>
+                  <button type="button" className={fogMode === 'hide' ? 'is-active' : ''} onClick={() => setFogMode(fogMode === 'hide' ? null : 'hide')}>Ocultar</button>
+                  <button type="button" className={fogMode === 'reveal' ? 'is-active' : ''} onClick={() => setFogMode(fogMode === 'reveal' ? null : 'reveal')}>Revelar</button>
+                  <button type="button" onClick={clearFog}>Limpar</button>
+                </div>
+                <label className="range-control"><span>Pincel <b>{fogRadius} células</b></span>
+                  <input type="range" min="1" max="8" value={fogRadius} onChange={(event) => setFogBrushRadius(Number(event.target.value))} />
+                </label>
+                {fogMode && <small>Arraste no mapa para {fogMode === 'hide' ? 'ocultar' : 'revelar'} áreas.</small>}
+              </div>
+              <label className="map-toggle">
+                <span>Grid quadrado</span>
+                <input
+                  type="checkbox"
+                  checked={grid.enabled}
+                  onChange={(event) => setGrid({ enabled: event.target.checked })}
+                />
+              </label>
+              <label className="range-control">
+                <span>
+                  Tamanho da c&eacute;lula <b>{grid.cellSize} px</b>
+                </span>
+                <input
+                  type="range"
+                  min="30"
+                  max="160"
+                  step="5"
+                  value={grid.cellSize}
+                  onChange={(event) =>
+                    setGrid({ cellSize: Number(event.target.value) })
+                  }
+                />
+              </label>
+              <label className="range-control">
+                <span>
+                  Opacidade <b>{Math.round(grid.opacity * 100)}%</b>
+                </span>
+                <input
+                  type="range"
+                  min="5"
+                  max="70"
+                  step="1"
+                  value={Math.round(grid.opacity * 100)}
+                  onChange={(event) =>
+                    setGrid({ opacity: Number(event.target.value) / 100 })
+                  }
+                />
+              </label>
+            </>
+          )}
+          {canCreateToken && (
+            <button
+              className="new-token-button"
+              type="button"
+              onClick={createToken}
+            >
+              <UserRoundPlus size={17} /> Novo token
+            </button>
+          )}
           <button className="reset-button" type="button" onClick={resetView}>
             <RotateCcw size={15} /> Resetar vis&atilde;o
           </button>

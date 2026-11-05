@@ -1,23 +1,27 @@
-import type { ChatMessage } from '../features/chat/chat-types'
+import type { ChatMessage } from '../features/chat/chat-types.js'
 import type {
   Token,
   TokenPosition,
   TokenSprite,
-} from '../features/tokens/token-types'
+} from '../features/tokens/token-types.js'
 
 export type RoomGrid = { enabled: boolean; cellSize: number; opacity: number }
+export type RoomScene = { id: string; imageUrl: string; x: number; y: number; width: number; height: number }
 export type RoomPlayer = {
   id: string
   name: string
   status: 'connected' | 'offline'
+  role: 'gm' | 'player' | 'spectator'
 }
 export type RoomSnapshot = {
   tokens: Token[]
   spritesByTokenId: Record<string, TokenSprite[]>
   grid: RoomGrid
-  backgroundUrl: string | null
+  scenes: RoomScene[]
+  fogCells: string[]
   messages: ChatMessage[]
   players: RoomPlayer[]
+  role: RoomPlayer['role']
 }
 
 export type RoomTokenChanges = {
@@ -25,14 +29,23 @@ export type RoomTokenChanges = {
 }
 
 export type ClientRoomMessage =
-  | { type: 'join'; displayName: string }
+  | { type: 'join'; displayName: string; playerKey: string }
   | { type: 'token:create'; token: Token; sprites: TokenSprite[] }
   | { type: 'token:update'; id: string; changes: RoomTokenChanges }
   | { type: 'token:sprites'; id: string; sprites: TokenSprite[] }
+  | { type: 'token:sprite:add'; id: string; sprite: TokenSprite }
+  | { type: 'token:sprite:rename'; id: string; spriteId: string; label: string }
+  | { type: 'token:sprite:remove'; id: string; spriteId: string }
   | { type: 'token:remove'; id: string }
   | { type: 'token:move'; id: string; position: TokenPosition; final: boolean }
   | { type: 'grid:update'; grid: RoomGrid }
-  | { type: 'background:update'; backgroundUrl: string }
+  | { type: 'player:role'; playerKey: string; role: RoomPlayer['role'] }
+  | { type: 'player:remove'; playerKey: string }
+  | { type: 'scene:add'; scene: RoomScene }
+  | { type: 'scene:move'; id: string; x: number; y: number }
+  | { type: 'scene:remove'; id: string }
+  | { type: 'fog:paint'; x: number; y: number; radius: number; reveal: boolean }
+  | { type: 'fog:clear' }
   | {
       type: 'chat:send'
       message: {
@@ -61,8 +74,26 @@ export type ServerRoomMessage =
       playerId: string
     }
   | { type: 'grid:updated'; grid: RoomGrid; tokens: Token[] }
-  | { type: 'background:updated'; backgroundUrl: string }
+  | { type: 'scene:added'; scene: RoomScene }
+  | { type: 'scene:moved'; id: string; x: number; y: number }
+  | { type: 'scene:removed'; id: string }
+  | { type: 'fog:updated'; cells: string[]; reveal: boolean }
+  | { type: 'fog:cleared' }
   | { type: 'chat:message'; message: ChatMessage }
   | { type: 'chat:error'; text: string }
+  | { type: 'permission:error' }
+  | { type: 'player:kicked' }
   | { type: 'player:joined'; player: RoomPlayer; players: RoomPlayer[] }
   | { type: 'player:left'; playerId: string; players: RoomPlayer[] }
+
+export type RoomCommand = Exclude<ClientRoomMessage, { type: 'join' }>
+
+export interface ClientToServerEvents {
+  'room:join': (data: { roomCode: string; displayName: string; playerKey: string }) => void
+  'room:command': (message: RoomCommand) => void
+}
+
+export interface ServerToClientEvents {
+  'room:snapshot': (snapshot: RoomSnapshot, playerId: string) => void
+  'room:event': (message: ServerRoomMessage) => void
+}

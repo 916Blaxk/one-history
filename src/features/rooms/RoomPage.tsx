@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button'
 import { MapPage } from '@/features/map/MapPage'
 import { useRoomConnection } from '@/features/rooms/use-room-connection'
 import { useRoomStore } from '@/features/rooms/room-store'
+import { sendRoomCommand } from '@/features/rooms/room-commands'
+import type { RoomRole } from '@/shared/permissions'
 
 const DISPLAY_NAME_KEY = 'tablebola.display-name'
 
@@ -87,6 +89,8 @@ function ConnectedRoom({
   useRoomConnection(code, displayName)
   const status = useRoomStore((state) => state.status)
   const players = useRoomStore((state) => state.players)
+  const playerKey = useRoomStore((state) => state.playerKey)
+  const role = useRoomStore((state) => state.role)
   const notice = useRoomStore((state) => state.notice)
   const setNotice = useRoomStore((state) => state.setNotice)
 
@@ -125,12 +129,50 @@ function ConnectedRoom({
               ? players
                   .map(
                     (player) =>
-                      `${player.name}${player.status === 'offline' ? ' (offline)' : ''}`,
+                      `${player.name} · ${player.role === 'gm' ? 'GM' : player.role === 'player' ? 'Jogador' : 'Espectador'}${player.status === 'offline' ? ' (offline)' : ''}`,
                   )
                   .join(', ')
               : displayName}
           </span>
         </div>
+        {role === 'gm' && (
+          <div className="room-player-management" aria-label="Gerenciar papéis">
+            {players.map((player) =>
+              player.id === playerKey ? null : (
+                <div className="room-player-row" key={player.id}>
+                  <span>{player.name}</span>
+                  <select
+                    aria-label={`Papel de ${player.name}`}
+                    value={player.role}
+                    onChange={(event) =>
+                      sendRoomCommand({
+                        type: 'player:role',
+                        playerKey: player.id,
+                        role: event.target.value as RoomRole,
+                      })
+                    }
+                  >
+                    <option value="gm">GM</option>
+                    <option value="player">Jogador</option>
+                    <option value="spectator">Espectador</option>
+                  </select>
+                  <button
+                    type="button"
+                    aria-label={`Remover ${player.name}`}
+                    onClick={() =>
+                      sendRoomCommand({
+                        type: 'player:remove',
+                        playerKey: player.id,
+                      })
+                    }
+                  >
+                    Remover
+                  </button>
+                </div>
+              ),
+            )}
+          </div>
+        )}
         <button
           type="button"
           className="room-copy-link"
@@ -138,9 +180,18 @@ function ConnectedRoom({
           aria-label="Copiar link de convite"
         >
           {notice === 'Link copiado' ? <Check size={15} /> : <Copy size={15} />}
-          <span>{notice ?? 'Copiar link'}</span>
+          <span>
+            {notice === 'Link copiado' || notice?.startsWith('Não foi')
+              ? notice
+              : 'Copiar link'}
+          </span>
         </button>
       </aside>
+      {notice && notice !== 'Link copiado' && !notice.startsWith('Não foi') && (
+        <div className="room-notice" role="status">
+          {notice}
+        </div>
+      )}
     </>
   )
 }

@@ -11,6 +11,7 @@ export type TokenView = {
   shadow: Graphics
   sprite: Sprite
   selection: Graphics
+  ownerMark: Graphics
   health: Graphics
   label: Text
   flipButton: Graphics
@@ -46,6 +47,7 @@ export function createTokenView() {
     },
   })
   const selection = new Graphics()
+  const ownerMark = new Graphics()
   const health = new Graphics()
   const flipButton = new Graphics()
   const label = new Text({
@@ -70,6 +72,7 @@ export function createTokenView() {
     sprite,
     initials,
     selection,
+    ownerMark,
     health,
     label,
     flipButton,
@@ -83,6 +86,7 @@ export function createTokenView() {
     shadow,
     sprite,
     selection,
+    ownerMark,
     health,
     label,
     flipButton,
@@ -102,6 +106,8 @@ export function updateTokenView(
   cellSize: number,
   selectedId: string | null,
   zoom: number,
+  playerKey?: string | null,
+  canEdit = true,
 ) {
   const diameter = token.size * cellSize
   const radius = diameter / 2
@@ -145,6 +151,15 @@ export function updateTokenView(
         .circle(0, 0, radius)
         .stroke({ color: 0xe0b35d, width: 2 / zoom })
   }
+  view.ownerMark.clear()
+  if (playerKey && token.ownerIds.includes(playerKey)) {
+    view.ownerMark
+      .circle(radius * 0.62, radius * 0.62, Math.max(3, 5 / zoom))
+      .fill({ color: 0x17181a, alpha: 0.9 })
+    view.ownerMark
+      .circle(radius * 0.62, radius * 0.62, Math.max(2, 3.2 / zoom))
+      .fill(0xe0b35d)
+  }
 
   const belowBase = radius + 5
   const hasHealth = token.hpMax !== undefined && token.hpMax > 0
@@ -182,7 +197,7 @@ export function updateTokenView(
   view.label.position.set(0, belowBase + (barIndex * 8) / zoom)
   view.label.style.fontSize = Math.max(12, Math.min(16, 14 / zoom))
   view.flipButton.clear()
-  view.flipButton.visible = selectedId === token.id && hasImage
+  view.flipButton.visible = canEdit && selectedId === token.id && hasImage
   if (view.flipButton.visible) {
     const width = 42 / zoom
     const height = 28 / zoom

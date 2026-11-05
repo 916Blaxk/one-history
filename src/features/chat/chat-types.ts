@@ -1,4 +1,4 @@
-import type { DiceRollResult } from '@/features/chat/dice-types'
+import type { DiceRollResult } from './dice-types.js'
 
 export type ChatMessageType =
   'normal' | 'roll' | 'whisper' | 'gm' | 'action' | 'system'

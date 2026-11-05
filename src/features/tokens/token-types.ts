@@ -14,6 +14,9 @@ export type Token = {
   manaCurrent?: number
   manaMax?: number
   characterId?: string
+  ownerIds: string[]
+  hidden: boolean
+  createdByPlayerKey?: string
 }
 
 export type TokenSprite = {
@@ -24,12 +27,19 @@ export type TokenSprite = {
 
 export type LegacyImageToken = Omit<
   Token,
-  'spriteIds' | 'activeSpriteId' | 'flipX'
+  | 'spriteIds'
+  | 'activeSpriteId'
+  | 'flipX'
+  | 'ownerIds'
+  | 'hidden'
+  | 'createdByPlayerKey'
 > & {
   imageUrl?: string
   spriteIds?: string[]
   activeSpriteId?: string | null
   flipX?: boolean
+  ownerIds?: string[]
+  hidden?: boolean
 }
 
 export function migrateLegacyToken(token: LegacyImageToken) {
@@ -48,6 +58,8 @@ export function migrateLegacyToken(token: LegacyImageToken) {
       spriteIds: sprite ? [sprite.id] : [],
       activeSpriteId: sprite?.id ?? null,
       flipX: token.flipX ?? false,
+      ownerIds: token.ownerIds ?? [],
+      hidden: token.hidden ?? false,
     } satisfies Token,
     sprites: sprite ? [sprite] : [],
   }

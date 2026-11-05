@@ -1,7 +1,7 @@
-import type { ClientRoomMessage } from '@/shared/room-protocol'
+import type { RoomCommand } from '@/shared/room-protocol'
 import type { TokenPosition } from '@/features/tokens/token-types'
 
-type Sender = (message: ClientRoomMessage) => void
+type Sender = (message: RoomCommand) => void
 let sender: Sender | null = null
 let roomActive = false
 const moveTimers = new Map<string, ReturnType<typeof setTimeout>>()
@@ -19,7 +19,7 @@ export function setRoomCommandSender(nextSender: Sender | null) {
   }
 }
 
-export function sendRoomCommand(message: ClientRoomMessage) {
+export function sendRoomCommand(message: RoomCommand) {
   if (!sender) return false
   sender(message)
   return true

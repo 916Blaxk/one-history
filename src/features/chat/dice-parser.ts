@@ -4,7 +4,7 @@ import type {
   DiceSelection,
   DieResult,
   FlatModifier,
-} from '@/features/chat/dice-types'
+} from './dice-types.js'
 
 export class DiceExpressionError extends Error {
   constructor(message: string) {

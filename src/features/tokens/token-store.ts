@@ -67,6 +67,8 @@ export const useTokenStore = create<TokenState>((set) => ({
       activeSpriteId: null,
       flipX: false,
       color: tokenColors[Math.floor(Math.random() * tokenColors.length)],
+      ownerIds: [],
+      hidden: false,
     }
     if (sendRoomCommand({ type: 'token:create', token, sprites: [] }))
       return token
@@ -105,14 +107,9 @@ export const useTokenStore = create<TokenState>((set) => ({
               imageUrl: await fileToRoomImage(file),
             })),
           )
-          const state = useTokenStore.getState()
-          const token = state.tokens.find((item) => item.id === tokenId)
-          if (!token) return
-          sendRoomCommand({
-            type: 'token:sprites',
-            id: tokenId,
-            sprites: [...(state.spritesByTokenId[tokenId] ?? []), ...added],
-          })
+          if (!useTokenStore.getState().tokens.some((item) => item.id === tokenId)) return
+          for (const sprite of added)
+            sendRoomCommand({ type: 'token:sprite:add', id: tokenId, sprite })
         } catch (error) {
           window.alert(
             error instanceof Error
@@ -152,12 +149,7 @@ export const useTokenStore = create<TokenState>((set) => ({
   },
   renameTokenSprite: (tokenId, spriteId, label) => {
     if (isRoomMode()) {
-      const sprites = (
-        useTokenStore.getState().spritesByTokenId[tokenId] ?? []
-      ).map((sprite) =>
-        sprite.id === spriteId ? { ...sprite, label } : sprite,
-      )
-      sendRoomCommand({ type: 'token:sprites', id: tokenId, sprites })
+      sendRoomCommand({ type: 'token:sprite:rename', id: tokenId, spriteId, label })
       return
     }
     set((state) => ({
@@ -186,10 +178,7 @@ export const useTokenStore = create<TokenState>((set) => ({
   },
   removeTokenSprite: (tokenId, spriteId) => {
     if (isRoomMode()) {
-      const sprites = (
-        useTokenStore.getState().spritesByTokenId[tokenId] ?? []
-      ).filter((sprite) => sprite.id !== spriteId)
-      sendRoomCommand({ type: 'token:sprites', id: tokenId, sprites })
+      sendRoomCommand({ type: 'token:sprite:remove', id: tokenId, spriteId })
       return
     }
     set((state) => {

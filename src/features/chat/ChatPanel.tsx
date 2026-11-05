@@ -18,6 +18,7 @@ import { DiceExpressionError, rollDice } from '@/features/chat/dice-parser'
 import { useTokenStore } from '@/features/tokens/token-store'
 import { useBottomSheetDismiss } from '@/hooks/use-bottom-sheet-dismiss'
 import { isRoomMode, sendRoomCommand } from '@/features/rooms/room-commands'
+import { useRoomStore } from '@/features/rooms/room-store'
 
 const QUICK_DICE = [4, 6, 8, 10, 12, 20, 100]
 const COMMAND_HELP =
@@ -43,6 +44,8 @@ export function ChatPanel({
   const addMessage = useChatStore((state) => state.addMessage)
   const addToCommandHistory = useChatStore((state) => state.addToCommandHistory)
   const clearMessages = useChatStore((state) => state.clearMessages)
+  const role = useRoomStore((state) => state.role)
+  const spectator = isRoomMode() && role === 'spectator'
   const author = useTokenStore(
     (state) =>
       state.tokens.find((token) => token.id === state.selectedTokenId)?.name ??
@@ -279,7 +282,7 @@ export function ChatPanel({
               ))}
               <div ref={messagesEndRef} />
             </div>
-            <div className="quick-roller">
+            {!spectator && <div className="quick-roller">
               <button
                 className="mobile-quick-toggle"
                 type="button"
@@ -345,7 +348,7 @@ export function ChatPanel({
                   </label>
                 </div>
               </div>
-            </div>
+            </div>}
             <form className="chat-compose" onSubmit={submit}>
               <input
                 ref={inputRef}
