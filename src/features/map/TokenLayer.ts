@@ -73,7 +73,6 @@ export function createTokenView() {
     health,
     label,
     flipButton,
-    flipButtonY: 0,
   )
 
   return {
@@ -87,6 +86,7 @@ export function createTokenView() {
     health,
     label,
     flipButton,
+    flipButtonY: 0,
     texture: null,
     alphaMask: null,
     imageUrl: undefined,
@@ -186,13 +186,16 @@ export function updateTokenView(
   if (view.flipButton.visible) {
     const width = 42 / zoom
     const height = 28 / zoom
-    const y = view.label.position.y + Math.max(view.label.height, 16 / zoom) + 5 / zoom
+    const y =
+      view.label.position.y + Math.max(view.label.height, 16 / zoom) + 5 / zoom
     view.flipButtonY = y
-    view.flipButton.roundRect(-width / 2, y, width, height, 6 / zoom)
+    view.flipButton
+      .roundRect(-width / 2, y, width, height, 6 / zoom)
       .fill({ color: 0x17181a, alpha: 0.94 })
       .stroke({ color: 0xc49a52, alpha: 0.9, width: 1.5 / zoom })
     const iconY = y + height / 2
-    view.flipButton.moveTo(-9 / zoom, iconY - 4 / zoom)
+    view.flipButton
+      .moveTo(-9 / zoom, iconY - 4 / zoom)
       .lineTo(-3 / zoom, iconY - 4 / zoom)
       .lineTo(-3 / zoom, iconY + 4 / zoom)
       .lineTo(-9 / zoom, iconY + 4 / zoom)
@@ -201,7 +204,8 @@ export function updateTokenView(
       .lineTo(3 / zoom, iconY + 4 / zoom)
       .lineTo(9 / zoom, iconY + 4 / zoom)
       .stroke({ color: 0xe0b35d, width: 1.5 / zoom })
-    view.flipButton.moveTo(-12 / zoom, iconY)
+    view.flipButton
+      .moveTo(-12 / zoom, iconY)
       .lineTo(-7 / zoom, iconY - 3 / zoom)
       .moveTo(-12 / zoom, iconY)
       .lineTo(-7 / zoom, iconY + 3 / zoom)
