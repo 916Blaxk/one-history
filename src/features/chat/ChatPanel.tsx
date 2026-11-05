@@ -17,6 +17,7 @@ import type {
 import { DiceExpressionError, rollDice } from '@/features/chat/dice-parser'
 import { useTokenStore } from '@/features/tokens/token-store'
 import { useBottomSheetDismiss } from '@/hooks/use-bottom-sheet-dismiss'
+import { isRoomMode, sendRoomCommand } from '@/features/rooms/room-commands'
 
 const QUICK_DICE = [4, 6, 8, 10, 12, 20, 100]
 const COMMAND_HELP =
@@ -104,6 +105,11 @@ export function ChatPanel({
   }, [mobileMode])
 
   function postRoll(expression: string) {
+    if (isRoomMode()) {
+      sendRoomCommand({ type: 'chat:roll', expression })
+      setIsOpen(true)
+      return
+    }
     try {
       const roll = rollDice(expression)
       addMessage({ type: 'roll', author, text: expression, roll })
@@ -130,7 +136,12 @@ export function ChatPanel({
     setInput('')
 
     if (!raw.startsWith('/')) {
-      addMessage({ type: 'normal', author, text: raw })
+      if (isRoomMode())
+        sendRoomCommand({
+          type: 'chat:send',
+          message: { type: 'normal', text: raw },
+        })
+      else addMessage({ type: 'normal', author, text: raw })
       return
     }
 
@@ -147,6 +158,11 @@ export function ChatPanel({
           author: 'Sistema',
           text: 'Use /w <nome> <mensagem> para enviar um sussurro.',
         })
+      else if (isRoomMode())
+        sendRoomCommand({
+          type: 'chat:send',
+          message: { type: 'whisper', recipient: whisper[1], text: whisper[2] },
+        })
       else
         addMessage({
           type: 'whisper',
@@ -161,6 +177,11 @@ export function ChatPanel({
           author: 'Sistema',
           text: 'Use /gm <mensagem> para escrever uma mensagem ao mestre.',
         })
+      else if (isRoomMode())
+        sendRoomCommand({
+          type: 'chat:send',
+          message: { type: 'gm', text: argument.trim() },
+        })
       else addMessage({ type: 'gm', author, text: argument.trim() })
     } else if (command === 'me') {
       if (!argument.trim())
@@ -168,6 +189,11 @@ export function ChatPanel({
           type: 'system',
           author: 'Sistema',
           text: 'Use /me <ação> para narrar uma ação.',
+        })
+      else if (isRoomMode())
+        sendRoomCommand({
+          type: 'chat:send',
+          message: { type: 'action', text: argument.trim() },
         })
       else addMessage({ type: 'action', author, text: argument.trim() })
     } else if (command === 'clear' && !argument.trim()) {

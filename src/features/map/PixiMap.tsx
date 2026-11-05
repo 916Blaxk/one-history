@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import { Application, Container, Graphics, Sprite, Texture } from 'pixi.js'
 import { useUiStore } from '@/stores/ui-store'
 import { useTokenStore } from '@/features/tokens/token-store'
+import { isRoomMode, sendRoomMove } from '@/features/rooms/room-commands'
 import type { TokenSprite } from '@/features/tokens/token-types'
 import {
   createTokenView,
@@ -211,7 +212,7 @@ export function PixiMap({
           (grid.enabled && !currentGridEnabled)
         ) {
           currentCellSize = grid.cellSize
-          if (grid.enabled)
+          if (grid.enabled && !isRoomMode())
             useTokenStore.getState().snapTokensToGrid(grid.cellSize)
         }
         currentGridEnabled = grid.enabled
@@ -316,6 +317,19 @@ export function PixiMap({
         setCamera({ x: px - worldX * zoom, y: py - worldY * zoom, zoom })
       }
 
+      function finalizeTokenMove(id: string) {
+        const grid = useUiStore.getState().grid
+        if (grid.enabled) {
+          useTokenStore.getState().snapTokenToGrid(id, grid.cellSize)
+          return
+        }
+        if (!isRoomMode()) return
+        const token = useTokenStore
+          .getState()
+          .tokens.find((item) => item.id === id)
+        if (token) sendRoomMove(id, { x: token.x, y: token.y }, true)
+      }
+
       function onPointerDown(event: PointerEvent) {
         onMapInteractionRef.current?.()
         const rect = canvas.getBoundingClientRect()
@@ -328,14 +342,7 @@ export function PixiMap({
         pointers.set(event.pointerId, point)
         canvas.setPointerCapture(event.pointerId)
         if (pointers.size >= 2) {
-          if (tokenDrag && useUiStore.getState().grid.enabled) {
-            useTokenStore
-              .getState()
-              .snapTokenToGrid(
-                tokenDrag.id,
-                useUiStore.getState().grid.cellSize,
-              )
-          }
+          if (tokenDrag?.moved) finalizeTokenMove(tokenDrag.id)
           tokenDrag = undefined
           panStart = undefined
           const pair = [...pointers.values()].slice(0, 2)
@@ -464,14 +471,7 @@ export function PixiMap({
       function onPointerEnd(event: PointerEvent) {
         if (!pointers.has(event.pointerId)) return
         if (tokenDrag?.pointerId === event.pointerId) {
-          if (tokenDrag.moved && useUiStore.getState().grid.enabled) {
-            useTokenStore
-              .getState()
-              .snapTokenToGrid(
-                tokenDrag.id,
-                useUiStore.getState().grid.cellSize,
-              )
-          }
+          if (tokenDrag.moved) finalizeTokenMove(tokenDrag.id)
           tokenDrag = undefined
         }
         pointers.delete(event.pointerId)

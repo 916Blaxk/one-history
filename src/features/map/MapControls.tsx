@@ -11,6 +11,8 @@ import { Card, CardContent } from '@/components/ui/card'
 import { useUiStore } from '@/stores/ui-store'
 import { useTokenStore } from '@/features/tokens/token-store'
 import { useBottomSheetDismiss } from '@/hooks/use-bottom-sheet-dismiss'
+import { isRoomMode } from '@/features/rooms/room-commands'
+import { fileToRoomScene } from '@/features/rooms/scene-serializer'
 
 export function MapControls({
   mobileOpen,
@@ -30,8 +32,20 @@ export function MapControls({
   const contentVisible = mobileMode ? mobileOpen : !collapsed
   const dragHandlers = useBottomSheetDismiss(Boolean(mobileOpen), onMobileClose)
 
-  function selectImage(file?: File) {
+  async function selectImage(file?: File) {
     if (!file) return
+    if (isRoomMode()) {
+      try {
+        setBackgroundUrl(await fileToRoomScene(file))
+      } catch (error) {
+        window.alert(
+          error instanceof Error
+            ? error.message
+            : 'Não foi possível preparar o cenário.',
+        )
+      }
+      return
+    }
     if (previousUrl.current) URL.revokeObjectURL(previousUrl.current)
     const url = URL.createObjectURL(file)
     previousUrl.current = url
@@ -89,7 +103,10 @@ export function MapControls({
             className="visually-hidden"
             type="file"
             accept="image/*"
-            onChange={(event) => selectImage(event.currentTarget.files?.[0])}
+            onChange={(event) => {
+              void selectImage(event.currentTarget.files?.[0])
+              event.currentTarget.value = ''
+            }}
           />
           <button
             className="upload-button"

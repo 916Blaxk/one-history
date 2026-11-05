@@ -1,6 +1,12 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { ArrowUpRight, BookOpen, Dices, Sparkles } from 'lucide-react'
-import { BrowserRouter, Link, Route, Routes } from 'react-router-dom'
+import {
+  BrowserRouter,
+  Link,
+  Route,
+  Routes,
+  useNavigate,
+} from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { useUiStore } from '@/stores/ui-store'
@@ -11,6 +17,22 @@ const MapPage = lazy(() =>
   })),
 )
 
+const RoomPage = lazy(() =>
+  import('@/features/rooms/RoomPage').then((module) => ({
+    default: module.RoomPage,
+  })),
+)
+
+const ROOM_CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'
+
+function createRoomCode() {
+  const bytes = crypto.getRandomValues(new Uint8Array(6))
+  return Array.from(
+    bytes,
+    (byte) => ROOM_CODE_ALPHABET[byte % ROOM_CODE_ALPHABET.length],
+  ).join('')
+}
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -20,6 +42,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/mesa" element={<MapPage />} />
+          <Route path="/sala/:code" element={<RoomPage />} />
         </Routes>
       </Suspense>
     </BrowserRouter>
@@ -27,6 +50,9 @@ export default function App() {
 }
 
 function LandingPage() {
+  const navigate = useNavigate()
+  const [roomDialog, setRoomDialog] = useState(false)
+  const [roomCode, setRoomCode] = useState('')
   const visits = useUiStore((state) => state.counter)
   const increment = useUiStore((state) => state.increment)
 
@@ -73,10 +99,20 @@ function LandingPage() {
                 está em curso.
               </p>
               <div className="actions">
-                <Button>
+                <Button
+                  onClick={() =>
+                    navigate(`/sala/${createRoomCode().toLowerCase()}`)
+                  }
+                >
                   <Sparkles size={16} /> Criar sala <ArrowUpRight size={15} />
                 </Button>
-                <Button variant="outline">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setRoomCode('')
+                    setRoomDialog(true)
+                  }}
+                >
                   Entrar em sala <ArrowUpRight size={15} />
                 </Button>
               </div>
@@ -121,6 +157,64 @@ function LandingPage() {
           QUE OS DADOS ESTEJAM A SEU FAVOR <b>✦</b>
         </span>
       </footer>
+      {roomDialog && (
+        <div
+          className="room-dialog-backdrop"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setRoomDialog(false)
+          }}
+        >
+          <form
+            className="room-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="join-room-title"
+            onSubmit={(event) => {
+              event.preventDefault()
+              const normalized = roomCode.trim().toLowerCase()
+              if (/^[a-hj-np-z2-9]{6}$/.test(normalized))
+                navigate(`/sala/${normalized}`)
+            }}
+          >
+            <h2 id="join-room-title">Entrar em sala</h2>
+            <p>Digite o código de seis caracteres enviado pelo grupo.</p>
+            <label>
+              Código da sala
+              <input
+                autoFocus
+                required
+                minLength={6}
+                maxLength={6}
+                value={roomCode}
+                onChange={(event) =>
+                  setRoomCode(
+                    event.target.value
+                      .toUpperCase()
+                      .replace(/[^A-HJ-KM-NP-Z2-9]/g, ''),
+                  )
+                }
+                placeholder="Ex.: 7KPM4B"
+              />
+            </label>
+            <div>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setRoomDialog(false)}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                disabled={!/^[A-HJ-KM-NP-Z2-9]{6}$/.test(roomCode)}
+              >
+                Entrar
+              </Button>
+            </div>
+          </form>
+        </div>
+      )}
     </main>
   )
 }

@@ -4,6 +4,13 @@ import type {
   TokenPosition,
   TokenSprite,
 } from '@/features/tokens/token-types'
+import {
+  isRoomMode,
+  sendRoomCommand,
+  sendRoomMove,
+} from '@/features/rooms/room-commands'
+import { fileToRoomImage } from '@/features/rooms/image-serializer'
+import type { RoomTokenChanges } from '@/shared/room-protocol'
 
 const tokenColors = [
   '#806247',
@@ -32,6 +39,13 @@ type TokenState = {
   snapTokensToGrid: (cellSize: number) => void
   removeToken: (id: string) => void
   selectToken: (id: string | null) => void
+  applyRoomSnapshot: (
+    tokens: Token[],
+    spritesByTokenId: Record<string, TokenSprite[]>,
+  ) => void
+  applyRoomToken: (token: Token, sprites: TokenSprite[]) => void
+  removeRoomToken: (id: string) => void
+  applyRoomPosition: (id: string, position: TokenPosition) => void
 }
 
 function snapCenter(value: number, size: Token['size'], cellSize: number) {
@@ -54,6 +68,8 @@ export const useTokenStore = create<TokenState>((set) => ({
       flipX: false,
       color: tokenColors[Math.floor(Math.random() * tokenColors.length)],
     }
+    if (sendRoomCommand({ type: 'token:create', token, sprites: [] }))
+      return token
     set((state) => ({
       tokens: [...state.tokens, token],
       spritesByTokenId: { ...state.spritesByTokenId, [token.id]: [] },
@@ -61,13 +77,52 @@ export const useTokenStore = create<TokenState>((set) => ({
     }))
     return token
   },
-  updateToken: (id, changes) =>
+  updateToken: (id, changes) => {
+    if (isRoomMode()) {
+      const roomChanges = Object.fromEntries(
+        Object.entries(changes).map(([key, value]) => [
+          key,
+          value === undefined ? null : value,
+        ]),
+      ) as RoomTokenChanges
+      sendRoomCommand({ type: 'token:update', id, changes: roomChanges })
+      return
+    }
     set((state) => ({
       tokens: state.tokens.map((token) =>
         token.id === id ? { ...token, ...changes } : token,
       ),
-    })),
-  addTokenSprites: (tokenId, files) =>
+    }))
+  },
+  addTokenSprites: (tokenId, files) => {
+    if (isRoomMode()) {
+      void (async () => {
+        try {
+          const added = await Promise.all(
+            files.map(async (file): Promise<TokenSprite> => ({
+              id: crypto.randomUUID(),
+              label: file.name.replace(/\.[^.]+$/, '').trim() || 'Sprite',
+              imageUrl: await fileToRoomImage(file),
+            })),
+          )
+          const state = useTokenStore.getState()
+          const token = state.tokens.find((item) => item.id === tokenId)
+          if (!token) return
+          sendRoomCommand({
+            type: 'token:sprites',
+            id: tokenId,
+            sprites: [...(state.spritesByTokenId[tokenId] ?? []), ...added],
+          })
+        } catch (error) {
+          window.alert(
+            error instanceof Error
+              ? error.message
+              : 'Não foi possível preparar as imagens.',
+          )
+        }
+      })()
+      return
+    }
     set((state) => {
       const token = state.tokens.find((item) => item.id === tokenId)
       if (!token) return state
@@ -93,8 +148,18 @@ export const useTokenStore = create<TokenState>((set) => ({
             : item,
         ),
       }
-    }),
-  renameTokenSprite: (tokenId, spriteId, label) =>
+    })
+  },
+  renameTokenSprite: (tokenId, spriteId, label) => {
+    if (isRoomMode()) {
+      const sprites = (
+        useTokenStore.getState().spritesByTokenId[tokenId] ?? []
+      ).map((sprite) =>
+        sprite.id === spriteId ? { ...sprite, label } : sprite,
+      )
+      sendRoomCommand({ type: 'token:sprites', id: tokenId, sprites })
+      return
+    }
     set((state) => ({
       spritesByTokenId: {
         ...state.spritesByTokenId,
@@ -102,16 +167,31 @@ export const useTokenStore = create<TokenState>((set) => ({
           sprite.id === spriteId ? { ...sprite, label } : sprite,
         ),
       },
-    })),
-  selectTokenSprite: (tokenId, spriteId) =>
+    }))
+  },
+  selectTokenSprite: (tokenId, spriteId) => {
+    if (isRoomMode()) {
+      useTokenStore
+        .getState()
+        .updateToken(tokenId, { activeSpriteId: spriteId })
+      return
+    }
     set((state) => ({
       tokens: state.tokens.map((token) =>
         token.id === tokenId && token.spriteIds.includes(spriteId)
           ? { ...token, activeSpriteId: spriteId }
           : token,
       ),
-    })),
-  removeTokenSprite: (tokenId, spriteId) =>
+    }))
+  },
+  removeTokenSprite: (tokenId, spriteId) => {
+    if (isRoomMode()) {
+      const sprites = (
+        useTokenStore.getState().spritesByTokenId[tokenId] ?? []
+      ).filter((sprite) => sprite.id !== spriteId)
+      sendRoomCommand({ type: 'token:sprites', id: tokenId, sprites })
+      return
+    }
     set((state) => {
       const sprites = state.spritesByTokenId[tokenId] ?? []
       const removed = sprites.find((sprite) => sprite.id === spriteId)
@@ -133,34 +213,47 @@ export const useTokenStore = create<TokenState>((set) => ({
           }
         }),
       }
-    }),
-  updateTokenPosition: (id, position) =>
+    })
+  },
+  updateTokenPosition: (id, position) => {
     set((state) => ({
       tokens: state.tokens.map((token) =>
         token.id === id ? { ...token, ...position } : token,
       ),
-    })),
-  snapTokenToGrid: (id, cellSize) =>
+    }))
+    sendRoomMove(id, position)
+  },
+  snapTokenToGrid: (id, cellSize) => {
+    const token = useTokenStore.getState().tokens.find((item) => item.id === id)
+    if (!token) return
+    const position = {
+      x: snapCenter(token.x, token.size, cellSize),
+      y: snapCenter(token.y, token.size, cellSize),
+    }
     set((state) => ({
       tokens: state.tokens.map((token) =>
         token.id === id
           ? {
               ...token,
-              x: snapCenter(token.x, token.size, cellSize),
-              y: snapCenter(token.y, token.size, cellSize),
+              ...position,
             }
           : token,
       ),
-    })),
-  snapTokensToGrid: (cellSize) =>
+    }))
+    sendRoomMove(id, position, true)
+  },
+  snapTokensToGrid: (cellSize) => {
+    if (isRoomMode()) return
     set((state) => ({
       tokens: state.tokens.map((token) => ({
         ...token,
         x: snapCenter(token.x, token.size, cellSize),
         y: snapCenter(token.y, token.size, cellSize),
       })),
-    })),
-  removeToken: (id) =>
+    }))
+  },
+  removeToken: (id) => {
+    if (sendRoomCommand({ type: 'token:remove', id })) return
     set((state) => {
       for (const sprite of state.spritesByTokenId[id] ?? []) {
         if (sprite.imageUrl.startsWith('blob:'))
@@ -176,6 +269,41 @@ export const useTokenStore = create<TokenState>((set) => ({
         selectedTokenId:
           state.selectedTokenId === id ? null : state.selectedTokenId,
       }
-    }),
+    })
+  },
   selectToken: (selectedTokenId) => set({ selectedTokenId }),
+  applyRoomSnapshot: (tokens, spritesByTokenId) =>
+    set((state) => ({
+      tokens,
+      spritesByTokenId,
+      selectedTokenId: tokens.some(
+        (token) => token.id === state.selectedTokenId,
+      )
+        ? state.selectedTokenId
+        : null,
+    })),
+  applyRoomToken: (token, sprites) =>
+    set((state) => ({
+      tokens: state.tokens.some((item) => item.id === token.id)
+        ? state.tokens.map((item) => (item.id === token.id ? token : item))
+        : [...state.tokens, token],
+      spritesByTokenId: { ...state.spritesByTokenId, [token.id]: sprites },
+    })),
+  removeRoomToken: (id) =>
+    set((state) => ({
+      tokens: state.tokens.filter((token) => token.id !== id),
+      spritesByTokenId: Object.fromEntries(
+        Object.entries(state.spritesByTokenId).filter(
+          ([tokenId]) => tokenId !== id,
+        ),
+      ),
+      selectedTokenId:
+        state.selectedTokenId === id ? null : state.selectedTokenId,
+    })),
+  applyRoomPosition: (id, position) =>
+    set((state) => ({
+      tokens: state.tokens.map((token) =>
+        token.id === id ? { ...token, ...position } : token,
+      ),
+    })),
 }))

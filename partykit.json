@@ -1,0 +1,8 @@
+{
+  "$schema": "https://www.partykit.io/schema.json",
+  "name": "tablebola",
+  "main": "party/index.ts",
+  "compatibilityDate": "2025-06-01",
+  "port": 1999,
+  "persist": false
+}

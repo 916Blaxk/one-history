@@ -7,6 +7,8 @@ type ChatState = {
   addMessage: (message: NewChatMessage) => void
   addToCommandHistory: (command: string) => void
   clearMessages: () => void
+  receiveRoomMessage: (message: ChatMessage) => void
+  replaceRoomMessages: (messages: ChatMessage[]) => void
 }
 
 export const useChatStore = create<ChatState>((set) => ({
@@ -22,4 +24,11 @@ export const useChatStore = create<ChatState>((set) => ({
   addToCommandHistory: (command) =>
     set((state) => ({ commandHistory: [...state.commandHistory, command] })),
   clearMessages: () => set({ messages: [] }),
+  receiveRoomMessage: (message) =>
+    set((state) =>
+      state.messages.some((item) => item.id === message.id)
+        ? state
+        : { messages: [...state.messages, message].slice(-200) },
+    ),
+  replaceRoomMessages: (messages) => set({ messages: messages.slice(-200) }),
 }))

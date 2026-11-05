@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { isRoomMode, sendRoomCommand } from '@/features/rooms/room-commands'
 
 type Camera = { x: number; y: number; zoom: number }
 type GridSettings = { enabled: boolean; cellSize: number; opacity: number }
@@ -11,7 +12,9 @@ type UiState = {
   increment: () => void
   setCamera: (camera: Camera) => void
   setGrid: (grid: Partial<GridSettings>) => void
+  applyRoomGrid: (grid: GridSettings) => void
   setBackgroundUrl: (url: string | null) => void
+  applyRoomBackgroundUrl: (url: string | null) => void
 }
 
 export const useUiStore = create<UiState>((set) => ({
@@ -21,6 +24,21 @@ export const useUiStore = create<UiState>((set) => ({
   backgroundUrl: null,
   increment: () => set((state) => ({ counter: state.counter + 1 })),
   setCamera: (camera) => set({ camera }),
-  setGrid: (grid) => set((state) => ({ grid: { ...state.grid, ...grid } })),
-  setBackgroundUrl: (backgroundUrl) => set({ backgroundUrl }),
+  setGrid: (grid) => {
+    if (isRoomMode()) {
+      const nextGrid = { ...useUiStore.getState().grid, ...grid }
+      sendRoomCommand({ type: 'grid:update', grid: nextGrid })
+      return
+    }
+    set((state) => ({ grid: { ...state.grid, ...grid } }))
+  },
+  applyRoomGrid: (grid) => set({ grid }),
+  setBackgroundUrl: (backgroundUrl) => {
+    if (isRoomMode() && backgroundUrl) {
+      sendRoomCommand({ type: 'background:update', backgroundUrl })
+      return
+    }
+    set({ backgroundUrl })
+  },
+  applyRoomBackgroundUrl: (backgroundUrl) => set({ backgroundUrl }),
 }))
