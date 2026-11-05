@@ -61,6 +61,15 @@ export const rolagens = sqliteTable('rolagens', {
   total: integer('total').notNull(),
 }, t => [index('rolagens_campanha').on(t.campanhaId, t.em), index('rolagens_ficha').on(t.fichaId, t.em)]);
 
+/* Chaves que o dono cria para o Tablebola ler a ficha. Guarda só o hash: quem ler o banco não consegue usar a chave. */
+export const chavesIntegracao = sqliteTable('chaves_integracao', {
+  id: text('id').primaryKey(),
+  fichaId: text('ficha_id').notNull(),
+  hash: text('hash').notNull().unique(),
+  rotulo: text('rotulo').notNull(),
+  criadoEm: integer('criado_em').notNull(),
+}, t => [index('chaves_integracao_ficha').on(t.fichaId)]);
+
 /* No banco, e não na memória, para o limite valer mesmo com várias instâncias do servidor. */
 export const tentativas = sqliteTable('tentativas', {
   chave: text('chave').primaryKey(),

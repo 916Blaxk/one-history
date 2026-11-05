@@ -4,6 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 const PORTA = 3457;
 const base = `http://127.0.0.1:${PORTA}`;
+const ORIGEM_MESA = 'https://mesa.exemplo.com';
 let servidor: ChildProcess;
 
 let ipSeq = 0;
@@ -50,7 +51,7 @@ async function mesa() {
 beforeAll(async () => {
   const construido = spawnSync(process.execPath, ['-e', "process.exit(require('fs').existsSync('.next/BUILD_ID')?0:1)"]);
   if (construido.status !== 0) throw new Error('Rode `npm run build` antes dos testes.');
-  servidor = spawn(process.execPath, ['scripts/servidor-teste.mjs', String(PORTA)], { stdio: 'ignore' });
+  servidor = spawn(process.execPath, ['scripts/servidor-teste.mjs', String(PORTA)], { stdio: 'ignore', env: { ...process.env, ORIGENS_TABLEBOLA: ORIGEM_MESA } });
   for (let i = 0; i < 100; i++) {
     try { if ((await fetch(base + '/api/conta')).status === 401) return; } catch { /* ainda subindo */ }
     await new Promise(ok => setTimeout(ok, 300));
@@ -360,6 +361,153 @@ describe('campanhas', () => {
     const f = await novaFicha(c);
     const r = (await c('PATCH', `/api/fichas/${f.id}`, { ajustes: { vida: 50 } })).corpo.ficha;
     expect(r.ajustes.vida).toBe(0);
+  });
+});
+
+describe('magias', () => {
+  it('são salvas pelo PATCH, limpas pelo servidor, e o colega não as vê', async () => {
+    const { jog, intruso, c, codigo, f } = await mesa();
+    const magias = [{ id: 'a1', nome: 'Faísca', elemento: 'fogo', custo: 5, alcance: '9 m', duracao: 'Instantânea', descricao: 'Uma faísca.', extra: 'some' }];
+    const salva = (await jog.c('PATCH', `/api/fichas/${f.id}`, { magias })).corpo.ficha;
+    expect(salva.magias).toHaveLength(1);
+    expect(salva.magias[0].nome).toBe('Faísca');
+    expect(salva.magias[0].extra).toBeUndefined();
+    await intruso.c('POST', `/api/convites/${codigo}/entrar`);
+    await jog.c('POST', `/api/convites/${codigo}/entrar`);
+    await jog.c('POST', `/api/campanhas/${c.id}/fichas`, { fichaId: f.id });
+    expect(JSON.stringify((await intruso.c('GET', `/api/campanhas/${c.id}`)).corpo)).not.toContain('Faísca');
+  });
+});
+
+describe('integração com o Tablebola', () => {
+  async function fichaComChave(dados: object = { nome: 'Kael', corpo: { vitalidade: 5 } }) {
+    const dono = await novaConta('Dona');
+    const f = await novaFicha(dono.c, dados);
+    const r = await dono.c('POST', `/api/fichas/${f.id}/chaves`, { rotulo: 'Mesa' });
+    expect(r.status).toBe(201);
+    return { dono, f, segredo: r.corpo.segredo as string, chave: r.corpo.chave };
+  }
+  const comChave = (url: string, segredo: string, init: RequestInit = {}) =>
+    fetch(base + url, { ...init, headers: { Authorization: `Bearer ${segredo}`, ...init.headers } });
+
+  it('o dono lê com a própria sessão; outro usuário e quem não tem chave não leem', async () => {
+    const { dono, f } = await fichaComChave();
+    const outro = await novaConta('Outra');
+    const r = await dono.c('GET', `/api/integracao/fichas/${f.id}/resumo`);
+    expect(r.status).toBe(200);
+    expect(r.corpo.schemaVersion).toBe(1);
+    expect(r.corpo.nome).toBe('Kael');
+    expect(r.corpo.recursos[0]).toEqual({ id: 'vida', rotulo: 'Vida', atual: 25, max: 25 });
+    expect(r.corpo.acoes.length).toBe(73);
+    expect((await outro.c('GET', `/api/integracao/fichas/${f.id}/resumo`)).status).toBe(404);
+    expect((await fetch(`${base}/api/integracao/fichas/${f.id}/resumo`)).status).toBe(401);
+    /* Saber o id da ficha não abre nada: é só o que o token do Tablebola guarda. */
+    expect((await fetch(`${base}/api/integracao/fichas/${f.id}`)).status).toBe(401);
+  });
+
+  it('a chave lê só a própria ficha; chave errada ou revogada recebe 404', async () => {
+    const { dono, f, segredo, chave } = await fichaComChave();
+    const outra = await novaFicha(dono.c, { nome: 'Outra' });
+    expect((await comChave(`/api/integracao/fichas/${f.id}/resumo`, segredo)).status).toBe(200);
+    expect((await comChave(`/api/integracao/fichas/${outra.id}/resumo`, segredo)).status).toBe(404);
+    expect((await comChave(`/api/integracao/fichas/${f.id}/resumo`, 'ohi_errada-errada-errada-errada')).status).toBe(404);
+    expect((await comChave(`/api/integracao/fichas/${f.id}/resumo`, 'invalida')).status).toBe(404);
+    expect((await dono.c('DELETE', `/api/fichas/${f.id}/chaves/${chave.id}`)).status).toBe(200);
+    expect((await comChave(`/api/integracao/fichas/${f.id}/resumo`, segredo)).status).toBe(404);
+  });
+
+  it('só o dono gerencia chaves, e o segredo não aparece na listagem', async () => {
+    const { mestre, jog, intruso, c, codigo, f } = await mesa();
+    await jog.c('POST', `/api/convites/${codigo}/entrar`);
+    await jog.c('POST', `/api/campanhas/${c.id}/fichas`, { fichaId: f.id });
+    const { segredo } = (await jog.c('POST', `/api/fichas/${f.id}/chaves`, { rotulo: 'Minha' })).corpo;
+    const lista = await jog.c('GET', `/api/fichas/${f.id}/chaves`);
+    expect(lista.corpo.chaves).toHaveLength(1);
+    expect(JSON.stringify(lista.corpo)).not.toContain(segredo);
+    expect((await mestre.c('POST', `/api/fichas/${f.id}/chaves`, { rotulo: 'Do mestre' })).status).toBe(403);
+    expect((await mestre.c('GET', `/api/fichas/${f.id}/chaves`)).status).toBe(403);
+    expect((await intruso.c('GET', `/api/fichas/${f.id}/chaves`)).status).toBe(404);
+    expect((await jog.c('POST', `/api/fichas/${f.id}/chaves`, { rotulo: '   ' })).status).toBe(400);
+  });
+
+  it('recursos: atualiza, limita ao máximo, recusa o resto e aparece para o dono', async () => {
+    const { dono, f, segredo } = await fichaComChave();
+    const patch = (corpo: unknown) => comChave(`/api/integracao/fichas/${f.id}/recursos`, segredo, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpo),
+    });
+    const ok = await patch({ vidaAtual: 3 });
+    expect(ok.status).toBe(200);
+    expect((await ok.json()).recursos[0].atual).toBe(3);
+    expect((await dono.c('GET', `/api/fichas/${f.id}`)).corpo.ficha.vidaAtual).toBe(3);
+    expect((await (await patch({ vidaAtual: 5000 })).json()).recursos[0].atual).toBe(25);
+    for (const ruim of [{ nome: 'Hack' }, { vidaAtual: 1, nucleo: 12 }, { vidaAtual: -1 }, { vidaAtual: 1.5 }, { vidaAtual: '3' }, {}]) {
+      expect((await patch(ruim)).status, JSON.stringify(ruim)).toBe(400);
+    }
+    const final = (await dono.c('GET', `/api/fichas/${f.id}`)).corpo.ficha;
+    expect(final.nome).toBe('Kael');
+    expect(final.nucleo).toBe(0);
+    /* A chave não serve nas rotas normais da ficha. */
+    expect((await comChave(`/api/fichas/${f.id}`, segredo)).status).toBe(401);
+  });
+
+  it('CORS: só a origem da lista recebe permissão, sem credenciais', async () => {
+    const { f, segredo } = await fichaComChave();
+    const url = `/api/integracao/fichas/${f.id}/resumo`;
+    const permitida = await comChave(url, segredo, { headers: { Origin: ORIGEM_MESA } });
+    expect(permitida.status).toBe(200);
+    expect(permitida.headers.get('access-control-allow-origin')).toBe(ORIGEM_MESA);
+    expect(permitida.headers.get('access-control-allow-credentials')).toBeNull();
+    const negada = await comChave(url, segredo, { headers: { Origin: 'https://outro.exemplo.com' } });
+    expect(negada.status).toBe(403);
+    expect(negada.headers.get('access-control-allow-origin')).toBeNull();
+
+    const preparo = await fetch(base + url, { method: 'OPTIONS', headers: { Origin: ORIGEM_MESA, 'Access-Control-Request-Method': 'PATCH' } });
+    expect(preparo.status).toBe(204);
+    expect(preparo.headers.get('access-control-allow-headers')).toContain('Authorization');
+    const preparoNegado = await fetch(base + url, { method: 'OPTIONS', headers: { Origin: 'https://outro.exemplo.com' } });
+    expect(preparoNegado.status).toBe(403);
+
+    /* As rotas normais continuam fechadas para outras origens, mesmo para as da lista. */
+    const comum = await fetch(`${base}/api/fichas`, { headers: { Origin: ORIGEM_MESA } });
+    expect(comum.headers.get('access-control-allow-origin')).toBeNull();
+    const c = cliente();
+    expect((await c('POST', '/api/conta/entrar', { email: 'a@exemplo.com', senha: 'x' }, { Origin: ORIGEM_MESA })).status).toBe(403);
+    expect((await fetch(`${base}/api/fichas`, { method: 'OPTIONS' })).status).toBe(204);
+  });
+
+  it('sessão vinda de outra origem não abre a ficha', async () => {
+    const { f, dono } = await fichaComChave();
+    const r = await dono.c('GET', `/api/integracao/fichas/${f.id}/resumo`, undefined, { Origin: ORIGEM_MESA });
+    expect(r.status).toBe(401);
+  });
+
+  it('retrato: a chave lê; sem chave, não', async () => {
+    const pixel = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
+    const { dono, f, segredo } = await fichaComChave();
+    await dono.c('PATCH', `/api/fichas/${f.id}`, { foto: pixel });
+    const resumo = await (await comChave(`/api/integracao/fichas/${f.id}/resumo`, segredo)).json();
+    expect(resumo.retrato.url).toBe(`/api/integracao/fichas/${f.id}/retrato`);
+    const foto = await comChave(resumo.retrato.url, segredo);
+    expect(foto.status).toBe(200);
+    expect(foto.headers.get('content-type')).toBe('image/png');
+    expect((await fetch(base + resumo.retrato.url)).status).toBe(401);
+  });
+
+  it('apagar a ficha ou a conta leva as chaves junto', async () => {
+    const a = await fichaComChave();
+    expect((await a.dono.c('DELETE', `/api/fichas/${a.f.id}`)).status).toBe(200);
+    expect((await comChave(`/api/integracao/fichas/${a.f.id}/resumo`, a.segredo)).status).toBe(404);
+    const b = await fichaComChave();
+    expect((await b.dono.c('DELETE', '/api/conta', { senha: 'senha-forte-1' })).status).toBe(200);
+    expect((await comChave(`/api/integracao/fichas/${b.f.id}/resumo`, b.segredo)).status).toBe(404);
+  });
+
+  it('só a rota embutida entra em iframe, e só nas origens da lista', async () => {
+    const embutida = (await fetch(`${base}/embutido/fichas/qualquer`)).headers.get('content-security-policy');
+    expect(embutida).toContain(`frame-ancestors ${ORIGEM_MESA}`);
+    for (const caminho of ['/entrar', '/fichas', '/api/conta']) {
+      expect((await fetch(base + caminho, { redirect: 'manual' })).headers.get('content-security-policy'), caminho).toContain("frame-ancestors 'none'");
+    }
   });
 });
 

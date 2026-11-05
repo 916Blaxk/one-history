@@ -3,11 +3,12 @@ import { useEffect, useRef, useState } from 'react';
 import { urlFoto } from '@/lib/cliente';
 import { estagio } from '@/lib/regras';
 
-export function Capitular({ nome, fichaId, fotoV, className = '' }: { nome: string; fichaId?: string; fotoV?: number; className?: string }) {
+export function Capitular({ nome, fichaId, fotoV, src, className = '' }: { nome: string; fichaId?: string; fotoV?: number; src?: string; className?: string }) {
+  const imagem = src ?? (fichaId && fotoV ? urlFoto(fichaId, fotoV) : null);
   return (
     <span className={`capitular ${className}`}>
-      {fichaId && fotoV
-        ? <img src={urlFoto(fichaId, fotoV)} alt={`Foto de ${nome || 'personagem sem nome'}`} />
+      {imagem
+        ? <img src={imagem} alt={`Foto de ${nome || 'personagem sem nome'}`} />
         : (nome.trim()[0] || '?').toUpperCase()}
     </span>
   );

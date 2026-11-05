@@ -23,6 +23,8 @@ Os dados ficam em `dados/one-history.db`. Para fazer backup, copie essa pasta co
 - **Campanha:** quem cria vira mestre e recebe um código e um link de convite. Gerar um código novo invalida o anterior.
 - **Mestre:** vê e edita as fichas da campanha, muda o estágio do núcleo, ajusta vida, mana e SP máximos, define limites para cada atributo, arma e perícia, remove jogadores e exclui a campanha. Não apaga fichas de ninguém.
 - **Jogador:** vê a própria ficha completa. Das fichas dos colegas, só nome, foto e raça.
+- **Magias:** cada ficha tem uma aba de feitiços. Conjurar desconta da mana o custo menos o gasto universal do núcleo.
+- **Tablebola:** o dono pode criar uma chave para a ficha funcionar dentro do Tablebola. Veja `docs/contrato-integracao.md`.
 - **Chat de dados:** abre sozinho ao rolar e mostra cada rolagem como mensagem. Em campanha, todos da mesa veem. Fora dela, só o dono da ficha. Cada chat guarda as 500 rolagens mais recentes.
 - **Ao vivo:** as telas de campanha, ficha e chat se atualizam sozinhas a cada 3 segundos.
 

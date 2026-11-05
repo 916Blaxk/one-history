@@ -12,16 +12,24 @@ function mesclar(a: Patch | null, b: Patch | null): Patch | null {
   if (!b) return a;
   const r: Patch = { ...a };
   for (const [k, v] of Object.entries(b)) {
-    r[k] = v && typeof v === 'object' && r[k] && typeof r[k] === 'object' ? { ...r[k], ...v } : v;
+    /* Lista é substituída inteira: mesclar transformaria as magias em um objeto. */
+    r[k] = v && typeof v === 'object' && !Array.isArray(v) && r[k] && typeof r[k] === 'object' ? { ...r[k], ...v } : v;
   }
   return r;
 }
 
+/* De onde a ficha vem e para onde vai. A tela embutida usa as rotas de integração, com a chave em vez do cookie. */
+export interface TransporteFicha {
+  urlLer: string;
+  ler: (url: string) => Promise<{ ficha: Ficha }>;
+  salvar: (patch: Patch) => Promise<{ ficha: Ficha }>;
+}
+
 /* Mantém uma cópia local editável da ficha. Só envia o que mudou, para o mestre e o dono
    poderem editar campos diferentes ao mesmo tempo, e só aceita dados do servidor quando não há edição pendente. */
-export function useFichaEditavel(id: string) {
-  const url = `/api/fichas/${id}`;
-  const { data, error } = useSWR<{ ficha: Ficha }>(url, buscar, { refreshInterval: 3000, shouldRetryOnError: false });
+export function useFichaEditavel(id: string, transporte?: TransporteFicha) {
+  const url = transporte?.urlLer ?? `/api/fichas/${id}`;
+  const { data, error } = useSWR<{ ficha: Ficha }>(url, transporte?.ler ?? buscar, { refreshInterval: 3000, shouldRetryOnError: false });
   const [ficha, setFicha] = useState<Ficha | null>(null);
   const [status, setStatus] = useState('Salvo');
   const pendente = useRef<Patch | null>(null);
@@ -43,7 +51,7 @@ export function useFichaEditavel(id: string) {
     pendente.current = null;
     const p = (async () => {
       try {
-        const r = await api<{ ficha: Ficha }>('PATCH', url, envio);
+        const r = transporte ? await transporte.salvar(envio) : await api<{ ficha: Ficha }>('PATCH', url, envio);
         /* Sem edição nova, vale o que o servidor gravou: ele pode ter cortado um valor acima do limite. */
         setFicha(a => a && (pendente.current ? { ...a, atualizado: r.ficha.atualizado, fotoV: r.ficha.fotoV } : r.ficha));
         setStatus('Salvo');
@@ -58,7 +66,7 @@ export function useFichaEditavel(id: string) {
     })();
     voo.current = p;
     return p;
-  }, [url]);
+  }, [url, transporte]);
 
   const salvarAgora = useCallback(async () => {
     if (voo.current) await voo.current;

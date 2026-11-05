@@ -18,6 +18,8 @@ export interface Ficha extends DadosFicha {
   };
 }
 
+export interface ChaveIntegracao { id: string; rotulo: string; criadoEm: number }
+
 export type Papel = 'mestre' | 'jogador';
 
 export interface ResumoCampanha {

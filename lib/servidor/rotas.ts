@@ -1,10 +1,11 @@
 import crypto from 'crypto';
 import { and, count, desc, eq, inArray, isNull, lt, notInArray, or, sql, type SQL } from 'drizzle-orm';
 import { z } from 'zod';
+import { lerOrigens, origemPermitida, recursosDaFicha, resumoDaFicha } from '../integracao';
 import * as R from '../regras';
-import type { Ficha, Mensagem, PaginaChat, Papel, ResumoFicha } from '../tipos';
+import type { ChaveIntegracao, Ficha, Mensagem, PaginaChat, Papel, ResumoFicha } from '../tipos';
 import { db } from './db';
-import { campanhas, fichas, membros, rolagens, sessoes, tentativas, usuarios } from './schema';
+import { campanhas, chavesIntegracao, fichas, membros, rolagens, sessoes, tentativas, usuarios } from './schema';
 import { apagarSessoes, conferirHash, COOKIE, criarSessao, gerarHash, hashToken, SESSAO_S, usuarioDoToken } from './sessao';
 
 const LIMITE_CORPO = 512 * 1024;
@@ -13,7 +14,8 @@ const LIMITE_FICHAS = 200, LIMITE_CAMPANHAS = 50, LIMITE_MEMBROS = 60, LIMITE_FO
 const LIMITE_ROLAGENS = 500, PAGINA_CHAT = 50;
 const ALFABETO_CODIGO = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 const FOTO_VALIDA = /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/;
-const CAMPOS_FICHA = new Set(['player', 'nome', 'idade', 'raca', 'estilo', 'tier', 'inventario', 'notas', 'manaPerdida', 'fadiga', 'vidaAtual', 'manaAtual']);
+const CAMPOS_FICHA = new Set(['player', 'nome', 'idade', 'raca', 'estilo', 'tier', 'inventario', 'notas', 'manaPerdida', 'fadiga', 'vidaAtual', 'manaAtual', 'magias']);
+const LIMITE_CHAVES = 10;
 /* O núcleo define os SP: se o jogador pudesse mudá-lo, o limite de SP não valeria nada. */
 const CAMPOS_MESTRE = new Set(['ajustes', 'limites', 'nucleo']);
 const JANELA_MS = 15 * 60 * 1000;
@@ -44,6 +46,13 @@ const esquemaCampanha = z.object({
   nome: z.string({ error: 'Dê à campanha um nome entre 2 e 80 caracteres.' }).trim().min(2, 'Dê à campanha um nome entre 2 e 80 caracteres.').max(80, 'Dê à campanha um nome entre 2 e 80 caracteres.'),
   descricao: z.string().trim().max(600, 'A descrição pode ter até 600 caracteres.').default(''),
 });
+const esquemaChave = z.object({
+  rotulo: z.string({ error: 'Dê à chave um nome entre 1 e 60 caracteres.' }).trim().min(1, 'Dê à chave um nome entre 1 e 60 caracteres.').max(60, 'Dê à chave um nome entre 1 e 60 caracteres.'),
+});
+const erroRecursos = 'Envie só vidaAtual e manaAtual, como números inteiros entre 0 e 999999.';
+const valorRecurso = z.number({ error: erroRecursos }).int(erroRecursos).min(0, erroRecursos).max(999999, erroRecursos).optional();
+const esquemaRecursos = z.strictObject({ vidaAtual: valorRecurso, manaAtual: valorRecurso }, { error: erroRecursos })
+  .refine(r => r.vidaAtual !== undefined || r.manaAtual !== undefined, erroRecursos);
 function validar<T extends z.ZodType>(esquema: T, corpo: unknown): z.output<T> {
   const r = esquema.safeParse(corpo);
   if (!r.success) throw new Erro(400, r.error.issues[0].message);
@@ -327,6 +336,7 @@ rota('DELETE', '/api/conta', async ctx => {
     db.delete(rolagens).where(and(isNull(rolagens.campanhaId), eq(rolagens.usuarioId, id))),
     db.update(rolagens).set({ autor: 'Conta removida', usuarioId: null, fichaId: null }).where(eq(rolagens.usuarioId, id)),
     db.delete(membros).where(eq(membros.usuarioId, id)),
+    db.delete(chavesIntegracao).where(inArray(chavesIntegracao.fichaId, db.select({ id: fichas.id }).from(fichas).where(eq(fichas.donoId, id)))),
     db.delete(fichas).where(eq(fichas.donoId, id)),
     db.delete(sessoes).where(eq(sessoes.usuarioId, id)),
     db.delete(usuarios).where(eq(usuarios.id, id)),
@@ -346,6 +356,11 @@ rota('GET', '/api/fichas/exportar', async ctx => {
   return { sistema: 'One History', fichas: linhas.map(f => ({ ...f.dados, foto: f.foto ?? '', registro: f.registro })) };
 });
 
+function respostaFoto(foto: string, cache: string) {
+  const [cabeca, base64] = foto.split(',');
+  const tipo = cabeca.slice(5).split(';')[0];
+  return new Response(Buffer.from(base64, 'base64'), { headers: { 'Content-Type': tipo, 'Cache-Control': cache } });
+}
 function fotoDaEntrada(foto: unknown) {
   if (foto === '' || foto === undefined || foto === null) return null;
   if (typeof foto !== 'string' || foto.length > LIMITE_FOTO || !FOTO_VALIDA.test(foto)) throw new Erro(400, 'Essa foto não pôde ser salva. Use um JPG, PNG ou WebP menor.');
@@ -373,9 +388,7 @@ rota('GET', '/api/fichas/:id/foto', async ctx => {
   const [f] = await db.select({ foto: fichas.foto, donoId: fichas.donoId, campanhaId: fichas.campanhaId }).from(fichas).where(eq(fichas.id, ctx.params.id));
   const pode = f && (f.donoId === ctx.usuario.id || (f.campanhaId && await papelEm(f.campanhaId, ctx.usuario.id)));
   if (!pode || !f.foto) throw new Erro(404, 'Foto não encontrada.');
-  const [cabeca, base64] = f.foto.split(',');
-  const tipo = cabeca.slice(5).split(';')[0];
-  return new Response(Buffer.from(base64, 'base64'), { headers: { 'Content-Type': tipo, 'Cache-Control': 'private, max-age=31536000, immutable' } });
+  return respostaFoto(f.foto, 'private, max-age=31536000, immutable');
 });
 
 rota('PATCH', '/api/fichas/:id', async ctx => {
@@ -404,10 +417,93 @@ rota('DELETE', '/api/fichas/:id', async ctx => {
   const f = await fichaDoDono(ctx.params.id, ctx.usuario);
   await db.batch([
     db.delete(rolagens).where(escopoFichaSolo(f.id)),
+    db.delete(chavesIntegracao).where(eq(chavesIntegracao.fichaId, f.id)),
     db.delete(fichas).where(eq(fichas.id, f.id)),
   ]);
   return { ok: true };
 });
+
+/* Chaves de integração: só o dono vê, cria e revoga. O segredo aparece uma única vez, na criação. */
+const dadosDaChave = (c: typeof chavesIntegracao.$inferSelect): ChaveIntegracao => ({ id: c.id, rotulo: c.rotulo, criadoEm: c.criadoEm });
+
+rota('GET', '/api/fichas/:id/chaves', async ctx => {
+  const f = await fichaDoDono(ctx.params.id, ctx.usuario);
+  const linhas = await db.select().from(chavesIntegracao).where(eq(chavesIntegracao.fichaId, f.id)).orderBy(desc(chavesIntegracao.criadoEm));
+  return { chaves: linhas.map(dadosDaChave) };
+});
+
+rota('POST', '/api/fichas/:id/chaves', async ctx => {
+  const f = await fichaDoDono(ctx.params.id, ctx.usuario);
+  const { rotulo } = validar(esquemaChave, ctx.corpo);
+  const [{ n }] = await db.select({ n: count() }).from(chavesIntegracao).where(eq(chavesIntegracao.fichaId, f.id));
+  if (n >= LIMITE_CHAVES) throw new Erro(400, `Esta ficha chegou ao limite de ${LIMITE_CHAVES} chaves. Revogue alguma para criar outra.`);
+  const segredo = 'ohi_' + crypto.randomBytes(32).toString('base64url');
+  const linha = { id: novoId('k'), fichaId: f.id, hash: hashToken(segredo), rotulo, criadoEm: Date.now() };
+  await db.insert(chavesIntegracao).values(linha);
+  ctx.status = 201;
+  return { chave: dadosDaChave(linha), segredo };
+});
+
+rota('DELETE', '/api/fichas/:id/chaves/:chaveId', async ctx => {
+  const f = await fichaDoDono(ctx.params.id, ctx.usuario);
+  await db.delete(chavesIntegracao).where(and(eq(chavesIntegracao.id, ctx.params.chaveId), eq(chavesIntegracao.fichaId, f.id)));
+  return { ok: true };
+});
+
+/* ---------- Integração com o Tablebola ---------- */
+function eDoProprioSite(req: Request) {
+  const origem = req.headers.get('origin');
+  if (!origem) return true;
+  try { return new URL(origem).host === (req.headers.get('x-forwarded-host') || req.headers.get('host')); }
+  catch { return false; }
+}
+/* Único ponto que decide quem acessa a ficha pela integração: para trocar a forma de acesso, mude só esta função.
+   O Tablebola não tem login, então o papel de GM na sala não prova nada aqui. Vale a chave dada pelo dono.
+   Sem chave, vale a sessão de quem já pode editar a ficha, mas só em pedidos do próprio site. */
+async function autorizarIntegracao(ctx: Ctx): Promise<LinhaFicha> {
+  const naoEncontrada = new Erro(404, 'Ficha não encontrada, ou esta chave não dá acesso a ela.');
+  const cabecalho = ctx.req.headers.get('authorization');
+  if (cabecalho) {
+    const segredo = /^Bearer (ohi_[\w-]{20,100})$/i.exec(cabecalho)?.[1];
+    if (!segredo) throw naoEncontrada;
+    const [c] = await db.select({ id: chavesIntegracao.id }).from(chavesIntegracao)
+      .where(and(eq(chavesIntegracao.hash, hashToken(segredo)), eq(chavesIntegracao.fichaId, ctx.params.id)));
+    const [f] = c ? await db.select(colunasFicha).from(fichas).where(eq(fichas.id, ctx.params.id)) : [];
+    if (!f) throw naoEncontrada;
+    return f;
+  }
+  if (!ctx.usuario || !eDoProprioSite(ctx.req)) throw new Erro(401, 'Envie a chave de integração da ficha.');
+  return fichaEditavel(ctx.params.id, ctx.usuario);
+}
+/* A ficha como a tela embutida espera. O contexto é neutro: quem usa a chave não vira dono nem mestre. */
+async function fichaParaEmbutir(f: LinhaFicha): Promise<Ficha> {
+  return {
+    ...R.normalizar(f.dados), id: f.id, donoId: f.donoId, campanhaId: f.campanhaId, registro: f.registro, fotoV: f.fotoV, atualizado: f.atualizado,
+    contexto: { souDono: false, souMestre: false, donoNome: await nomeDe(f.donoId), campanha: null },
+  };
+}
+
+rota('GET', '/api/integracao/fichas/:id/resumo', async ctx => resumoDaFicha(await autorizarIntegracao(ctx)), true);
+
+rota('GET', '/api/integracao/fichas/:id/retrato', async ctx => {
+  const f = await autorizarIntegracao(ctx);
+  const [{ foto }] = await db.select({ foto: fichas.foto }).from(fichas).where(eq(fichas.id, f.id));
+  if (!foto) throw new Erro(404, 'Foto não encontrada.');
+  /* Revogar a chave precisa valer na hora, por isso o navegador confere de novo a cada uso. */
+  return respostaFoto(foto, 'private, no-cache');
+}, true);
+
+rota('GET', '/api/integracao/fichas/:id', async ctx => ({ ficha: await fichaParaEmbutir(await autorizarIntegracao(ctx)) }), true);
+
+rota('PATCH', '/api/integracao/fichas/:id/recursos', async ctx => {
+  await autorizarIntegracao(ctx);
+  const pedido = validar(esquemaRecursos, ctx.corpo);
+  const f = await alterarFicha(ctx.params.id, l => {
+    /* normalizar() limita ao máximo da ficha: o Tablebola não consegue dar mais vida do que a ficha permite. */
+    l.dados = R.normalizar({ ...l.dados, ...pedido });
+  });
+  return { recursos: recursosDaFicha(f.dados), atualizado: f.atualizado, ficha: await fichaParaEmbutir(f) };
+}, true);
 
 rota('POST', '/api/fichas/:id/encerrar-cena', async ctx => {
   await fichaEditavel(ctx.params.id, ctx.usuario);
@@ -579,15 +675,10 @@ rota('POST', '/api/convites/:codigo/entrar', async ctx => {
 });
 
 /* ---------- Atendimento ---------- */
-function conferirOrigem(req: Request) {
+function conferirOrigem(req: Request, aceitas: readonly string[]) {
   /* Bloqueia pedidos forjados por outros sites: além do cookie SameSite, exige JSON e mesma origem. */
   if (!/^application\/json/i.test(req.headers.get('content-type') || '')) throw new Erro(415, 'Envie os dados em JSON.');
-  const origem = req.headers.get('origin');
-  if (!origem) return;
-  const host = req.headers.get('x-forwarded-host') || req.headers.get('host');
-  let hostOrigem: string | null = null;
-  try { hostOrigem = new URL(origem).host; } catch { /* origem malformada cai na recusa abaixo */ }
-  if (hostOrigem !== host) throw new Erro(403, 'Pedido recusado: origem diferente do site.');
+  if (!eDoProprioSite(req) && !origemPermitida(req.headers.get('origin'), aceitas)) throw new Erro(403, 'Pedido recusado: origem diferente do site.');
 }
 async function lerCorpo(req: Request) {
   if (Number(req.headers.get('content-length') || 0) > LIMITE_CORPO) throw new Erro(413, 'O envio é grande demais.');
@@ -613,7 +704,30 @@ function lerCookie(req: Request) {
   return undefined;
 }
 
+/* Só as rotas de integração falam com outra origem, e só com as da lista. Sem credenciais de cookie: o acesso de fora é sempre pela chave. */
+async function atenderIntegracao(req: Request): Promise<Response> {
+  const origem = req.headers.get('origin');
+  const aceitas = lerOrigens(process.env.ORIGENS_TABLEBOLA);
+  const doSite = eDoProprioSite(req);
+  if (!doSite && !origemPermitida(origem, aceitas)) return responderJson(403, { erro: 'Pedido recusado: esta origem não está autorizada.' });
+  const resposta = req.method === 'OPTIONS'
+    ? new Response(null, { status: 204, headers: { 'Access-Control-Allow-Methods': 'GET, PATCH, OPTIONS', 'Access-Control-Allow-Headers': 'Authorization, Content-Type', 'Access-Control-Max-Age': '600' } })
+    : await processar(req, aceitas);
+  if (!doSite) {
+    resposta.headers.set('Access-Control-Allow-Origin', origem!);
+    resposta.headers.set('Vary', 'Origin');
+  }
+  return resposta;
+}
+
 export async function atender(req: Request): Promise<Response> {
+  if (new URL(req.url).pathname.startsWith('/api/integracao/')) return atenderIntegracao(req);
+  /* Exportar OPTIONS desliga a resposta automática do Next: as outras rotas continuam respondendo como antes. */
+  if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: { Allow: 'GET, POST, PATCH, DELETE, OPTIONS' } });
+  return processar(req, []);
+}
+
+async function processar(req: Request, origensAceitas: readonly string[]): Promise<Response> {
   try {
     const caminho = new URL(req.url).pathname;
     let encontrada: { r: Rota; m: RegExpMatchArray } | null = null;
@@ -624,7 +738,7 @@ export async function atender(req: Request): Promise<Response> {
     if (!encontrada) throw new Erro(404, 'Rota não encontrada.');
     const { r, m } = encontrada;
     let corpo: Record<string, any> = {};
-    if (req.method !== 'GET') { conferirOrigem(req); corpo = await lerCorpo(req); }
+    if (req.method !== 'GET') { conferirOrigem(req, origensAceitas); corpo = await lerCorpo(req); }
     const token = lerCookie(req);
     const usuario = await usuarioDoToken(token);
     if (!r.publica && !usuario) throw new Erro(401, 'Entre na sua conta para continuar.');

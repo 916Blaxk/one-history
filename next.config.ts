@@ -1,18 +1,7 @@
 import type { NextConfig } from 'next';
+import { montarCsp } from './lib/csp';
 
-const dev = process.env.NODE_ENV !== 'production';
-const csp = [
-  "default-src 'self'",
-  `script-src 'self' 'unsafe-inline'${dev ? " 'unsafe-eval'" : ''}`,
-  "style-src 'self' 'unsafe-inline'",
-  "font-src 'self'",
-  "img-src 'self' data: blob:",
-  `connect-src 'self'${dev ? ' ws:' : ''}`,
-  "object-src 'none'",
-  "base-uri 'none'",
-  "form-action 'self'",
-  "frame-ancestors 'none'",
-].join('; ');
+const csp = montarCsp(process.env.NODE_ENV !== 'production');
 
 const config: NextConfig = {
   poweredByHeader: false,
@@ -22,7 +11,8 @@ const config: NextConfig = {
   serverExternalPackages: ['@libsql/client', 'libsql'],
   async headers() {
     return [{
-      source: '/:caminho*',
+      /* A rota embutida recebe estes cabeçalhos em proxy.ts, onde a lista de origens é lida ao vivo. */
+      source: '/((?!embutido/).*)',
       headers: [
         { key: 'Content-Security-Policy', value: csp },
         { key: 'X-Content-Type-Options', value: 'nosniff' },

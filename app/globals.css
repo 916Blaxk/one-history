@@ -283,6 +283,37 @@ a.camp-linha:hover .rol-nome{color:var(--ouro)}
 .elementos-lista{flex:1 1 250px;min-width:0}
 .duas-col{display:grid;gap:28px 24px;grid-template-columns:repeat(auto-fit,minmax(250px,1fr))}
 .lista-armas{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));column-gap:24px}
+.abas{display:flex;gap:4px;border-bottom:1px solid var(--linha)}
+.abas button{padding:8px 14px;background:transparent;border:0;border-bottom:3px solid transparent;font:700 15px/1.2 var(--f-rotulo);letter-spacing:.05em;color:var(--tinta-2);cursor:pointer}
+.abas button:hover{color:var(--ouro)}
+.abas button[aria-selected="true"]{color:var(--ouro);border-bottom-color:var(--ouro)}
+.painel-aba{display:grid;gap:28px;min-width:0}
+.painel-aba[hidden]{display:none}
+.magias{display:grid;gap:12px;justify-items:start}
+.magias>*{width:100%}
+.magias>.btn{width:auto}
+.lista-magias{display:grid;gap:8px}
+.magia{border:1px solid var(--linha);border-radius:2px;background:var(--folha)}
+.magia-topo{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:10px;padding:6px 10px}
+.magia-nome{min-width:0;padding:4px 0;background:transparent;border:0;text-align:left;font-weight:700;cursor:pointer;overflow-wrap:anywhere}
+.magia-nome:hover{color:var(--ouro)}
+.magia-nome small{display:block;font-size:13px;font-weight:400;color:var(--tinta-2)}
+.magia-custo{font-size:13px;color:var(--tinta-2);white-space:nowrap}
+.magia-corpo{padding:10px;border-top:1px dotted var(--linha)}
+.magia-campos{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
+.magia-descricao{white-space:pre-wrap;overflow-wrap:anywhere}
+@media (max-width:520px){
+  .magia-topo{grid-template-columns:minmax(0,1fr) auto}
+  .magia-nome{grid-column:1 / -1}
+}
+.integracao{border:1px solid var(--linha);border-radius:2px;background:var(--folha);min-width:0;grid-column:1 / -1}
+.integracao summary{padding:8px 10px;font:500 14px/1.2 var(--f-rotulo);letter-spacing:.04em;cursor:pointer}
+.integracao-corpo{display:grid;gap:10px;padding:10px;border-top:1px dotted var(--linha)}
+.integracao-corpo .btn{justify-self:start}
+.chave-nova{display:grid;gap:4px;padding:8px;border:1px solid var(--ouro)}
+.chave-nova input{width:100%;min-height:32px;padding:4px 6px;font-size:13px;background:var(--pagina);border:1px solid var(--linha);border-radius:2px}
+.lista-chaves li{display:flex;align-items:center;justify-content:space-between;gap:8px;padding-block:6px;border-bottom:1px dotted var(--linha);overflow-wrap:anywhere}
+.lista-chaves small{display:block;font-size:13px;color:var(--tinta-2)}
 .bloco-nucleo{display:grid;gap:8px}
 .cab-pericias{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:4px 12px}
 .sp-saldo{font-size:13px;color:var(--tinta-2)}

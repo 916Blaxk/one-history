@@ -61,6 +61,8 @@ export const NUCLEOS: EstagioNucleo[] = [
 ];
 
 export interface AjustesMestre { vida: number; mana: number; sp: number }
+export interface Magia { id: string; nome: string; elemento: string; custo: number; alcance: string; duracao: string; descricao: string }
+export const LIMITE_MAGIAS = 100;
 
 export interface DadosFicha {
   player: string; nome: string; idade: string; raca: string; estilo: string;
@@ -70,6 +72,7 @@ export interface DadosFicha {
   corpo: Record<string, number>; mente: Record<string, number>; pericias: Record<string, number>;
   /* Só o mestre da campanha altera estes dois. `limites` usa chaves "grupo.item"; sem chave, não há limite. */
   ajustes: AjustesMestre; limites: Record<string, number>;
+  magias: Magia[];
 }
 
 type BaseVida = Pick<DadosFicha, 'corpo' | 'ajustes'>;
@@ -86,6 +89,8 @@ export function bonusNucleo(estagioNucleo: number | undefined) {
 export const spGastos = (f: Pick<DadosFicha, 'pericias'>) => Object.values(f.pericias).reduce((soma, v) => soma + v, 0);
 export const spTotal = (f: Pick<DadosFicha, 'nucleo' | 'ajustes'>) => Math.max(0, bonusNucleo(f.nucleo).sp + f.ajustes.sp);
 export const chaveLimite = (g: Grupo, k: string) => `${g}.${k}`;
+/* O gasto universal do núcleo desconta do custo de toda magia, sem deixar o custo negativo. */
+export const custoMagia = (f: Pick<DadosFicha, 'nucleo'>, m: Pick<Magia, 'custo'>) => Math.max(0, m.custo - bonusNucleo(f.nucleo).gasto);
 
 /* O ajuste do mestre fica por cima da fórmula: subir atributo ou núcleo continua valendo. Fichas antigas não têm `ajustes`. */
 export const vidaMax = (f: BaseVida) => Math.max(0, 15 + f.corpo.vitalidade * 2 + (f.ajustes?.vida ?? 0));
@@ -121,6 +126,23 @@ export function inteiro(v: unknown, min: number, max: number) {
 }
 const texto = (v: unknown, lim: number) => (typeof v === 'string' ? v.slice(0, lim) : '');
 
+function normalizarMagias(entrada: unknown): Magia[] {
+  if (!Array.isArray(entrada)) return [];
+  const ids = new Set<string>();
+  return entrada.slice(0, LIMITE_MAGIAS).map((bruta, i) => {
+    const m = (bruta && typeof bruta === 'object' ? bruta : {}) as Record<string, unknown>;
+    const pedido = texto(m.id, 40);
+    /* O id identifica o cartão na tela: um arquivo editado não pode repetir nem omitir. */
+    const id = pedido && !ids.has(pedido) ? pedido : `m${i}-${ids.size}`;
+    ids.add(id);
+    const elemento = GRUPOS.elementos.some(([k]) => k === m.elemento) ? String(m.elemento) : '';
+    return {
+      id, nome: texto(m.nome, 80), elemento, custo: inteiro(m.custo ?? 0, 0, 9999),
+      alcance: texto(m.alcance, 60), duracao: texto(m.duracao, 60), descricao: texto(m.descricao, 4000),
+    };
+  });
+}
+
 /* O que o jogador não pode passar. Só corta o que subiu: valor que o mestre deixou acima do limite fica como está, e pode descer. */
 export function aplicarTravasDoJogador(nova: DadosFicha, antes: DadosFicha) {
   for (const g of NOMES_GRUPOS) for (const [k] of GRUPOS[g]) {
@@ -155,6 +177,7 @@ export function normalizar(entrada: unknown): DadosFicha {
       sp: inteiro(o.ajustes?.sp ?? 0, -9999, 9999),
     },
     limites: {},
+    magias: normalizarMagias(o.magias),
   };
   for (const g of NOMES_GRUPOS) for (const [k] of GRUPOS[g]) {
     f[g][k] = inteiro(o[g]?.[k], 0, 999);
