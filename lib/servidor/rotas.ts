@@ -198,14 +198,14 @@ async function removerMembro(campanhaId: string, usuarioId: string) {
   ]);
   avisarMesa({ tipo: 'campanha', campanhaId });
 }
-function rolar(lados: number, bonus: number) {
+function rolar(lados: number, bonus: number, adicional = 0) {
   if (!R.DADOS.includes(lados)) throw new Erro(400, 'Esse dado não existe no rolador. Use d4, d6, d8, d10, d12, d20 ou d100.');
-  const expressao = `1d${lados}${bonus > 0 ? `+${bonus}` : bonus < 0 ? `-${-bonus}` : ''}`;
+  const expressao = `1d${lados}${adicional ? `+1d${adicional}` : ''}${bonus > 0 ? `+${bonus}` : bonus < 0 ? `-${-bonus}` : ''}`;
   const detalhe = rollDice(expressao);
-  return { d: detalhe.groups[0].dice[0].rolls[0], lados, bonus, total: detalhe.total, expressao, detalhe };
+  return { d: detalhe.groups[0].dice[0].rolls[0], lados, adicional, dAdicional: adicional ? detalhe.groups[1].dice[0].rolls[0] : 0, bonus, total: detalhe.total, expressao, detalhe };
 }
 const detalheRolagem = (r: ReturnType<typeof rolar>) =>
-  `d${r.lados} (${r.d})${r.bonus ? ` ${r.bonus > 0 ? '+' : '−'} ${Math.abs(r.bonus)}` : ''}`;
+  `d${r.lados} (${r.d})${r.adicional ? ` + d${r.adicional} (${r.dAdicional})` : ''}${r.bonus ? ` ${r.bonus > 0 ? '+' : '−'} ${Math.abs(r.bonus)}` : ''}`;
 /* O mesmo texto de uma rolagem, para expressões que só a mesa aceita: o chat de dados do site mostra só isto. */
 export function textoDaRolagem(r: DiceRollResult) {
   const partes = r.groups.map(g => {
@@ -469,11 +469,12 @@ rota('POST', '/api/fichas/:id/rolar', async ctx => {
   let rotulo = '';
   let r: ReturnType<typeof rolar>;
   if (ctx.corpo.atributo) {
-    /* Rolagem de atributo é sempre d20 + o valor guardado na ficha: o navegador não escolhe o bônus. */
+    /* Rolagem de atributo é sempre d20 + o valor guardado na ficha, e a de perícia soma o dado adicional: o navegador não escolhe o bônus. */
     const item = itemDaAcao(String(ctx.corpo.atributo));
     if (!item) throw new Erro(400, 'Esse atributo não existe na ficha.');
     rotulo = item.rotulo;
-    r = rolar(20, R.normalizar(f.dados)[item.grupo][item.chave]);
+    const valor = R.normalizar(f.dados)[item.grupo][item.chave];
+    r = rolar(20, valor, item.grupo === 'pericias' ? R.dadoAdicional(valor) : 0);
   } else {
     r = rolar(Number(ctx.corpo.lados), R.inteiro(ctx.corpo.bonus, -999, 999));
   }

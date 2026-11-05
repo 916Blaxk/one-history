@@ -18,6 +18,12 @@ export function expressaoAtributo(valor: number) {
   return valor < 0 ? `1d20-${-valor}` : '1d20';
 }
 
+/* Só perícia tem dado adicional: atributos, armas, corpo e mente continuam em d20 + valor. */
+export function expressaoDaAcao(grupo: R.Grupo, valor: number) {
+  const dado = grupo === 'pericias' ? R.dadoAdicional(valor) : 0;
+  return dado ? `1d20+1d${dado}+${valor}` : expressaoAtributo(valor);
+}
+
 /* Aceita só "grupo.item" que exista: o texto vem do navegador. */
 export function itemDaAcao(acao: string) {
   const [g, k] = acao.split('.') as [R.Grupo, string];
@@ -31,7 +37,7 @@ export function acoesDeRolagem(d: R.DadosFicha): AcaoRolagem[] {
     const [k, rotulo] = item;
     return {
       id: `${g}.${k}`, grupo: g, categoria: g === 'pericias' ? CATEGORIA_PERICIA.get(k) ?? NOME_GRUPO[g] : NOME_GRUPO[g],
-      rotulo, valor: d[g][k], expressao: expressaoAtributo(d[g][k]),
+      rotulo, valor: d[g][k], expressao: expressaoDaAcao(g, d[g][k]),
     };
   }));
 }

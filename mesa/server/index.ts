@@ -12,7 +12,7 @@ import {
   GM_TOKEN_FIELDS, NULLABLE_TOKEN_FIELDS, PLAYER_TOKEN_FIELDS, can, validCharacterId, validRollLabel,
 } from '../src/shared/permissions.js'
 import * as R from '../../lib/regras'
-import { expressaoAtributo, itemDaAcao } from '../../lib/resumoFicha'
+import { expressaoDaAcao, itemDaAcao } from '../../lib/resumoFicha'
 import { ouvirMesa, type EventoMesa } from '../../lib/servidor/barramento'
 import { alterarFicha, gravarRolagem, textoDaRolagem } from '../../lib/servidor/rotas'
 import { COOKIE, usuarioDoToken } from '../../lib/servidor/sessao'
@@ -501,7 +501,7 @@ async function handleCommand(socket: TableSocket, room: RoomState, player: RoomP
       const item = itemDaAcao(message.acao)
       if (!item) return deny(socket)
       /* O bônus vem da ficha guardada: o navegador só diz qual atributo rolar. */
-      const expression = expressaoAtributo(ficha.dados[item.grupo][item.chave])
+      const expression = expressaoDaAcao(item.grupo, ficha.dados[item.grupo][item.chave])
       const roll = rollDice(expression)
       await gravarRolagem({
         campanhaId: room.code, fichaId: ficha.id, usuarioId: player.id, autor: ficha.dados.nome || 'Sem nome',

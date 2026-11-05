@@ -1,3 +1,4 @@
+import { expressaoDaAcao } from '../lib/resumoFicha';
 import { describe, expect, it } from 'vitest';
 import * as R from '../lib/regras';
 
@@ -52,10 +53,11 @@ describe('regras do sistema', () => {
     expect(ferido.vidaAtual).toBe(10);
   });
 
-  it('núcleo acumula mana, gasto universal e SP dos estágios alcançados', () => {
-    expect(R.bonusNucleo(0)).toEqual({ mana: 0, gasto: 0, sp: 15 });
-    expect(R.bonusNucleo(3)).toEqual({ mana: 7, gasto: 2, sp: 32 });
-    expect(R.bonusNucleo(12)).toEqual({ mana: 108, gasto: 20, sp: 161 });
+  it('núcleo acumula mana, gasto universal, SP e vida dos estágios alcançados', () => {
+    expect(R.bonusNucleo(0)).toEqual({ mana: 0, gasto: 0, sp: 15, pv: 0 });
+    expect(R.bonusNucleo(3)).toEqual({ mana: 7, gasto: 2, sp: 32, pv: 7 });
+    expect(R.bonusNucleo(12)).toEqual({ mana: 108, gasto: 20, sp: 161, pv: 98 });
+    expect(R.vidaMax(R.normalizar({ corpo: { vitalidade: 5 }, nucleo: 3 }))).toBe(32);
     expect(R.manaMax(R.normalizar({ mente: { onipotencia: 7 }, tier: 1, nucleo: 3 }))).toBe(51);
   });
 
@@ -71,6 +73,18 @@ describe('regras do sistema', () => {
   it('perícias somam os SP usados e o estágio do núcleo respeita o limite', () => {
     expect(R.spGastos(R.normalizar({ pericias: { esquiva: 3, medicina: 2, inventada: 50 } }))).toBe(5);
     expect(R.normalizar({ nucleo: 99 }).nucleo).toBe(12);
+  });
+
+  it('dado adicional segue a faixa da perícia e só vale para perícia', () => {
+    const faixas: [number, number][] = [[0, 0], [1, 2], [5, 2], [6, 4], [10, 4], [11, 6], [15, 6], [16, 8], [20, 8], [21, 10], [25, 10], [50, 10]];
+    for (const [valor, lados] of faixas) expect(R.dadoAdicional(valor)).toBe(lados);
+    expect(expressaoDaAcao('pericias', 7)).toBe('1d20+1d4+7');
+    expect(expressaoDaAcao('pericias', 0)).toBe('1d20');
+    expect(expressaoDaAcao('corpo', 7)).toBe('1d20+7');
+  });
+
+  it('toda perícia tem descrição', () => {
+    for (const [, , descricao] of R.GRUPOS.pericias) expect(descricao).not.toBe('');
   });
 
   it('ajuste do mestre fica por cima da fórmula e a perda de cena continua valendo', () => {

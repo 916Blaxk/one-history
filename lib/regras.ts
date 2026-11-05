@@ -1,13 +1,13 @@
 /* Regras do sistema ONE HISTORY. Roda no navegador e no servidor. */
 
-export const PERICIAS: readonly { categoria: string; itens: readonly (readonly [string, string])[] }[] = [
-  { categoria: 'Combate', itens: [['lutaDesarmada', 'Luta desarmada'], ['esquiva', 'Esquiva'], ['aparar', 'Aparar'], ['arremesso', 'Arremesso']] },
-  { categoria: 'Físicas e movimentação', itens: [['acrobacia', 'Acrobacia'], ['escalada', 'Escalada'], ['natacao', 'Natação'], ['corrida', 'Corrida'], ['equilibrio', 'Equilíbrio'], ['furtividade', 'Furtividade'], ['sobrevivencia', 'Sobrevivência']] },
-  { categoria: 'Conhecimento', itens: [['historia', 'História'], ['geografia', 'Geografia'], ['religiao', 'Religião'], ['mitologia', 'Mitologia'], ['investigacao', 'Investigação'], ['medicina', 'Medicina'], ['alquimia', 'Alquimia'], ['engenharia', 'Engenharia'], ['arquitetura', 'Arquitetura'], ['matematica', 'Matemática'], ['linguistica', 'Linguística'], ['estrategiaMilitar', 'Estratégia militar']] },
-  { categoria: 'Sociais', itens: [['intimidacao', 'Intimidação'], ['enganacao', 'Enganação'], ['atuacao', 'Atuação'], ['etiqueta', 'Etiqueta'], ['lideranca', 'Liderança'], ['interrogatorio', 'Interrogatório'], ['seducao', 'Sedução'], ['negociacao', 'Negociação'], ['disfarce', 'Disfarce'], ['domesticacao', 'Domesticação']] },
-  { categoria: 'Exploração e utilidade', itens: [['rastreamento', 'Rastreamento'], ['caca', 'Caça'], ['arrombamento', 'Arrombamento'], ['truques', 'Truques'], ['pilotagem', 'Pilotagem']] },
-  { categoria: 'Profissões e ofícios', itens: [['profissao', 'Profissão'], ['musica', 'Música'], ['danca', 'Dança'], ['escultura', 'Escultura'], ['criptografia', 'Criptografia'], ['conhecimentoCriaturas', 'Conhecimento de criaturas'], ['conhecimentoArtefatos', 'Conhecimento de artefatos'], ['canalizacaoMagica', 'Canalização mágica'], ['controleMana', 'Controle de mana'], ['ritualistica', 'Ritualística'], ['identificacaoMagica', 'Identificação mágica'], ['resistenciaEspiritual', 'Resistência espiritual']] },
-  { categoria: 'Perícias adicionais', itens: [['encantar', 'Encantar'], ['tecnologia', 'Tecnologia'], ['extracaoNucleo', 'Extração de núcleo'], ['metalurgica', 'Metalúrgica'], ['sorte', 'Sorte']] },
+export const PERICIAS: readonly { categoria: string; itens: readonly (readonly [string, string, string])[] }[] = [
+  { categoria: 'Combate', itens: [['lutaDesarmada', 'Luta desarmada', 'Atacar e se defender sem armas.'], ['esquiva', 'Esquiva', 'Sair do caminho de um ataque ou perigo.'], ['aparar', 'Aparar', 'Bloquear ou desviar um golpe com arma ou escudo.'], ['arremesso', 'Arremesso', 'Lançar objetos e armas de arremesso com precisão.']] },
+  { categoria: 'Físicas e movimentação', itens: [['acrobacia', 'Acrobacia', 'Saltar, rolar e fazer manobras corporais.'], ['escalada', 'Escalada', 'Subir muros, árvores e encostas.'], ['natacao', 'Natação', 'Nadar, mergulhar e resistir a correntezas.'], ['corrida', 'Corrida', 'Correr rápido e manter o ritmo em perseguições.'], ['equilibrio', 'Equilíbrio', 'Manter-se de pé em superfícies estreitas ou instáveis.'], ['furtividade', 'Furtividade', 'Mover-se sem ser visto ou ouvido.'], ['sobrevivencia', 'Sobrevivência', 'Achar abrigo, água e caminho em ambientes hostis.']] },
+  { categoria: 'Conhecimento', itens: [['historia', 'História', 'Conhecer eventos, povos e figuras do passado.'], ['geografia', 'Geografia', 'Conhecer regiões, rotas, climas e mapas.'], ['religiao', 'Religião', 'Conhecer crenças, cultos, ritos e símbolos sagrados.'], ['mitologia', 'Mitologia', 'Conhecer lendas, deuses e contos antigos.'], ['investigacao', 'Investigação', 'Procurar pistas e deduzir o que aconteceu.'], ['medicina', 'Medicina', 'Diagnosticar e tratar ferimentos e doenças sem magia.'], ['alquimia', 'Alquimia', 'Identificar e preparar poções, venenos e reagentes.'], ['engenharia', 'Engenharia', 'Projetar, entender e consertar máquinas e mecanismos.'], ['arquitetura', 'Arquitetura', 'Entender construções, estruturas e seus pontos fracos.'], ['matematica', 'Matemática', 'Fazer cálculos e resolver problemas lógicos.'], ['linguistica', 'Linguística', 'Entender idiomas, dialetos e escritas desconhecidas.'], ['estrategiaMilitar', 'Estratégia militar', 'Planejar batalhas e ler táticas inimigas.']] },
+  { categoria: 'Sociais', itens: [['intimidacao', 'Intimidação', 'Impor medo por presença ou ameaça.'], ['enganacao', 'Enganação', 'Mentir e convencer alguém do que é falso.'], ['atuacao', 'Atuação', 'Interpretar um papel ou emoção de forma convincente.'], ['etiqueta', 'Etiqueta', 'Seguir costumes e se portar bem em cada meio social.'], ['lideranca', 'Liderança', 'Inspirar e coordenar um grupo.'], ['interrogatorio', 'Interrogatório', 'Extrair informação de quem não quer falar.'], ['seducao', 'Sedução', 'Usar charme e atração para influenciar alguém.'], ['negociacao', 'Negociação', 'Barganhar preços, acordos e tréguas.'], ['disfarce', 'Disfarce', 'Mudar a aparência para se passar por outra pessoa.'], ['domesticacao', 'Domesticação', 'Acalmar, treinar e conduzir animais.']] },
+  { categoria: 'Exploração e utilidade', itens: [['rastreamento', 'Rastreamento', 'Seguir pegadas e sinais de passagem.'], ['caca', 'Caça', 'Localizar, emboscar e abater presas.'], ['arrombamento', 'Arrombamento', 'Abrir fechaduras e passar por trancas.'], ['truques', 'Truques', 'Fazer prestidigitação e pequenos golpes de mão.'], ['pilotagem', 'Pilotagem', 'Conduzir veículos e embarcações.']] },
+  { categoria: 'Profissões e ofícios', itens: [['profissao', 'Profissão', 'Exercer um ofício escolhido pelo personagem.'], ['musica', 'Música', 'Tocar instrumentos, cantar e compor.'], ['danca', 'Dança', 'Dançar com técnica, em apresentações ou eventos.'], ['escultura', 'Escultura', 'Criar e avaliar obras em pedra, madeira ou argila.'], ['criptografia', 'Criptografia', 'Criar e decifrar códigos e mensagens secretas.'], ['conhecimentoCriaturas', 'Conhecimento de criaturas', 'Identificar criaturas, seus hábitos e fraquezas.'], ['conhecimentoArtefatos', 'Conhecimento de artefatos', 'Reconhecer artefatos, sua origem e sua função.'], ['canalizacaoMagica', 'Canalização mágica', 'Conduzir mana pelo corpo ou por um objeto com estabilidade.'], ['controleMana', 'Controle de mana', 'Dosar a mana e evitar desperdício ou descontrole.'], ['ritualistica', 'Ritualística', 'Conduzir rituais e entender seus círculos e etapas.'], ['identificacaoMagica', 'Identificação mágica', 'Reconhecer magias, encantamentos e seus efeitos.'], ['resistenciaEspiritual', 'Resistência espiritual', 'Resistir a influências sobre a mente e o espírito.']] },
+  { categoria: 'Perícias adicionais', itens: [['encantar', 'Encantar', 'Imbuir objetos com efeitos mágicos.'], ['tecnologia', 'Tecnologia', 'Entender e operar dispositivos avançados.'], ['extracaoNucleo', 'Extração de núcleo', 'Retirar o núcleo de uma criatura sem danificá-lo.'], ['metalurgica', 'Metalúrgica', 'Trabalhar metais e forjar peças.'], ['sorte', 'Sorte', 'Contar com o acaso quando nenhuma outra perícia se aplica.']] },
 ];
 
 export const GRUPOS = {
@@ -43,21 +43,21 @@ export const ESTAGIOS: Estagio[] = [
   { min: 100, nome: '???', txt: '' },
 ];
 
-export interface EstagioNucleo { nome: string; mana: number; gasto: number; sp: number; txt?: string }
+export interface EstagioNucleo { nome: string; mana: number; gasto: number; sp: number; pv: number; txt?: string }
 export const NUCLEOS: EstagioNucleo[] = [
-  { nome: 'Vermelho escuro', mana: 0, gasto: 0, sp: 15, txt: 'Seu núcleo acabou de se formar em seu corpo, cheio de impurezas do sangue. Ele fica entre os pulmões e acima do estômago. Você pode sentir as veias de mana passarem por seu corpo, o fortalecendo e tomando uma forma…' },
-  { nome: 'Vermelho sólido', mana: 2, gasto: 0, sp: 5 },
-  { nome: 'Vermelho claro', mana: 2, gasto: 0, sp: 5 },
-  { nome: 'Laranja escuro', mana: 3, gasto: 2, sp: 7 },
-  { nome: 'Laranja sólido', mana: 3, gasto: 0, sp: 7 },
-  { nome: 'Laranja claro', mana: 3, gasto: 0, sp: 7 },
-  { nome: 'Amarelo escuro', mana: 5, gasto: 3, sp: 10 },
-  { nome: 'Amarelo sólido', mana: 5, gasto: 0, sp: 10 },
-  { nome: 'Amarelo claro', mana: 5, gasto: 0, sp: 10 },
-  { nome: 'Prata escuro', mana: 10, gasto: 5, sp: 15 },
-  { nome: 'Prata fosco', mana: 10, gasto: 0, sp: 15 },
-  { nome: 'Prata brilhante', mana: 10, gasto: 0, sp: 15 },
-  { nome: 'Branco', mana: 50, gasto: 10, sp: 40 },
+  { nome: 'Vermelho escuro', mana: 0, gasto: 0, sp: 15, pv: 0, txt: 'Seu núcleo acabou de se formar em seu corpo, cheio de impurezas do sangue. Ele fica entre os pulmões e acima do estômago. Você pode sentir as veias de mana passarem por seu corpo, o fortalecendo e tomando uma forma…' },
+  { nome: 'Vermelho sólido', mana: 2, gasto: 0, sp: 5, pv: 2 },
+  { nome: 'Vermelho claro', mana: 2, gasto: 0, sp: 5, pv: 2 },
+  { nome: 'Laranja escuro', mana: 3, gasto: 2, sp: 7, pv: 3 },
+  { nome: 'Laranja sólido', mana: 3, gasto: 0, sp: 7, pv: 3 },
+  { nome: 'Laranja claro', mana: 3, gasto: 0, sp: 7, pv: 3 },
+  { nome: 'Amarelo escuro', mana: 5, gasto: 3, sp: 10, pv: 5 },
+  { nome: 'Amarelo sólido', mana: 5, gasto: 0, sp: 10, pv: 5 },
+  { nome: 'Amarelo claro', mana: 5, gasto: 0, sp: 10, pv: 5 },
+  { nome: 'Prata escuro', mana: 10, gasto: 5, sp: 15, pv: 10 },
+  { nome: 'Prata fosco', mana: 10, gasto: 0, sp: 15, pv: 10 },
+  { nome: 'Prata brilhante', mana: 10, gasto: 0, sp: 15, pv: 10 },
+  { nome: 'Branco', mana: 50, gasto: 10, sp: 40, pv: 40 },
 ];
 
 export interface AjustesMestre { vida: number; mana: number; sp: number }
@@ -75,25 +75,27 @@ export interface DadosFicha {
   magias: Magia[];
 }
 
-type BaseVida = Pick<DadosFicha, 'corpo' | 'ajustes'>;
+type BaseVida = Pick<DadosFicha, 'corpo' | 'ajustes' | 'nucleo'>;
 type BaseMana = Pick<DadosFicha, 'mente' | 'tier' | 'manaPerdida' | 'nucleo' | 'ajustes'>;
 
 /* Cada estágio soma ao que os anteriores já deram. Fichas gravadas antes do núcleo não têm o campo e ficam no primeiro estágio. */
 export function bonusNucleo(estagioNucleo: number | undefined) {
-  const total = { mana: 0, gasto: 0, sp: 0 };
+  const total = { mana: 0, gasto: 0, sp: 0, pv: 0 };
   for (const n of NUCLEOS.slice(0, (estagioNucleo ?? 0) + 1)) {
-    total.mana += n.mana; total.gasto += n.gasto; total.sp += n.sp;
+    total.mana += n.mana; total.gasto += n.gasto; total.sp += n.sp; total.pv += n.pv;
   }
   return total;
 }
 export const spGastos = (f: Pick<DadosFicha, 'pericias'>) => Object.values(f.pericias).reduce((soma, v) => soma + v, 0);
 export const spTotal = (f: Pick<DadosFicha, 'nucleo' | 'ajustes'>) => Math.max(0, bonusNucleo(f.nucleo).sp + f.ajustes.sp);
 export const chaveLimite = (g: Grupo, k: string) => `${g}.${k}`;
+/* Lados do dado que a perícia soma à rolagem. O documento do sistema vai até 25; acima disso, o mestre pode liberar o valor, e o dado fica no maior. */
+export const dadoAdicional = (valor: number) => (valor <= 0 ? 0 : valor <= 5 ? 2 : valor <= 10 ? 4 : valor <= 15 ? 6 : valor <= 20 ? 8 : 10);
 /* O gasto universal do núcleo desconta do custo de toda magia, sem deixar o custo negativo. */
 export const custoMagia = (f: Pick<DadosFicha, 'nucleo'>, m: Pick<Magia, 'custo'>) => Math.max(0, m.custo - bonusNucleo(f.nucleo).gasto);
 
 /* O ajuste do mestre fica por cima da fórmula: subir atributo ou núcleo continua valendo. Fichas antigas não têm `ajustes`. */
-export const vidaMax = (f: BaseVida) => Math.max(0, 15 + f.corpo.vitalidade * 2 + (f.ajustes?.vida ?? 0));
+export const vidaMax = (f: BaseVida) => Math.max(0, 15 + f.corpo.vitalidade * 2 + bonusNucleo(f.nucleo).pv + (f.ajustes?.vida ?? 0));
 /* Todo arredondamento do sistema é para baixo. O 1e-9 evita que 10 × 2,3 vire 22,999… e perca um ponto. */
 export const manaBase = (f: Omit<BaseMana, 'manaPerdida'>) => Math.floor(30 + f.mente.onipotencia * TIERS[f.tier] + 1e-9) + bonusNucleo(f.nucleo).mana + (f.ajustes?.mana ?? 0);
 export const manaMax = (f: BaseMana) => Math.max(0, manaBase(f) - f.manaPerdida);

@@ -2,37 +2,52 @@
 
 Os nomes, as chaves e as regras vêm de `lib/regras.ts` e `lib/servidor/rotas.ts`. Se mudar uma perícia lá, atualize este documento.
 
-As descrições são sugestões e ainda não aparecem na ficha, porque o código guarda só o nome de cada perícia. Elas não mudam nenhuma regra e podem ser trocadas.
+As descrições aparecem na ficha e ficam em `PERICIAS`, em `lib/regras.ts`. Elas são sugestões, não mudam nenhuma regra e podem ser trocadas.
 
-A numeração segue o documento do sistema, que pula de 4 para 13. Os números 5 a 12 não têm perícia no documento nem no código.
+A numeração é corrida, na ordem do código. O documento do sistema pulava de 4 para 13, e ficou decidido que não há perícias nesses números.
 
 ## Como funcionam
 
 - **Valor:** cada perícia guarda um valor por ficha, que começa em 0.
-- **Rolagem:** rolar uma perícia é sempre d20 + o valor guardado na ficha. O servidor lê o valor, e o navegador não escolhe o bônus.
+- **Rolagem:** rolar uma perícia é d20 + dado adicional + o valor guardado na ficha. O servidor lê o valor, e o navegador não escolhe o bônus.
 - **SP:** a soma dos valores de todas as perícias é o SP gasto. O SP total vem do estágio do núcleo mais o ajuste do mestre.
 - **Travas do jogador:** o jogador não sobe uma perícia além do SP total nem do limite que o mestre definir para ela.
 - **Mestre:** o mestre pode deixar um valor acima do limite. Depois disso, o jogador só pode baixar esse valor.
 
-## SP por estágio do núcleo
+## Dado adicional
+
+Só as perícias têm dado adicional. Atributos, armas, corpo e mente rolam d20 + valor.
+
+| Valor da perícia | Dado |
+| --- | --- |
+| 0 | Nenhum |
+| 1 a 5 | 1d2 |
+| 6 a 10 | 1d4 |
+| 11 a 15 | 1d6 |
+| 16 a 20 | 1d8 |
+| 21 ou mais | 1d10 |
+
+O documento do sistema vai até 25. Acima disso, o dado continua em 1d10.
+
+## SP e vida por estágio do núcleo
 
 Cada estágio soma ao que os anteriores já deram.
 
-| Estágio | SP do estágio | SP acumulado |
-| --- | --- | --- |
-| Vermelho escuro | 15 | 15 |
-| Vermelho sólido | 5 | 20 |
-| Vermelho claro | 5 | 25 |
-| Laranja escuro | 7 | 32 |
-| Laranja sólido | 7 | 39 |
-| Laranja claro | 7 | 46 |
-| Amarelo escuro | 10 | 56 |
-| Amarelo sólido | 10 | 66 |
-| Amarelo claro | 10 | 76 |
-| Prata escuro | 15 | 91 |
-| Prata fosco | 15 | 106 |
-| Prata brilhante | 15 | 121 |
-| Branco | 40 | 161 |
+| Estágio | SP | SP acumulado | Vida | Vida acumulada |
+| --- | --- | --- | --- | --- |
+| Vermelho escuro | 15 | 15 | 0 | 0 |
+| Vermelho sólido | 5 | 20 | 2 | 2 |
+| Vermelho claro | 5 | 25 | 2 | 4 |
+| Laranja escuro | 7 | 32 | 3 | 7 |
+| Laranja sólido | 7 | 39 | 3 | 10 |
+| Laranja claro | 7 | 46 | 3 | 13 |
+| Amarelo escuro | 10 | 56 | 5 | 18 |
+| Amarelo sólido | 10 | 66 | 5 | 23 |
+| Amarelo claro | 10 | 76 | 5 | 28 |
+| Prata escuro | 15 | 91 | 10 | 38 |
+| Prata fosco | 15 | 106 | 10 | 48 |
+| Prata brilhante | 15 | 121 | 10 | 58 |
+| Branco | 40 | 161 | 40 | 98 |
 
 ## Lista
 
@@ -49,92 +64,92 @@ Cada estágio soma ao que os anteriores já deram.
 
 | Nº | Perícia | Chave | Descrição sugerida |
 | --- | --- | --- | --- |
-| 13 | Acrobacia | `acrobacia` | Saltar, rolar e fazer manobras corporais. |
-| 14 | Escalada | `escalada` | Subir muros, árvores e encostas. |
-| 15 | Natação | `natacao` | Nadar, mergulhar e resistir a correntezas. |
-| 16 | Corrida | `corrida` | Correr rápido e manter o ritmo em perseguições. |
-| 17 | Equilíbrio | `equilibrio` | Manter-se de pé em superfícies estreitas ou instáveis. |
-| 18 | Furtividade | `furtividade` | Mover-se sem ser visto ou ouvido. |
-| 19 | Sobrevivência | `sobrevivencia` | Achar abrigo, água e caminho em ambientes hostis. |
+| 5 | Acrobacia | `acrobacia` | Saltar, rolar e fazer manobras corporais. |
+| 6 | Escalada | `escalada` | Subir muros, árvores e encostas. |
+| 7 | Natação | `natacao` | Nadar, mergulhar e resistir a correntezas. |
+| 8 | Corrida | `corrida` | Correr rápido e manter o ritmo em perseguições. |
+| 9 | Equilíbrio | `equilibrio` | Manter-se de pé em superfícies estreitas ou instáveis. |
+| 10 | Furtividade | `furtividade` | Mover-se sem ser visto ou ouvido. |
+| 11 | Sobrevivência | `sobrevivencia` | Achar abrigo, água e caminho em ambientes hostis. |
 
 ### Conhecimento
 
 | Nº | Perícia | Chave | Descrição sugerida |
 | --- | --- | --- | --- |
-| 20 | História | `historia` | Conhecer eventos, povos e figuras do passado. |
-| 21 | Geografia | `geografia` | Conhecer regiões, rotas, climas e mapas. |
-| 22 | Religião | `religiao` | Conhecer crenças, cultos, ritos e símbolos sagrados. |
-| 23 | Mitologia | `mitologia` | Conhecer lendas, deuses e contos antigos. |
-| 24 | Investigação | `investigacao` | Procurar pistas e deduzir o que aconteceu. |
-| 25 | Medicina | `medicina` | Diagnosticar e tratar ferimentos e doenças sem magia. |
-| 26 | Alquimia | `alquimia` | Identificar e preparar poções, venenos e reagentes. |
-| 27 | Engenharia | `engenharia` | Projetar, entender e consertar máquinas e mecanismos. |
-| 28 | Arquitetura | `arquitetura` | Entender construções, estruturas e seus pontos fracos. |
-| 29 | Matemática | `matematica` | Fazer cálculos e resolver problemas lógicos. |
-| 30 | Linguística | `linguistica` | Entender idiomas, dialetos e escritas desconhecidas. |
-| 31 | Estratégia militar | `estrategiaMilitar` | Planejar batalhas e ler táticas inimigas. |
+| 12 | História | `historia` | Conhecer eventos, povos e figuras do passado. |
+| 13 | Geografia | `geografia` | Conhecer regiões, rotas, climas e mapas. |
+| 14 | Religião | `religiao` | Conhecer crenças, cultos, ritos e símbolos sagrados. |
+| 15 | Mitologia | `mitologia` | Conhecer lendas, deuses e contos antigos. |
+| 16 | Investigação | `investigacao` | Procurar pistas e deduzir o que aconteceu. |
+| 17 | Medicina | `medicina` | Diagnosticar e tratar ferimentos e doenças sem magia. |
+| 18 | Alquimia | `alquimia` | Identificar e preparar poções, venenos e reagentes. |
+| 19 | Engenharia | `engenharia` | Projetar, entender e consertar máquinas e mecanismos. |
+| 20 | Arquitetura | `arquitetura` | Entender construções, estruturas e seus pontos fracos. |
+| 21 | Matemática | `matematica` | Fazer cálculos e resolver problemas lógicos. |
+| 22 | Linguística | `linguistica` | Entender idiomas, dialetos e escritas desconhecidas. |
+| 23 | Estratégia militar | `estrategiaMilitar` | Planejar batalhas e ler táticas inimigas. |
 
 ### Sociais
 
 | Nº | Perícia | Chave | Descrição sugerida |
 | --- | --- | --- | --- |
-| 32 | Intimidação | `intimidacao` | Impor medo por presença ou ameaça. |
-| 33 | Enganação | `enganacao` | Mentir e convencer alguém do que é falso. |
-| 34 | Atuação | `atuacao` | Interpretar um papel ou emoção de forma convincente. |
-| 35 | Etiqueta | `etiqueta` | Seguir costumes e se portar bem em cada meio social. |
-| 36 | Liderança | `lideranca` | Inspirar e coordenar um grupo. |
-| 37 | Interrogatório | `interrogatorio` | Extrair informação de quem não quer falar. |
-| 38 | Sedução | `seducao` | Usar charme e atração para influenciar alguém. |
-| 39 | Negociação | `negociacao` | Barganhar preços, acordos e tréguas. |
-| 40 | Disfarce | `disfarce` | Mudar a aparência para se passar por outra pessoa. |
-| 41 | Domesticação | `domesticacao` | Acalmar, treinar e conduzir animais. |
+| 24 | Intimidação | `intimidacao` | Impor medo por presença ou ameaça. |
+| 25 | Enganação | `enganacao` | Mentir e convencer alguém do que é falso. |
+| 26 | Atuação | `atuacao` | Interpretar um papel ou emoção de forma convincente. |
+| 27 | Etiqueta | `etiqueta` | Seguir costumes e se portar bem em cada meio social. |
+| 28 | Liderança | `lideranca` | Inspirar e coordenar um grupo. |
+| 29 | Interrogatório | `interrogatorio` | Extrair informação de quem não quer falar. |
+| 30 | Sedução | `seducao` | Usar charme e atração para influenciar alguém. |
+| 31 | Negociação | `negociacao` | Barganhar preços, acordos e tréguas. |
+| 32 | Disfarce | `disfarce` | Mudar a aparência para se passar por outra pessoa. |
+| 33 | Domesticação | `domesticacao` | Acalmar, treinar e conduzir animais. |
 
 ### Exploração e utilidade
 
 | Nº | Perícia | Chave | Descrição sugerida |
 | --- | --- | --- | --- |
-| 42 | Rastreamento | `rastreamento` | Seguir pegadas e sinais de passagem. |
-| 43 | Caça | `caca` | Localizar, emboscar e abater presas. |
-| 44 | Arrombamento | `arrombamento` | Abrir fechaduras e passar por trancas. |
-| 45 | Truques | `truques` | Fazer prestidigitação e pequenos golpes de mão. |
-| 46 | Pilotagem | `pilotagem` | Conduzir veículos e embarcações. |
+| 34 | Rastreamento | `rastreamento` | Seguir pegadas e sinais de passagem. |
+| 35 | Caça | `caca` | Localizar, emboscar e abater presas. |
+| 36 | Arrombamento | `arrombamento` | Abrir fechaduras e passar por trancas. |
+| 37 | Truques | `truques` | Fazer prestidigitação e pequenos golpes de mão. |
+| 38 | Pilotagem | `pilotagem` | Conduzir veículos e embarcações. |
 
 ### Profissões e ofícios
 
 | Nº | Perícia | Chave | Descrição sugerida |
 | --- | --- | --- | --- |
-| 47 | Profissão | `profissao` | Exercer um ofício escolhido pelo personagem. |
-| 48 | Música | `musica` | Tocar instrumentos, cantar e compor. |
-| 49 | Dança | `danca` | Dançar com técnica, em apresentações ou eventos. |
-| 50 | Escultura | `escultura` | Criar e avaliar obras em pedra, madeira ou argila. |
-| 51 | Criptografia | `criptografia` | Criar e decifrar códigos e mensagens secretas. |
-| 52 | Conhecimento de criaturas | `conhecimentoCriaturas` | Identificar criaturas, seus hábitos e fraquezas. |
-| 53 | Conhecimento de artefatos | `conhecimentoArtefatos` | Reconhecer artefatos, sua origem e sua função. |
-| 54 | Canalização mágica | `canalizacaoMagica` | Conduzir mana pelo corpo ou por um objeto com estabilidade. |
-| 55 | Controle de mana | `controleMana` | Dosar a mana e evitar desperdício ou descontrole. |
-| 56 | Ritualística | `ritualistica` | Conduzir rituais e entender seus círculos e etapas. |
-| 57 | Identificação mágica | `identificacaoMagica` | Reconhecer magias, encantamentos e seus efeitos. |
-| 58 | Resistência espiritual | `resistenciaEspiritual` | Resistir a influências sobre a mente e o espírito. |
+| 39 | Profissão | `profissao` | Exercer um ofício escolhido pelo personagem. |
+| 40 | Música | `musica` | Tocar instrumentos, cantar e compor. |
+| 41 | Dança | `danca` | Dançar com técnica, em apresentações ou eventos. |
+| 42 | Escultura | `escultura` | Criar e avaliar obras em pedra, madeira ou argila. |
+| 43 | Criptografia | `criptografia` | Criar e decifrar códigos e mensagens secretas. |
+| 44 | Conhecimento de criaturas | `conhecimentoCriaturas` | Identificar criaturas, seus hábitos e fraquezas. |
+| 45 | Conhecimento de artefatos | `conhecimentoArtefatos` | Reconhecer artefatos, sua origem e sua função. |
+| 46 | Canalização mágica | `canalizacaoMagica` | Conduzir mana pelo corpo ou por um objeto com estabilidade. |
+| 47 | Controle de mana | `controleMana` | Dosar a mana e evitar desperdício ou descontrole. |
+| 48 | Ritualística | `ritualistica` | Conduzir rituais e entender seus círculos e etapas. |
+| 49 | Identificação mágica | `identificacaoMagica` | Reconhecer magias, encantamentos e seus efeitos. |
+| 50 | Resistência espiritual | `resistenciaEspiritual` | Resistir a influências sobre a mente e o espírito. |
 
 ### Perícias adicionais
 
 | Nº | Perícia | Chave | Descrição sugerida |
 | --- | --- | --- | --- |
-| 59 | Encantar | `encantar` | Imbuir objetos com efeitos mágicos. |
-| 60 | Tecnologia | `tecnologia` | Entender e operar dispositivos avançados. |
-| 61 | Extração de núcleo | `extracaoNucleo` | Retirar o núcleo de uma criatura sem danificá-lo. |
-| 62 | Metalúrgica | `metalurgica` | Trabalhar metais e forjar peças. |
-| Sem número | Sorte | `sorte` | Contar com o acaso quando nenhuma outra perícia se aplica. |
+| 51 | Encantar | `encantar` | Imbuir objetos com efeitos mágicos. |
+| 52 | Tecnologia | `tecnologia` | Entender e operar dispositivos avançados. |
+| 53 | Extração de núcleo | `extracaoNucleo` | Retirar o núcleo de uma criatura sem danificá-lo. |
+| 54 | Metalúrgica | `metalurgica` | Trabalhar metais e forjar peças. |
+| 55 | Sorte | `sorte` | Contar com o acaso quando nenhuma outra perícia se aplica. |
 
-## Diferenças entre o documento do sistema e o código
+## Decisões sobre o documento do sistema
 
-Nenhuma destas diferenças foi alterada no código. Falta decidir qual lado vale em cada uma.
+O documento e o código divergiam nestes pontos. Qualquer decisão pode mudar depois.
 
-| Assunto | Documento | Código |
-| --- | --- | --- |
-| Perícias 5 a 12 | A numeração pula de 4 para 13 | Não existem |
-| Sorte | Não aparece | Existe |
-| Encantar, Tecnologia, Extração de núcleo e Metalúrgica | Em "Profissões e ofícios" | Em "Perícias adicionais" |
-| PV por estágio do núcleo | +2, +2, +3, +3, +3, +5, +5, +5, +10, +10, +10 e +40 | Não soma: a vida é 15 + vitalidade × 2 + ajuste do mestre |
-| Vermelho escuro | "Nenhum efeito" | Dá 15 SP |
-| Dado adicional por perícia (1–5: 1d2, 6–10: 1d4, 11–15: 1d6, 16–20: 1d8, 21–25: 1d10) | Existe | Não existe: a rolagem é só d20 + valor |
+| Assunto | Decisão |
+| --- | --- |
+| Vida por estágio do núcleo | Segue o documento |
+| Dado adicional por perícia | Segue o documento |
+| Vermelho escuro | Segue o código: dá 15 SP, e o documento dizia "nenhum efeito" |
+| Sorte | Segue o código: existe, e o documento não a citava |
+| Encantar, Tecnologia, Extração de núcleo e Metalúrgica | Segue o código: ficam em "Perícias adicionais" |
+| Perícias 5 a 12 | Não existem, e a numeração passou a ser corrida |

@@ -138,7 +138,7 @@ export default function EditorFicha({ f, ed, chat }: {
           <CampoNumero id={idCampo} min={0} valor={f[g][k]} aoMudar={v => mudarAttr(g, k, v)} />
           <button type="button" disabled={travado} aria-label={`Aumentar ${rotulo}`} onClick={() => mudarAttr(g, k, f[g][k] + 1)}>+</button>
         </div>
-        <button type="button" className="rolar" title={`Rolar d20 + ${rotulo}`} aria-label={`Rolar d20 mais ${rotulo}`} onClick={() => rolar({ atributo: `${g}.${k}` })}>d20</button>
+        <button type="button" className="rolar" title={`Rolar d20${g === 'pericias' && R.dadoAdicional(f[g][k]) ? ` + d${R.dadoAdicional(f[g][k])}` : ''} + ${rotulo}`} aria-label={`Rolar d20 mais ${rotulo}`} onClick={() => rolar({ atributo: `${g}.${k}` })}>d20</button>
         {souMestre && editandoLimites && (
           <label className="campo-limite">
             Limite de {rotulo}
@@ -269,7 +269,7 @@ export default function EditorFicha({ f, ed, chat }: {
               </div>
               {!souMestre && <p className="formula">Só o mestre da campanha muda o estágio do núcleo.</p>}
               {R.NUCLEOS[f.nucleo].txt && <p className="formula">{R.NUCLEOS[f.nucleo].txt}</p>}
-              <p className="formula">Total até aqui: +{bonus.mana} de mana, −{bonus.gasto} de gasto universal de mana, {bonus.sp} SP</p>
+              <p className="formula">Total até aqui: +{bonus.mana} de mana, −{bonus.gasto} de gasto universal de mana, {bonus.sp} SP, +{bonus.pv} de vida</p>
             </div>
             <div>
               <div className="cab-grupo cab-pericias">
@@ -302,7 +302,7 @@ export default function EditorFicha({ f, ed, chat }: {
         </section>
 
         <aside className="col-cena" aria-label="Em cena">
-          {blocoVital('vidaAtual', 'Vida', 'cor-vida', f.vidaAtual, vm, `15 + vitalidade ${f.corpo.vitalidade} × 2${parcelaMestre(f.ajustes.vida)} = ${vm}`, campoBonus('vida', 'vida'))}
+          {blocoVital('vidaAtual', 'Vida', 'cor-vida', f.vidaAtual, vm, `15 + vitalidade ${f.corpo.vitalidade} × 2${bonus.pv ? ` + núcleo ${bonus.pv}` : ''}${parcelaMestre(f.ajustes.vida)} = ${vm}`, campoBonus('vida', 'vida'))}
           {blocoVital('manaAtual', 'Mana', 'cor-mana', f.manaAtual, mm,
             `30 + onipotência ${f.mente.onipotencia} × ${virgula(R.TIERS[f.tier])} (tier ${f.tier})${bonus.mana ? ` + núcleo ${bonus.mana}` : ''}${parcelaMestre(f.ajustes.mana)} = ${base}${f.manaPerdida ? `, menos ${f.manaPerdida} perdida = ${mm}` : ''}`,
             <>

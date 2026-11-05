@@ -316,7 +316,7 @@ describe('campanhas', () => {
     expect(salva.pericias.medicina).toBe(0);
     const r = (await jog.c('POST', `/api/fichas/${f.id}/rolar`, { atributo: 'pericias.esquiva' })).corpo.rolagem;
     expect(r.rotulo).toBe('Esquiva');
-    expect(r.det).toMatch(/^d20 \(\d+\) \+ 4$/);
+    expect(r.det).toMatch(/^d20 \(\d+\) \+ d2 \([12]\) \+ 4$/);
   });
 
   it('só o mestre muda bônus e limites; o jogador para neles e nos SP', async () => {
