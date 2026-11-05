@@ -21,7 +21,7 @@ Os dados ficam em `dados/one-history.db`. Para fazer backup, copie essa pasta co
 - **Conta:** cada pessoa cria a própria conta com e-mail e senha.
 - **Fichas:** pertencem à conta de quem criou. Cada ficha entra em uma campanha por vez.
 - **Campanha:** quem cria vira mestre e recebe um código e um link de convite. Gerar um código novo invalida o anterior.
-- **Mestre:** vê e edita as fichas da campanha, remove jogadores e exclui a campanha. Não apaga fichas de ninguém.
+- **Mestre:** vê e edita as fichas da campanha, muda o estágio do núcleo, ajusta vida, mana e SP máximos, define limites para cada atributo, arma e perícia, remove jogadores e exclui a campanha. Não apaga fichas de ninguém.
 - **Jogador:** vê a própria ficha completa. Das fichas dos colegas, só nome, foto e raça.
 - **Chat de dados:** abre sozinho ao rolar e mostra cada rolagem como mensagem. Em campanha, todos da mesa veem. Fora dela, só o dono da ficha. Cada chat guarda as 500 rolagens mais recentes.
 - **Ao vivo:** as telas de campanha, ficha e chat se atualizam sozinhas a cada 3 segundos.

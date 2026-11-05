@@ -297,19 +297,69 @@ describe('campanhas', () => {
     expect((await jog.c('POST', `/api/fichas/${f.id}/rolar`, { atributo: 'constructor.x' })).status).toBe(400);
   });
 
-  it('núcleo e perícias são salvos pelo PATCH, e a perícia entra na rolagem', async () => {
-    const { c } = await novaConta('Nara');
-    const f = await novaFicha(c, { nome: 'Núcleo', mente: { onipotencia: 7 } });
+  it('só o mestre muda o núcleo; perícias são salvas e entram na rolagem', async () => {
+    const { mestre, jog, c, codigo } = await mesa();
+    await jog.c('POST', `/api/convites/${codigo}/entrar`);
+    const f = await novaFicha(jog.c, { nome: 'Núcleo', mente: { onipotencia: 7 }, nucleo: 12 });
     expect(f.nucleo).toBe(0);
     expect(f.pericias.esquiva).toBe(0);
-    const salva = (await c('PATCH', `/api/fichas/${f.id}`, { nucleo: 3, manaAtual: 51, pericias: { esquiva: 4 } })).corpo.ficha;
+    expect((await jog.c('PATCH', `/api/fichas/${f.id}`, { nucleo: 12 })).corpo.ficha.nucleo).toBe(0);
+    await jog.c('POST', `/api/campanhas/${c.id}/fichas`, { fichaId: f.id });
+    expect((await jog.c('PATCH', `/api/fichas/${f.id}`, { nucleo: 12 })).corpo.ficha.nucleo).toBe(0);
+
+    const doMestre = (await mestre.c('PATCH', `/api/fichas/${f.id}`, { nucleo: 3, manaAtual: 51 })).corpo.ficha;
+    expect(doMestre.nucleo).toBe(3);
+    expect(doMestre.manaAtual).toBe(51);
+    const salva = (await jog.c('PATCH', `/api/fichas/${f.id}`, { pericias: { esquiva: 4 } })).corpo.ficha;
     expect(salva.nucleo).toBe(3);
-    expect(salva.manaAtual).toBe(51);
     expect(salva.pericias.esquiva).toBe(4);
     expect(salva.pericias.medicina).toBe(0);
-    const r = (await c('POST', `/api/fichas/${f.id}/rolar`, { atributo: 'pericias.esquiva' })).corpo.rolagem;
+    const r = (await jog.c('POST', `/api/fichas/${f.id}/rolar`, { atributo: 'pericias.esquiva' })).corpo.rolagem;
     expect(r.rotulo).toBe('Esquiva');
     expect(r.det).toMatch(/^d20 \(\d+\) \+ 4$/);
+  });
+
+  it('só o mestre muda bônus e limites; o jogador para neles e nos SP', async () => {
+    const { mestre, jog, c, codigo, f } = await mesa();
+    await jog.c('POST', `/api/convites/${codigo}/entrar`);
+    await jog.c('POST', `/api/campanhas/${c.id}/fichas`, { fichaId: f.id });
+
+    const tentativa = (await jog.c('PATCH', `/api/fichas/${f.id}`, { ajustes: { sp: 500 }, limites: { 'corpo.tracao': 999 } })).corpo.ficha;
+    expect(tentativa.ajustes.sp).toBe(0);
+    expect(tentativa.limites).toEqual({});
+
+    const doMestre = (await mestre.c('PATCH', `/api/fichas/${f.id}`, { ajustes: { vida: 10, sp: 5 }, limites: { 'corpo.tracao': 3 } })).corpo.ficha;
+    expect(doMestre.ajustes).toEqual({ vida: 10, mana: 0, sp: 5 });
+    expect(doMestre.limites).toEqual({ 'corpo.tracao': 3 });
+
+    const cortada = (await jog.c('PATCH', `/api/fichas/${f.id}`, { corpo: { tracao: 9 }, pericias: { esquiva: 50 } })).corpo.ficha;
+    expect(cortada.corpo.tracao).toBe(3);
+    expect(cortada.pericias.esquiva).toBe(20);
+    expect(cortada.ajustes.vida).toBe(10);
+
+    const acima = (await mestre.c('PATCH', `/api/fichas/${f.id}`, { corpo: { tracao: 9 }, pericias: { esquiva: 50 } })).corpo.ficha;
+    expect(acima.corpo.tracao).toBe(9);
+    expect(acima.pericias.esquiva).toBe(50);
+
+    const desceu = (await jog.c('PATCH', `/api/fichas/${f.id}`, { pericias: { esquiva: 40 } })).corpo.ficha;
+    expect(desceu.pericias.esquiva).toBe(40);
+    const retirou = (await mestre.c('PATCH', `/api/fichas/${f.id}`, { limites: { 'corpo.tracao': null } })).corpo.ficha;
+    expect(retirou.limites).toEqual({});
+  });
+
+  it('ficha criada ou importada não traz bônus e não passa dos SP', async () => {
+    const { c } = await novaConta('Importa');
+    const f = await novaFicha(c, { ajustes: { mana: 500, sp: 500 }, limites: { 'corpo.tracao': 1 }, pericias: { esquiva: 90 } });
+    expect(f.ajustes).toEqual({ vida: 0, mana: 0, sp: 0 });
+    expect(f.limites).toEqual({});
+    expect(f.pericias.esquiva).toBe(15);
+  });
+
+  it('fora de campanha o dono não muda bônus nem limites', async () => {
+    const { c } = await novaConta('Solo');
+    const f = await novaFicha(c);
+    const r = (await c('PATCH', `/api/fichas/${f.id}`, { ajustes: { vida: 50 } })).corpo.ficha;
+    expect(r.ajustes.vida).toBe(0);
   });
 });
 

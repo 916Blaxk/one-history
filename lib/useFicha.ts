@@ -44,7 +44,8 @@ export function useFichaEditavel(id: string) {
     const p = (async () => {
       try {
         const r = await api<{ ficha: Ficha }>('PATCH', url, envio);
-        setFicha(a => a && { ...a, atualizado: r.ficha.atualizado, fotoV: r.ficha.fotoV });
+        /* Sem edição nova, vale o que o servidor gravou: ele pode ter cortado um valor acima do limite. */
+        setFicha(a => a && (pendente.current ? { ...a, atualizado: r.ficha.atualizado, fotoV: r.ficha.fotoV } : r.ficha));
         setStatus('Salvo');
       } catch (e) {
         /* Guarda de volta o que não foi: a próxima edição tenta salvar tudo junto. */

@@ -53,9 +53,9 @@ describe('regras do sistema', () => {
   });
 
   it('núcleo acumula mana, gasto universal e SP dos estágios alcançados', () => {
-    expect(R.bonusNucleo(0)).toEqual({ mana: 0, gasto: 0, sp: 0 });
-    expect(R.bonusNucleo(3)).toEqual({ mana: 7, gasto: 2, sp: 17 });
-    expect(R.bonusNucleo(12)).toEqual({ mana: 108, gasto: 20, sp: 146 });
+    expect(R.bonusNucleo(0)).toEqual({ mana: 0, gasto: 0, sp: 15 });
+    expect(R.bonusNucleo(3)).toEqual({ mana: 7, gasto: 2, sp: 32 });
+    expect(R.bonusNucleo(12)).toEqual({ mana: 108, gasto: 20, sp: 161 });
     expect(R.manaMax(R.normalizar({ mente: { onipotencia: 7 }, tier: 1, nucleo: 3 }))).toBe(51);
   });
 
@@ -63,13 +63,40 @@ describe('regras do sistema', () => {
     expect(R.manaMax({ mente: { onipotencia: 7 }, tier: 1, manaPerdida: 0 } as unknown as R.DadosFicha)).toBe(44);
     const f = R.normalizar({ mente: { onipotencia: 7 }, tier: 1, manaAtual: 44 });
     expect(f.nucleo).toBe(0);
-    expect(Object.keys(f.pericias)).toHaveLength(54);
+    expect(Object.keys(f.pericias)).toHaveLength(55);
+    expect(f.pericias.sorte).toBe(0);
     expect(f.manaAtual).toBe(44);
   });
 
   it('perícias somam os SP usados e o estágio do núcleo respeita o limite', () => {
     expect(R.spGastos(R.normalizar({ pericias: { esquiva: 3, medicina: 2, inventada: 50 } }))).toBe(5);
     expect(R.normalizar({ nucleo: 99 }).nucleo).toBe(12);
+  });
+
+  it('ajuste do mestre fica por cima da fórmula e a perda de cena continua valendo', () => {
+    const f = R.normalizar({ corpo: { vitalidade: 5 }, mente: { onipotencia: 7 }, tier: 1, fadiga: 60, ajustes: { vida: 15, mana: 10, sp: 5 } });
+    expect(R.vidaMax(f)).toBe(40);
+    f.corpo.vitalidade = 6;
+    expect(R.vidaMax(f)).toBe(42);
+    expect(R.manaMax(f)).toBe(54);
+    expect(R.aplicarFimDeCena(f).perda).toBe(5);
+    expect(R.manaMax(f)).toBe(49);
+    expect(R.spTotal(f)).toBe(20);
+  });
+
+  it('jogador para no limite do mestre e nos SP, mas pode descer de um valor acima deles', () => {
+    const antes = R.normalizar({ corpo: { tracao: 1, destreza: 9 }, pericias: { esquiva: 14 }, limites: { 'corpo.tracao': 3, 'corpo.destreza': 2 } });
+    const nova = R.normalizar({ ...antes, corpo: { tracao: 8, destreza: 7 }, pericias: { esquiva: 14, medicina: 5 } });
+    R.aplicarTravasDoJogador(nova, antes);
+    expect(nova.corpo.tracao).toBe(3);
+    expect(nova.corpo.destreza).toBe(7);
+    expect(nova.pericias.medicina).toBe(1);
+    expect(R.spGastos(nova)).toBe(15);
+  });
+
+  it('limites só guardam itens que existem, e valor vazio remove o limite', () => {
+    const f = R.normalizar({ limites: { 'corpo.tracao': 3, 'corpo.inventado': 1, 'mente.encanto': null, 'armas.arco': '' } });
+    expect(f.limites).toEqual({ 'corpo.tracao': 3 });
   });
 
   it('normalizar descarta campos desconhecidos e trava os limites', () => {

@@ -13,7 +13,9 @@ const LIMITE_FICHAS = 200, LIMITE_CAMPANHAS = 50, LIMITE_MEMBROS = 60, LIMITE_FO
 const LIMITE_ROLAGENS = 500, PAGINA_CHAT = 50;
 const ALFABETO_CODIGO = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 const FOTO_VALIDA = /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/;
-const CAMPOS_FICHA = new Set(['player', 'nome', 'idade', 'raca', 'estilo', 'tier', 'inventario', 'notas', 'manaPerdida', 'fadiga', 'vidaAtual', 'manaAtual', 'nucleo']);
+const CAMPOS_FICHA = new Set(['player', 'nome', 'idade', 'raca', 'estilo', 'tier', 'inventario', 'notas', 'manaPerdida', 'fadiga', 'vidaAtual', 'manaAtual']);
+/* O núcleo define os SP: se o jogador pudesse mudá-lo, o limite de SP não valeria nada. */
+const CAMPOS_MESTRE = new Set(['ajustes', 'limites', 'nucleo']);
 const JANELA_MS = 15 * 60 * 1000;
 
 class Erro extends Error {
@@ -119,6 +121,11 @@ async function fichaEditavel(id: string, usuario: UsuarioSessao): Promise<LinhaF
     if (c?.mestreId === usuario.id) return f;
   }
   throw new Erro(404, 'Ficha não encontrada, ou você não tem acesso a ela.');
+}
+async function mestreDaFicha(f: LinhaFicha, usuario: UsuarioSessao) {
+  if (!f.campanhaId) return false;
+  const [c] = await db.select({ mestreId: campanhas.mestreId }).from(campanhas).where(eq(campanhas.id, f.campanhaId));
+  return c?.mestreId === usuario.id;
 }
 async function fichaDoDono(id: string, usuario: UsuarioSessao) {
   const f = await fichaEditavel(id, usuario);
@@ -348,7 +355,9 @@ function fotoDaEntrada(foto: unknown) {
 rota('POST', '/api/fichas', async ctx => {
   const [{ n }] = await db.select({ n: count() }).from(fichas).where(eq(fichas.donoId, ctx.usuario.id));
   if (n >= LIMITE_FICHAS) throw new Erro(400, `Sua conta chegou ao limite de ${LIMITE_FICHAS} fichas. Apague alguma para criar outra.`);
-  const dados = R.normalizar(ctx.corpo.dados);
+  /* Quem cria ou importa uma ficha ainda não tem mestre: um arquivo editado não pode trazer núcleo, bônus nem passar dos SP. */
+  const dados = R.normalizar({ ...ctx.corpo.dados, ajustes: undefined, limites: undefined, nucleo: undefined });
+  R.aplicarTravasDoJogador(dados, R.normalizar({}));
   if (!dados.player) dados.player = ctx.usuario.nome;
   const foto = fotoDaEntrada(ctx.corpo.dados?.foto);
   const agora = Date.now();
@@ -370,7 +379,7 @@ rota('GET', '/api/fichas/:id/foto', async ctx => {
 });
 
 rota('PATCH', '/api/fichas/:id', async ctx => {
-  await fichaEditavel(ctx.params.id, ctx.usuario);
+  const souMestre = await mestreDaFicha(await fichaEditavel(ctx.params.id, ctx.usuario), ctx.usuario);
   const extras: Partial<typeof fichas.$inferInsert> = {};
   if ('foto' in ctx.corpo) {
     extras.foto = fotoDaEntrada(ctx.corpo.foto);
@@ -379,10 +388,14 @@ rota('PATCH', '/api/fichas/:id', async ctx => {
   const f = await alterarFicha(ctx.params.id, l => {
     const base: Record<string, any> = { ...l.dados };
     for (const [k, v] of Object.entries(ctx.corpo)) {
-      if (k in R.GRUPOS && v && typeof v === 'object') base[k] = { ...base[k], ...v };
+      const ehObjeto = v && typeof v === 'object';
+      if (k in R.GRUPOS && ehObjeto) base[k] = { ...base[k], ...v };
+      else if (CAMPOS_MESTRE.has(k)) { if (souMestre) base[k] = ehObjeto ? { ...base[k], ...v } : v; }
       else if (CAMPOS_FICHA.has(k)) base[k] = v;
     }
-    l.dados = R.normalizar(base);
+    const nova = R.normalizar(base);
+    if (!souMestre) R.aplicarTravasDoJogador(nova, R.normalizar(l.dados));
+    l.dados = R.normalizar(nova);
   }, extras);
   return { ficha: await comContexto(f, ctx.usuario) };
 });

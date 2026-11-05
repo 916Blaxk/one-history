@@ -7,7 +7,7 @@ export const PERICIAS: readonly { categoria: string; itens: readonly (readonly [
   { categoria: 'Sociais', itens: [['intimidacao', 'Intimidação'], ['enganacao', 'Enganação'], ['atuacao', 'Atuação'], ['etiqueta', 'Etiqueta'], ['lideranca', 'Liderança'], ['interrogatorio', 'Interrogatório'], ['seducao', 'Sedução'], ['negociacao', 'Negociação'], ['disfarce', 'Disfarce'], ['domesticacao', 'Domesticação']] },
   { categoria: 'Exploração e utilidade', itens: [['rastreamento', 'Rastreamento'], ['caca', 'Caça'], ['arrombamento', 'Arrombamento'], ['truques', 'Truques'], ['pilotagem', 'Pilotagem']] },
   { categoria: 'Profissões e ofícios', itens: [['profissao', 'Profissão'], ['musica', 'Música'], ['danca', 'Dança'], ['escultura', 'Escultura'], ['criptografia', 'Criptografia'], ['conhecimentoCriaturas', 'Conhecimento de criaturas'], ['conhecimentoArtefatos', 'Conhecimento de artefatos'], ['canalizacaoMagica', 'Canalização mágica'], ['controleMana', 'Controle de mana'], ['ritualistica', 'Ritualística'], ['identificacaoMagica', 'Identificação mágica'], ['resistenciaEspiritual', 'Resistência espiritual']] },
-  { categoria: 'Perícias adicionais', itens: [['encantar', 'Encantar'], ['tecnologia', 'Tecnologia'], ['extracaoNucleo', 'Extração de núcleo'], ['metalurgica', 'Metalúrgica']] },
+  { categoria: 'Perícias adicionais', itens: [['encantar', 'Encantar'], ['tecnologia', 'Tecnologia'], ['extracaoNucleo', 'Extração de núcleo'], ['metalurgica', 'Metalúrgica'], ['sorte', 'Sorte']] },
 ];
 
 export const GRUPOS = {
@@ -45,7 +45,7 @@ export const ESTAGIOS: Estagio[] = [
 
 export interface EstagioNucleo { nome: string; mana: number; gasto: number; sp: number; txt?: string }
 export const NUCLEOS: EstagioNucleo[] = [
-  { nome: 'Vermelho escuro', mana: 0, gasto: 0, sp: 0, txt: 'Seu núcleo acabou de se formar em seu corpo, cheio de impurezas do sangue. Ele fica entre os pulmões e acima do estômago. Você pode sentir as veias de mana passarem por seu corpo, o fortalecendo e tomando uma forma…' },
+  { nome: 'Vermelho escuro', mana: 0, gasto: 0, sp: 15, txt: 'Seu núcleo acabou de se formar em seu corpo, cheio de impurezas do sangue. Ele fica entre os pulmões e acima do estômago. Você pode sentir as veias de mana passarem por seu corpo, o fortalecendo e tomando uma forma…' },
   { nome: 'Vermelho sólido', mana: 2, gasto: 0, sp: 5 },
   { nome: 'Vermelho claro', mana: 2, gasto: 0, sp: 5 },
   { nome: 'Laranja escuro', mana: 3, gasto: 2, sp: 7 },
@@ -60,18 +60,22 @@ export const NUCLEOS: EstagioNucleo[] = [
   { nome: 'Branco', mana: 50, gasto: 10, sp: 40 },
 ];
 
+export interface AjustesMestre { vida: number; mana: number; sp: number }
+
 export interface DadosFicha {
   player: string; nome: string; idade: string; raca: string; estilo: string;
   tier: number; inventario: string; notas: string;
   manaPerdida: number; fadiga: number; vidaAtual: number; manaAtual: number; nucleo: number;
   elementos: Record<string, number>; armas: Record<string, number>;
   corpo: Record<string, number>; mente: Record<string, number>; pericias: Record<string, number>;
+  /* Só o mestre da campanha altera estes dois. `limites` usa chaves "grupo.item"; sem chave, não há limite. */
+  ajustes: AjustesMestre; limites: Record<string, number>;
 }
 
-type BaseVida = Pick<DadosFicha, 'corpo'>;
-type BaseMana = Pick<DadosFicha, 'mente' | 'tier' | 'manaPerdida' | 'nucleo'>;
+type BaseVida = Pick<DadosFicha, 'corpo' | 'ajustes'>;
+type BaseMana = Pick<DadosFicha, 'mente' | 'tier' | 'manaPerdida' | 'nucleo' | 'ajustes'>;
 
-/* Cada estágio soma ao que os anteriores já deram. Fichas gravadas antes do núcleo não têm o campo e ficam no primeiro estágio, que não dá nada. */
+/* Cada estágio soma ao que os anteriores já deram. Fichas gravadas antes do núcleo não têm o campo e ficam no primeiro estágio. */
 export function bonusNucleo(estagioNucleo: number | undefined) {
   const total = { mana: 0, gasto: 0, sp: 0 };
   for (const n of NUCLEOS.slice(0, (estagioNucleo ?? 0) + 1)) {
@@ -80,10 +84,13 @@ export function bonusNucleo(estagioNucleo: number | undefined) {
   return total;
 }
 export const spGastos = (f: Pick<DadosFicha, 'pericias'>) => Object.values(f.pericias).reduce((soma, v) => soma + v, 0);
+export const spTotal = (f: Pick<DadosFicha, 'nucleo' | 'ajustes'>) => Math.max(0, bonusNucleo(f.nucleo).sp + f.ajustes.sp);
+export const chaveLimite = (g: Grupo, k: string) => `${g}.${k}`;
 
-export const vidaMax = (f: BaseVida) => 15 + f.corpo.vitalidade * 2;
+/* O ajuste do mestre fica por cima da fórmula: subir atributo ou núcleo continua valendo. Fichas antigas não têm `ajustes`. */
+export const vidaMax = (f: BaseVida) => Math.max(0, 15 + f.corpo.vitalidade * 2 + (f.ajustes?.vida ?? 0));
 /* Todo arredondamento do sistema é para baixo. O 1e-9 evita que 10 × 2,3 vire 22,999… e perca um ponto. */
-export const manaBase = (f: Omit<BaseMana, 'manaPerdida'>) => Math.floor(30 + f.mente.onipotencia * TIERS[f.tier] + 1e-9) + bonusNucleo(f.nucleo).mana;
+export const manaBase = (f: Omit<BaseMana, 'manaPerdida'>) => Math.floor(30 + f.mente.onipotencia * TIERS[f.tier] + 1e-9) + bonusNucleo(f.nucleo).mana + (f.ajustes?.mana ?? 0);
 export const manaMax = (f: BaseMana) => Math.max(0, manaBase(f) - f.manaPerdida);
 
 export function estagio(pct: number): Estagio {
@@ -114,6 +121,21 @@ export function inteiro(v: unknown, min: number, max: number) {
 }
 const texto = (v: unknown, lim: number) => (typeof v === 'string' ? v.slice(0, lim) : '');
 
+/* O que o jogador não pode passar. Só corta o que subiu: valor que o mestre deixou acima do limite fica como está, e pode descer. */
+export function aplicarTravasDoJogador(nova: DadosFicha, antes: DadosFicha) {
+  for (const g of NOMES_GRUPOS) for (const [k] of GRUPOS[g]) {
+    const limite = nova.limites[chaveLimite(g, k)];
+    if (limite !== undefined && nova[g][k] > antes[g][k]) nova[g][k] = Math.max(antes[g][k], limite);
+  }
+  let excesso = spGastos(nova) - spTotal(nova);
+  for (const [k] of GRUPOS.pericias) {
+    if (excesso <= 0) break;
+    const corte = Math.min(excesso, Math.max(0, nova.pericias[k] - antes.pericias[k]));
+    nova.pericias[k] -= corte;
+    excesso -= corte;
+  }
+}
+
 /* Transforma qualquer entrada em uma ficha válida: campos desconhecidos somem e números respeitam as travas. */
 export function normalizar(entrada: unknown): DadosFicha {
   const o = (entrada && typeof entrada === 'object' ? entrada : {}) as Record<string, any>;
@@ -127,8 +149,18 @@ export function normalizar(entrada: unknown): DadosFicha {
     nucleo: inteiro(o.nucleo, 0, NUCLEOS.length - 1),
     vidaAtual: 0, manaAtual: 0,
     elementos: {}, armas: {}, corpo: {}, mente: {}, pericias: {},
+    ajustes: {
+      vida: inteiro(o.ajustes?.vida ?? 0, -9999, 9999),
+      mana: inteiro(o.ajustes?.mana ?? 0, -9999, 9999),
+      sp: inteiro(o.ajustes?.sp ?? 0, -9999, 9999),
+    },
+    limites: {},
   };
-  for (const g of NOMES_GRUPOS) for (const [k] of GRUPOS[g]) f[g][k] = inteiro(o[g]?.[k], 0, 999);
+  for (const g of NOMES_GRUPOS) for (const [k] of GRUPOS[g]) {
+    f[g][k] = inteiro(o[g]?.[k], 0, 999);
+    const limite = o.limites?.[chaveLimite(g, k)];
+    if (limite !== undefined && limite !== null && limite !== '') f.limites[chaveLimite(g, k)] = inteiro(limite, 0, 999);
+  }
   f.vidaAtual = inteiro(o.vidaAtual ?? vidaMax(f), 0, vidaMax(f));
   f.manaAtual = inteiro(o.manaAtual ?? manaMax(f), 0, manaMax(f));
   return f;

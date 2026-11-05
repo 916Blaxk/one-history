@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { ChatFlutuante } from '@/components/Chat';
 import { BotaoConfirmar, CampoNumero, Capitular } from '@/components/comuns';
@@ -51,6 +51,8 @@ export default function PaginaFicha() {
 function Editor({ f, ed }: { f: Ficha; ed: ReturnType<typeof useFichaEditavel> }) {
   const router = useRouter();
   const entradaFoto = useRef<HTMLInputElement>(null);
+  const [editandoLimites, setEditandoLimites] = useState(false);
+  const souMestre = f.contexto.souMestre;
   const url = `/api/fichas/${f.id}`;
   /* Em campanha, o chat é o da mesa inteira. Fora dela, é só desta ficha. */
   const chat = useChat(f.campanhaId ? `/api/campanhas/${f.campanhaId}/chat` : `${url}/chat`);
@@ -64,8 +66,21 @@ function Editor({ f, ed }: { f: Ficha; ed: ReturnType<typeof useFichaEditavel> }
     R.acompanharMaximos(c, vm, mm);
     ed.definir(c, { ...patch(c), vidaAtual: c.vidaAtual, manaAtual: c.manaAtual });
   }
-  const mudarAttr = (g: R.Grupo, k: string, v: unknown) =>
-    mudarComMaximos(c => { c[g][k] = R.inteiro(v, 0, 999); }, c => ({ [g]: { [k]: c[g][k] } }));
+  const mudarAttr = (g: R.Grupo, k: string, v: unknown) => mudarComMaximos(c => {
+    const pedido = R.inteiro(v, 0, 999);
+    c[g][k] = pedido;
+    if (souMestre) return;
+    R.aplicarTravasDoJogador(c, f);
+    if (c[g][k] < pedido) toast.error('Esse valor passa do limite do mestre ou dos SP disponíveis.');
+  }, c => ({ [g]: { [k]: c[g][k] } }));
+  const mudarAjuste = (chave: keyof R.AjustesMestre, v: unknown) =>
+    mudarComMaximos(c => { c.ajustes[chave] = R.inteiro(v, -9999, 9999); }, c => ({ ajustes: { [chave]: c.ajustes[chave] } }));
+  const mudarLimite = (chave: string, v: string) => {
+    const limites = { ...f.limites };
+    if (v === '') delete limites[chave];
+    else limites[chave] = R.inteiro(v, 0, 999);
+    ed.definir({ ...f, limites }, { limites: { [chave]: limites[chave] ?? null } });
+  };
   const mudarVital = (chave: 'vidaAtual' | 'manaAtual', v: unknown) => {
     const valor = R.inteiro(v, 0, chave === 'vidaAtual' ? vm : mm);
     ed.definir({ ...f, [chave]: valor }, { [chave]: valor });
@@ -121,15 +136,23 @@ function Editor({ f, ed }: { f: Ficha; ed: ReturnType<typeof useFichaEditavel> }
   const linhaAttr = (g: R.Grupo, item: readonly string[], cor?: boolean) => {
     const [k, rotulo, desc] = item;
     const idCampo = `a-${g}-${k}`;
+    const chave = R.chaveLimite(g, k), limite = f.limites[chave];
+    const travado = !souMestre && ((limite !== undefined && f[g][k] >= limite) || (g === 'pericias' && R.spGastos(f) >= R.spTotal(f)));
     return (
       <div className={`attr${cor ? ` c-${k}` : ''}`} key={k}>
-        <label htmlFor={idCampo}>{cor && <span className="ponto" />}{rotulo}{desc && <small>{desc}</small>}</label>
+        <label htmlFor={idCampo}>{cor && <span className="ponto" />}{rotulo}{desc && <small>{desc}</small>}{limite !== undefined && !editandoLimites && <small>Máx. {limite}</small>}</label>
         <div className="passo">
           <button type="button" aria-label={`Diminuir ${rotulo}`} onClick={() => mudarAttr(g, k, f[g][k] - 1)}>−</button>
           <CampoNumero id={idCampo} min={0} valor={f[g][k]} aoMudar={v => mudarAttr(g, k, v)} />
-          <button type="button" aria-label={`Aumentar ${rotulo}`} onClick={() => mudarAttr(g, k, f[g][k] + 1)}>+</button>
+          <button type="button" disabled={travado} aria-label={`Aumentar ${rotulo}`} onClick={() => mudarAttr(g, k, f[g][k] + 1)}>+</button>
         </div>
         <button type="button" className="rolar" title={`Rolar d20 + ${rotulo}`} aria-label={`Rolar d20 mais ${rotulo}`} onClick={() => rolar({ atributo: `${g}.${k}` })}>d20</button>
+        {souMestre && editandoLimites && (
+          <label className="campo-limite">
+            Limite de {rotulo}
+            <input type="number" inputMode="numeric" min={0} max={999} placeholder="Sem limite" value={limite ?? ''} onChange={ev => mudarLimite(chave, ev.target.value)} />
+          </label>
+        )}
       </div>
     );
   };
@@ -150,7 +173,14 @@ function Editor({ f, ed }: { f: Ficha; ed: ReturnType<typeof useFichaEditavel> }
 
   const sub = [f.raca, f.estilo, `Tier ${f.tier}`, f.idade && `${f.idade} anos`].filter(Boolean).join(' · ');
   const base = R.manaBase(f);
-  const bonus = R.bonusNucleo(f.nucleo), spUsados = R.spGastos(f);
+  const bonus = R.bonusNucleo(f.nucleo), spUsados = R.spGastos(f), spMax = R.spTotal(f);
+  const parcelaMestre = (v: number) => (v ? ` ${v > 0 ? '+' : '−'} mestre ${Math.abs(v)}` : '');
+  const campoBonus = (chave: keyof R.AjustesMestre, nome: string) => souMestre && (
+    <label className="perda-perm" htmlFor={`c-ajuste-${chave}`}>
+      Bônus do mestre em {nome}
+      <CampoNumero id={`c-ajuste-${chave}`} valor={f.ajustes[chave]} aoMudar={v => mudarAjuste(chave, v)} />
+    </label>
+  );
 
   return (
     <article className="ficha" data-estagio={e.min}>
@@ -161,6 +191,7 @@ function Editor({ f, ed }: { f: Ficha; ed: ReturnType<typeof useFichaEditavel> }
         {campanha && !f.contexto.souMestre && <Link className="btn" href={`/campanhas/${campanha.id}`}>Campanha: {campanha.nome}</Link>}
         {f.contexto.souMestre && !f.contexto.souDono && <span className="selo">Ficha de {f.contexto.donoNome}</span>}
         <span className="espaco" />
+        {souMestre && <button type="button" className="btn" aria-pressed={editandoLimites} onClick={() => setEditandoLimites(a => !a)}>{editandoLimites ? 'Concluir limites' : 'Definir limites'}</button>}
         {f.contexto.souDono && <button type="button" className="btn" onClick={duplicar}>Duplicar</button>}
         {f.contexto.souDono && <BotaoConfirmar rotulo="Apagar" confirmar="Confirmar: apagar para sempre" aoConfirmar={apagar} />}
       </div>
@@ -234,18 +265,20 @@ function Editor({ f, ed }: { f: Ficha; ed: ReturnType<typeof useFichaEditavel> }
             <div className="cab-grupo"><h2 className="titulo-grupo">Núcleo</h2></div>
             <div className="campo">
               <label className="rotulo" htmlFor="c-nucleo">Estágio do núcleo</label>
-              <select id="c-nucleo" value={f.nucleo} onChange={ev => mudarComMaximos(c => { c.nucleo = R.inteiro(ev.target.value, 0, R.NUCLEOS.length - 1); }, c => ({ nucleo: c.nucleo }))}>
+              <select id="c-nucleo" disabled={!souMestre} value={f.nucleo} onChange={ev => mudarComMaximos(c => { c.nucleo = R.inteiro(ev.target.value, 0, R.NUCLEOS.length - 1); }, c => ({ nucleo: c.nucleo }))}>
                 {R.NUCLEOS.map((n, i) => <option key={n.nome} value={i}>{n.nome}</option>)}
               </select>
             </div>
+            {!souMestre && <p className="formula">Só o mestre da campanha muda o estágio do núcleo.</p>}
             {R.NUCLEOS[f.nucleo].txt && <p className="formula">{R.NUCLEOS[f.nucleo].txt}</p>}
             <p className="formula">Total até aqui: +{bonus.mana} de mana, −{bonus.gasto} de gasto universal de mana, {bonus.sp} SP</p>
           </div>
           <div>
             <div className="cab-grupo cab-pericias">
               <h2 className="titulo-grupo">Perícias</h2>
-              <span className={`sp-saldo${spUsados > bonus.sp ? ' sp-acima' : ''}`}>{spUsados} de {bonus.sp} SP usados</span>
+              <span className={`sp-saldo${spUsados > spMax ? ' sp-acima' : ''}`}>{spUsados} de {spMax} SP usados</span>
             </div>
+            {campoBonus('sp', 'SP')}
             {R.PERICIAS.map(c => (
               <details className="categoria-pericia" key={c.categoria}>
                 <summary>{c.categoria}</summary>
@@ -264,13 +297,16 @@ function Editor({ f, ed }: { f: Ficha; ed: ReturnType<typeof useFichaEditavel> }
         </section>
 
         <aside className="col-cena" aria-label="Em cena">
-          {blocoVital('vidaAtual', 'Vida', 'cor-vida', f.vidaAtual, vm, `15 + vitalidade ${f.corpo.vitalidade} × 2 = ${vm}`)}
+          {blocoVital('vidaAtual', 'Vida', 'cor-vida', f.vidaAtual, vm, `15 + vitalidade ${f.corpo.vitalidade} × 2${parcelaMestre(f.ajustes.vida)} = ${vm}`, campoBonus('vida', 'vida'))}
           {blocoVital('manaAtual', 'Mana', 'cor-mana', f.manaAtual, mm,
-            `30 + onipotência ${f.mente.onipotencia} × ${virgula(R.TIERS[f.tier])} (tier ${f.tier})${bonus.mana ? ` + núcleo ${bonus.mana}` : ''} = ${base}${f.manaPerdida ? `, menos ${f.manaPerdida} perdida = ${mm}` : ''}`,
-            <label className="perda-perm" htmlFor="c-mana-perdida">
-              Mana total perdida para sempre
-              <CampoNumero id="c-mana-perdida" min={0} valor={f.manaPerdida} aoMudar={v => mudarComMaximos(c => { c.manaPerdida = R.inteiro(v, 0, 99999); }, c => ({ manaPerdida: c.manaPerdida }))} />
-            </label>)}
+            `30 + onipotência ${f.mente.onipotencia} × ${virgula(R.TIERS[f.tier])} (tier ${f.tier})${bonus.mana ? ` + núcleo ${bonus.mana}` : ''}${parcelaMestre(f.ajustes.mana)} = ${base}${f.manaPerdida ? `, menos ${f.manaPerdida} perdida = ${mm}` : ''}`,
+            <>
+              {campoBonus('mana', 'mana')}
+              <label className="perda-perm" htmlFor="c-mana-perdida">
+                Mana total perdida para sempre
+                <CampoNumero id="c-mana-perdida" min={0} valor={f.manaPerdida} aoMudar={v => mudarComMaximos(c => { c.manaPerdida = R.inteiro(v, 0, 99999); }, c => ({ manaPerdida: c.manaPerdida }))} />
+              </label>
+            </>)}
 
           <div className="fadiga">
             <div className="vital-topo">

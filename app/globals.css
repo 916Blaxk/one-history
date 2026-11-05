@@ -299,6 +299,9 @@ a.camp-linha:hover .rol-nome{color:var(--ouro)}
 .passo button:hover{color:var(--ouro)}
 .passo input{width:100%;border:0;border-inline:1px solid var(--linha);background:transparent;text-align:center;font-weight:700;padding:0;-moz-appearance:textfield;appearance:textfield}
 input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.passo button:disabled{opacity:.35;cursor:not-allowed}
+.attr .campo-limite{grid-column:1 / -1;display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:13px;font-weight:400;color:var(--tinta-2)}
+.campo-limite input{width:104px;min-height:28px;padding:2px 6px;text-align:center;background:var(--folha);border:1px solid var(--linha);border-radius:2px;color:var(--tinta)}
 .rolar{height:32px;padding:0 8px;background:transparent;border:1px solid var(--ouro);border-radius:2px;color:var(--ouro);font:700 13px/1 var(--f-rotulo);letter-spacing:.03em}
 .rolar:hover{background:var(--ouro);color:var(--pagina)}
 

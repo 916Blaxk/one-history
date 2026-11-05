@@ -24,6 +24,16 @@ async function criarFicha(p: Page, nome: string) {
   await expect(p.getByRole('status').filter({ hasText: 'Salvo' })).toBeVisible();
 }
 
+/* Monta a mesa pela API: estes testes são sobre a ficha, não sobre o fluxo de convite. */
+async function levarFichaParaMesa(mestre: Page, jogador: Page, nomeCampanha: string) {
+  const fichaId = jogador.url().split('/').pop()!;
+  const { campanha } = await (await mestre.request.post('/api/campanhas', { data: { nome: nomeCampanha, descricao: '' } })).json();
+  const detalhe = await (await mestre.request.get(`/api/campanhas/${campanha.id}`)).json();
+  await jogador.request.post(`/api/convites/${detalhe.campanha.codigo}/entrar`, { data: {} });
+  await jogador.request.post(`/api/campanhas/${campanha.id}/fichas`, { data: { fichaId } });
+  return fichaId;
+}
+
 test('sem login, a página pedida volta depois de entrar', async ({ browser }) => {
   const p = await (await browser.newContext()).newPage();
   await p.goto('/campanhas');
@@ -113,22 +123,69 @@ test('rolar atributo mostra d20 + valor', async ({ browser }) => {
   await expect(p.locator('.msg').first().locator('.msg-det')).toHaveText(/^d20 \(\d+\) \+ 7$/);
 });
 
-test('núcleo soma na mana e perícia conta SP, continua depois de recarregar', async ({ browser }) => {
-  const p = await novaPessoa(browser, 'Nia');
-  await criarFicha(p, 'Nucleada');
+test('só o mestre muda o núcleo, que soma na mana; perícia conta SP e continua depois de recarregar', async ({ browser }) => {
+  const p = await novaPessoa(browser, 'Mestra Nia');
+  const jogador = await novaPessoa(browser, 'Jogador Noa');
+  await criarFicha(jogador, 'Nucleada');
+  await expect(jogador.getByLabel('Estágio do núcleo')).toBeDisabled();
+  const fichaId = await levarFichaParaMesa(p, jogador, 'Núcleos');
+  await jogador.reload();
+  await expect(jogador.getByLabel('Estágio do núcleo')).toBeDisabled();
+  await expect(jogador.getByText('Só o mestre da campanha muda o estágio do núcleo.')).toBeVisible();
+
+  await p.goto(`/fichas/${fichaId}`);
   await p.getByLabel('Estágio do núcleo').selectOption({ label: 'Laranja escuro' });
-  await expect(p.getByText('Total até aqui: +7 de mana, −2 de gasto universal de mana, 17 SP')).toBeVisible();
+  await expect(p.getByText('Total até aqui: +7 de mana, −2 de gasto universal de mana, 32 SP')).toBeVisible();
   await expect(p.getByText(/\+ núcleo 7 = 37$/)).toBeVisible();
 
   await p.getByText('Combate', { exact: true }).click();
   await p.locator('#a-pericias-esquiva').fill('4');
   await p.locator('#a-pericias-esquiva').press('Enter');
-  await expect(p.getByText('4 de 17 SP usados')).toBeVisible();
+  await expect(p.getByText('4 de 32 SP usados')).toBeVisible();
   await expect(p.getByRole('status').filter({ hasText: 'Salvo' })).toBeVisible();
 
   await p.reload();
   await expect(p.getByLabel('Estágio do núcleo')).toHaveValue('3');
-  await expect(p.getByText('4 de 17 SP usados')).toBeVisible();
+  await expect(p.getByText('4 de 32 SP usados')).toBeVisible();
+});
+
+test('mestre define bônus e limites; jogador para neles e nos SP', async ({ browser }) => {
+  const mestre = await novaPessoa(browser, 'Mestra Ina');
+  const jogador = await novaPessoa(browser, 'Jogador Ivo');
+  await criarFicha(jogador, 'Travada');
+  const fichaId = await levarFichaParaMesa(mestre, jogador, 'Limites');
+
+  /* O jogador não tem os controles do mestre e para nos 15 SP do primeiro estágio. */
+  await jogador.reload();
+  await expect(jogador.getByLabel('Bônus do mestre em SP')).toHaveCount(0);
+  await expect(jogador.getByRole('button', { name: 'Definir limites' })).toHaveCount(0);
+  await jogador.getByText('Combate', { exact: true }).click();
+  await jogador.locator('#a-pericias-esquiva').fill('40');
+  await jogador.locator('#a-pericias-esquiva').press('Enter');
+  await expect(jogador.locator('#a-pericias-esquiva')).toHaveValue('15');
+  await expect(jogador.getByText('15 de 15 SP usados')).toBeVisible();
+  await expect(jogador.getByRole('button', { name: 'Aumentar Aparar' })).toBeDisabled();
+  await expect(jogador.getByRole('status').filter({ hasText: 'Salvo' })).toBeVisible();
+
+  await mestre.goto(`/fichas/${fichaId}`);
+  await mestre.getByLabel('Bônus do mestre em vida').fill('10');
+  await mestre.getByLabel('Bônus do mestre em vida').press('Enter');
+  await expect(mestre.getByText('15 + vitalidade 0 × 2 + mestre 10 = 25')).toBeVisible();
+  await mestre.getByLabel('Bônus do mestre em SP').fill('5');
+  await mestre.getByLabel('Bônus do mestre em SP').press('Enter');
+  await expect(mestre.getByText('15 de 20 SP usados')).toBeVisible();
+  await mestre.getByRole('button', { name: 'Definir limites' }).click();
+  await mestre.getByText('Combate', { exact: true }).click();
+  await mestre.getByLabel('Limite de Aparar').fill('2');
+  await expect(mestre.getByRole('status').filter({ hasText: 'Salvo' })).toBeVisible();
+
+  await jogador.reload();
+  await jogador.getByText('Combate', { exact: true }).click();
+  await expect(jogador.getByText('Máx. 2')).toBeVisible();
+  await jogador.locator('#a-pericias-aparar').fill('9');
+  await jogador.locator('#a-pericias-aparar').press('Enter');
+  await expect(jogador.locator('#a-pericias-aparar')).toHaveValue('2');
+  await expect(jogador.getByText('17 de 20 SP usados')).toBeVisible();
 });
 
 test('chat de dados: abre ao rolar, guarda o histórico e continua depois de recarregar', async ({ browser }) => {
