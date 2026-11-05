@@ -1,6 +1,6 @@
 # One History
 
-Fichas e campanhas para o sistema de RPG One History: contas com login, campanhas com convite, mesa do mestre ao vivo e rolagem de dados.
+Fichas, campanhas e mesa virtual para o sistema de RPG One History: contas com login, campanhas com convite, mapa com tokens e névoa, e rolagem de dados.
 
 ## Rodar no seu computador
 
@@ -26,7 +26,7 @@ Os dados ficam em `dados/one-history.db`. Para fazer backup, copie essa pasta co
 - **Magias:** cada ficha tem uma aba de feitiços. Conjurar desconta da mana o custo menos o gasto universal do núcleo.
 - **Mesa:** a página da campanha tem o botão **Mesa**, com mapa, tokens, cenários, névoa e chat. O mestre é o GM, e os membros são jogadores. Um token pode usar uma ficha da campanha, e a vida e a mana acompanham a ficha na hora.
 - **Chat de dados:** abre sozinho ao rolar e mostra cada rolagem como mensagem. Em campanha, todos da mesa veem. Fora dela, só o dono da ficha. Cada chat guarda as 500 rolagens mais recentes.
-- **Ao vivo:** as telas de campanha, ficha e chat se atualizam sozinhas a cada 3 segundos.
+- **Ao vivo:** a mesa e a ficha conversam na hora por Socket.IO. As telas de campanha, ficha e chat também se atualizam sozinhas a cada 3 segundos.
 
 ## Esqueceu a senha
 
@@ -38,8 +38,10 @@ npm run senha -- pessoa@exemplo.com
 
 ## Publicar na internet
 
-- **Servidor com disco permanente** (VPS, Render com disco, Railway com volume): rode `npm run build` e `npm start`. A hospedagem define a variável `PORT`. Mantenha a pasta `dados/` em um volume permanente.
-- **Vercel:** não tem disco permanente. Crie um banco no Turso e defina `DATABASE_URL` e `DATABASE_AUTH_TOKEN` (veja `.env.example`).
+O site precisa de um serviço Node sempre ligado, em **uma única instância**, porque a mesa mantém conexões abertas e parte do estado na memória. A Vercel não serve. O passo a passo está em `docs/unificacao-mesa.md`.
+
+- **Com disco permanente** (VPS, Render com disco, Railway com volume): rode `npm run build` e `npm start`. A hospedagem define a variável `PORT`. Mantenha a pasta `dados/` em um volume permanente.
+- **Sem disco permanente:** crie um banco no Turso e defina `DATABASE_URL` e `DATABASE_AUTH_TOKEN` (veja `.env.example`).
 
 Use sempre HTTPS em produção: é o que protege as senhas no caminho.
 
@@ -47,7 +49,7 @@ Use sempre HTTPS em produção: é o que protege as senhas no caminho.
 
 ```
 npm run build
-npm test            # regras e API, com banco temporário
+npm test            # regras, API e mesa, com banco temporário
 npm run test:e2e    # navegador real (usa o Edge instalado no Windows)
 ```
 
@@ -57,3 +59,5 @@ npm run test:e2e    # navegador real (usa o Edge instalado no Windows)
 - `lib/servidor/rotas.ts`: toda a API, com as permissões.
 - `lib/servidor/schema.ts`: tabelas do banco. Depois de mudar, rode `npm run db:gerar`.
 - `app/`: as telas.
+- `servidor.ts`: o servidor único, com o Next e o Socket.IO no mesmo processo.
+- `mesa/`: a mesa virtual. `mesa/src` roda no navegador, e `mesa/server` no servidor.

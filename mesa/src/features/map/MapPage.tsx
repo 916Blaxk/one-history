@@ -46,7 +46,6 @@ export function MapPage({ campanha }: { campanha: { id: string; nome: string } }
         }}
       />
       {/* Um link comum, não o do Next: a página da campanha troca a folha de estilos inteira. */}
-      {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
       <a className="map-back-link" href={`/campanhas/${campanha.id}`} aria-label={`Voltar para ${campanha.nome}`}>
         <ArrowLeft size={16} />
         <span>Voltar para a campanha</span>

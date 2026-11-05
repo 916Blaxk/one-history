@@ -1422,8 +1422,8 @@ button:disabled {
   position: fixed;
   z-index: 6;
   top: 22px;
-  left: 190px;
-  max-width: min(330px, calc(100vw - 560px));
+  left: 214px;
+  max-width: min(330px, calc(100vw - 584px));
   display: grid;
   gap: 5px;
   padding: 8px 10px;

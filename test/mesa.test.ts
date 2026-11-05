@@ -1,4 +1,5 @@
 /* Testes da mesa pelo socket, contra o site compilado e um banco temporário. Rode `npx next build` antes. */
+/* eslint-disable @typescript-eslint/no-explicit-any -- o teste lê o que chega do socket sem tipo, como um cliente qualquer */
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
