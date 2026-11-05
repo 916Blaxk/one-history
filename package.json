@@ -1,0 +1,40 @@
+{
+  "name": "one-history",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Fichas e campanhas do sistema de RPG One History",
+  "scripts": {
+    "db:gerar": "drizzle-kit generate",
+    "db:migrar": "node scripts/migrar.mjs",
+    "predev": "npm run db:migrar",
+    "dev": "next dev",
+    "build": "npm run db:migrar && next build",
+    "prestart": "npm run db:migrar",
+    "start": "next start",
+    "senha": "node scripts/redefinir-senha.mjs",
+    "test": "vitest run",
+    "test:e2e": "playwright test",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "@libsql/client": "^0.18.0",
+    "drizzle-orm": "^0.45.4",
+    "next": "^16.4.5",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "sonner": "^2.0.8",
+    "swr": "^2.5.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.64.1",
+    "@types/node": "^20.19.43",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "drizzle-kit": "^0.31.11",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^16.4.5",
+    "typescript": "5.9",
+    "vitest": "^3.2.7"
+  }
+}
