@@ -12,7 +12,7 @@ Then run these in order and stop at the first failure:
 3. `npx vitest run`
 4. `npx playwright test`
 
-The tests in steps 3 and 4 create their own temporary database. Steps 3 and 4 need ports 3457 and 3458 free, and step 4 needs Edge installed.
+The tests in steps 3 and 4 create their own temporary database. Steps 3 and 4 need ports 3457, 3458 and 3459 free, and step 4 needs Edge installed.
 
 If a test fails:
 - Read the failure output. For E2E failures, look at the screenshots in `test-results/`.

@@ -1,0 +1,435 @@
+/* Testes da mesa pelo socket, contra o site compilado e um banco temporário. Rode `npx next build` antes. */
+import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { io, type Socket } from 'socket.io-client';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+
+const PORTA = 3459;
+const base = `http://127.0.0.1:${PORTA}`;
+const pasta = fs.mkdtempSync(path.join(os.tmpdir(), 'one-history-mesa-'));
+const banco = path.join(pasta, 'teste.db');
+const PIXEL = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
+let servidor: ChildProcess;
+let seq = 0;
+
+async function subir() {
+  servidor = spawn(process.execPath, ['scripts/servidor-teste.mjs', String(PORTA)], { stdio: 'ignore', env: { ...process.env, BANCO_TESTE: banco } });
+  for (let i = 0; i < 100; i++) {
+    try { if ((await fetch(`${base}/api/conta`)).status === 401) return; } catch { /* ainda subindo */ }
+    await new Promise(ok => setTimeout(ok, 300));
+  }
+  throw new Error('O servidor de teste não subiu.');
+}
+function derrubar() {
+  if (process.platform === 'win32') spawnSync('taskkill', ['/pid', String(servidor.pid), '/T', '/F']);
+  else servidor.kill('SIGKILL');
+}
+
+async function novaConta(nome: string) {
+  const ip = `10.1.0.${++seq}`;
+  let cookie = '';
+  const c = async (metodo: string, url: string, corpo?: unknown) => {
+    const r = await fetch(base + url, {
+      method: metodo,
+      headers: { 'X-Forwarded-For': ip, ...(metodo !== 'GET' ? { 'Content-Type': 'application/json' } : {}), ...(cookie ? { Cookie: cookie } : {}) },
+      body: metodo !== 'GET' ? JSON.stringify(corpo ?? {}) : undefined,
+    });
+    const definido = r.headers.get('set-cookie');
+    if (definido) cookie = definido.split(';')[0];
+    return { status: r.status, corpo: await r.json().catch(() => null) as any };
+  };
+  const r = await c('POST', '/api/conta/cadastro', { nome, email: `m${seq}-${Date.now()}@exemplo.com`, senha: 'senha-forte-1' });
+  expect(r.status).toBe(201);
+  return { c, id: r.corpo.usuario.id as string, nome, cookie: () => cookie };
+}
+type Conta = Awaited<ReturnType<typeof novaConta>>;
+
+/* Guarda tudo o que chega, para o teste esperar por uma condição sem perder o que veio antes. */
+class Cliente {
+  socket: Socket;
+  eventos: any[] = [];
+  snapshot: any = null;
+  erroConexao: string | null = null;
+  tokens = new Map<string, any>();
+  constructor(cabecalhos: Record<string, string>) {
+    this.socket = io(base, { extraHeaders: cabecalhos, transports: ['websocket'], reconnection: false, forceNew: true });
+    this.socket.on('connect_error', (e: Error) => { this.erroConexao = e.message; });
+    this.socket.on('room:snapshot', (s: any) => {
+      this.snapshot = s;
+      this.tokens = new Map(s.tokens.map((t: any) => [t.id, t]));
+    });
+    this.socket.on('room:event', (e: any) => {
+      this.eventos.push(e);
+      if (e.token) this.tokens.set(e.token.id, e.token);
+    });
+  }
+  comando(m: object) { this.socket.emit('room:command', m); }
+  ultimoToken(id: string) { return this.tokens.get(id); }
+  fechar() { this.socket.disconnect(); }
+}
+async function ate<T>(fn: () => T, ms = 4000): Promise<NonNullable<T>> {
+  const fim = Date.now() + ms;
+  for (;;) {
+    const v = fn();
+    if (v) return v as NonNullable<T>;
+    if (Date.now() > fim) throw new Error('A condição não aconteceu a tempo: ' + fn.toString());
+    await new Promise(ok => setTimeout(ok, 15));
+  }
+}
+const abertos: Cliente[] = [];
+function conectar(conta: Conta) {
+  const cliente = new Cliente({ Cookie: conta.cookie() });
+  abertos.push(cliente);
+  return cliente;
+}
+async function entrar(conta: Conta, campanhaId: string) {
+  const cliente = conectar(conta);
+  await ate(() => cliente.socket.connected);
+  cliente.socket.emit('room:join', { campanhaId, papel: 'gm', role: 'gm' });
+  await ate(() => cliente.snapshot);
+  return cliente;
+}
+let idToken = 0;
+function novoToken(mudancas: object = {}) {
+  return { id: `t${++idToken}`, name: 'Herói', x: 0, y: 0, size: 1, rotation: 0, spriteIds: [], activeSpriteId: null, flipX: false, color: '#806247', ownerIds: [], hidden: false, ...mudancas };
+}
+async function criarToken(cliente: Cliente, mudancas: object = {}) {
+  const token = novoToken(mudancas);
+  cliente.comando({ type: 'token:create', token, sprites: [] });
+  await ate(() => cliente.ultimoToken(token.id));
+  return token.id;
+}
+async function mesaCompleta() {
+  const mestre = await novaConta('Mestra'), jogador = await novaConta('Jogador'), colega = await novaConta('Colega'), fora = await novaConta('Fora');
+  const { campanha } = (await mestre.c('POST', '/api/campanhas', { nome: 'A Queda' })).corpo;
+  const { codigo } = (await mestre.c('GET', `/api/campanhas/${campanha.id}`)).corpo.campanha;
+  await jogador.c('POST', `/api/convites/${codigo}/entrar`);
+  await colega.c('POST', `/api/convites/${codigo}/entrar`);
+  const ficha = (await jogador.c('POST', '/api/fichas', { dados: { nome: 'Kael', corpo: { vitalidade: 5, destreza: 7 } } })).corpo.ficha;
+  await jogador.c('POST', `/api/campanhas/${campanha.id}/fichas`, { fichaId: ficha.id });
+  return { mestre, jogador, colega, fora, id: campanha.id as string, ficha };
+}
+
+beforeAll(subir);
+afterAll(() => {
+  for (const c of abertos) c.fechar();
+  derrubar();
+  fs.rmSync(pasta, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+});
+
+describe('autenticação do socket', () => {
+  it('sem sessão, com sessão falsa ou de outra origem, a conexão é recusada', async () => {
+    const sem = new Cliente({});
+    await ate(() => sem.erroConexao);
+    expect(sem.erroConexao).toBe('nao-autenticado');
+    const falsa = new Cliente({ Cookie: 'oh_sessao=inventado' });
+    await ate(() => falsa.erroConexao);
+    expect(falsa.erroConexao).toBe('nao-autenticado');
+    const conta = await novaConta('Origem');
+    const estranha = new Cliente({ Cookie: conta.cookie(), Origin: 'https://outro-site.exemplo.com' });
+    await ate(() => estranha.erroConexao);
+    expect(estranha.socket.connected).toBe(false);
+  });
+
+  it('sair da conta não dá acesso a uma nova conexão', async () => {
+    const conta = await novaConta('Saída');
+    const cookie = conta.cookie();
+    await conta.c('POST', '/api/conta/sair');
+    const cliente = new Cliente({ Cookie: cookie });
+    await ate(() => cliente.erroConexao);
+    expect(cliente.erroConexao).toBe('nao-autenticado');
+  });
+
+  it('quem não é da campanha não entra, e campanha inexistente responde igual', async () => {
+    const { fora, id } = await mesaCompleta();
+    for (const campanhaId of [id, 'naoexiste']) {
+      const cliente = conectar(fora);
+      await ate(() => cliente.socket.connected);
+      cliente.socket.emit('room:join', { campanhaId });
+      await ate(() => cliente.eventos.some(e => e.type === 'room:denied'));
+      expect(cliente.snapshot).toBeNull();
+      cliente.comando({ type: 'chat:send', message: { type: 'normal', text: 'oi' } });
+    }
+  });
+
+  it('a página da mesa também recusa quem não participa', async () => {
+    const { fora, id, mestre } = await mesaCompleta();
+    const pagina = (conta: Conta) => fetch(`${base}/campanhas/${id}/mesa`, { headers: { Cookie: conta.cookie() } }).then(r => r.text());
+    expect(await pagina(fora)).toContain('Campanha não encontrada');
+    expect(await pagina(mestre)).not.toContain('Campanha não encontrada');
+  });
+});
+
+describe('papéis vêm do banco', () => {
+  it('o mestre é GM mesmo entrando depois, e o papel enviado pelo cliente é ignorado', async () => {
+    const { mestre, jogador, id } = await mesaCompleta();
+    const j = await entrar(jogador, id);
+    expect(j.snapshot.role).toBe('player');
+    expect(j.snapshot.selfId).toBe(jogador.id);
+    const m = await entrar(mestre, id);
+    expect(m.snapshot.role).toBe('gm');
+    expect(m.snapshot.selfId).toBe(mestre.id);
+  });
+
+  it('jogador não usa os controles do mestre', async () => {
+    const { mestre, jogador, id } = await mesaCompleta();
+    const j = await entrar(jogador, id);
+    const m = await entrar(mestre, id);
+    const negados = () => j.eventos.filter(e => e.type === 'permission:error').length;
+    for (const [i, comando] of ([
+      { type: 'grid:update', grid: { enabled: false, cellSize: 50, opacity: 0.3 } },
+      { type: 'fog:paint', x: 0, y: 0, radius: 2, reveal: false },
+      { type: 'fog:clear' },
+      { type: 'player:role', playerKey: jogador.id, role: 'spectator' },
+      { type: 'player:remove', playerKey: mestre.id },
+    ] as object[]).entries()) {
+      j.comando(comando);
+      await ate(() => negados() === i + 1);
+    }
+    m.comando({ type: 'fog:paint', x: 0, y: 0, radius: 1, reveal: false });
+    await ate(() => m.eventos.some(e => e.type === 'fog:updated'));
+  });
+
+  it('ninguém vira GM, e espectador só assiste', async () => {
+    const { mestre, jogador, id } = await mesaCompleta();
+    const m = await entrar(mestre, id);
+    const j = await entrar(jogador, id);
+    m.comando({ type: 'player:role', playerKey: jogador.id, role: 'gm' });
+    m.comando({ type: 'player:role', playerKey: mestre.id, role: 'spectator' });
+    await ate(() => m.eventos.some(e => e.type === 'permission:error'));
+    expect(j.snapshot.role).toBe('player');
+    m.comando({ type: 'player:role', playerKey: jogador.id, role: 'spectator' });
+    await ate(() => j.snapshot.role === 'spectator');
+    j.comando({ type: 'chat:roll', expression: '1d20' });
+    await ate(() => j.eventos.some(e => e.type === 'permission:error'));
+    expect(j.eventos.some(e => e.type === 'chat:message')).toBe(false);
+  });
+
+  it('quem é removido da campanha sai da mesa na hora, e campanha apagada fecha a mesa', async () => {
+    const { mestre, jogador, colega, id } = await mesaCompleta();
+    const m = await entrar(mestre, id);
+    const j = await entrar(jogador, id);
+    const col = await entrar(colega, id);
+    expect((await mestre.c('DELETE', `/api/campanhas/${id}/membros/${colega.id}`)).status).toBe(200);
+    await ate(() => col.eventos.some(e => e.type === 'player:kicked'));
+    await ate(() => !col.socket.connected);
+    await ate(() => !m.snapshot.players.some((p: any) => p.id === colega.id));
+    expect(j.socket.connected).toBe(true);
+    expect((await mestre.c('DELETE', `/api/campanhas/${id}`)).status).toBe(200);
+    await ate(() => j.eventos.some(e => e.type === 'room:denied'));
+    await ate(() => !m.socket.connected);
+  });
+});
+
+describe('fichas na mesa', () => {
+  it('só o dono ou o mestre vinculam, e só ficha da campanha', async () => {
+    const { mestre, jogador, colega, id, ficha } = await mesaCompleta();
+    const col = await entrar(colega, id);
+    const t = await criarToken(col);
+    col.comando({ type: 'token:update', id: t, changes: { characterId: ficha.id } });
+    await ate(() => col.eventos.some(e => e.type === 'permission:error'));
+    expect(col.ultimoToken(t).characterId).toBeUndefined();
+
+    const m = await entrar(mestre, id);
+    const solta = (await mestre.c('POST', '/api/fichas', { dados: { nome: 'Solta' } })).corpo.ficha;
+    const tm = await criarToken(m);
+    m.comando({ type: 'token:update', id: tm, changes: { characterId: solta.id } });
+    await ate(() => m.eventos.some(e => e.type === 'permission:error'));
+    m.comando({ type: 'token:update', id: tm, changes: { characterId: ficha.id } });
+    const vinculado = await ate(() => { const k = m.ultimoToken(tm); return k?.characterId === ficha.id && k; });
+    expect(vinculado).toMatchObject({ hpCurrent: 25, hpMax: 25, manaCurrent: 30, manaMax: 30 });
+    expect(vinculado.ownerIds).toContain(jogador.id);
+  });
+
+  it('um token não nasce vinculado: a checagem não pode ser pulada', async () => {
+    const { colega, id, ficha } = await mesaCompleta();
+    const col = await entrar(colega, id);
+    const t = await criarToken(col, { characterId: ficha.id });
+    expect(col.ultimoToken(t).characterId).toBeUndefined();
+  });
+
+  it('vida muda nos dois sentidos em menos de 1 s, sem laço e respeitando o máximo', async () => {
+    const { mestre, jogador, id, ficha } = await mesaCompleta();
+    const m = await entrar(mestre, id);
+    const j = await entrar(jogador, id);
+    const t = await criarToken(j);
+    j.comando({ type: 'token:update', id: t, changes: { characterId: ficha.id } });
+    await ate(() => j.ultimoToken(t).characterId === ficha.id && m.ultimoToken(t)?.characterId === ficha.id);
+
+    const vidaNaFicha = async () => (await jogador.c('GET', `/api/fichas/${ficha.id}`)).corpo.ficha.vidaAtual;
+
+    /* Do token para a ficha. */
+    let inicio = Date.now();
+    j.comando({ type: 'token:update', id: t, changes: { hpCurrent: 10 } });
+    await ate(() => m.ultimoToken(t).hpCurrent === 10, 1000);
+    expect(await vidaNaFicha()).toBe(10);
+    expect(Date.now() - inicio).toBeLessThan(1000);
+
+    /* Da ficha para o token. */
+    inicio = Date.now();
+    expect((await jogador.c('PATCH', `/api/fichas/${ficha.id}`, { vidaAtual: 18 })).status).toBe(200);
+    await ate(() => m.ultimoToken(t).hpCurrent === 18 && j.ultimoToken(t).hpCurrent === 18, 1000);
+    expect(Date.now() - inicio).toBeLessThan(1000);
+
+    /* Máximo. */
+    j.comando({ type: 'token:update', id: t, changes: { hpCurrent: 5000 } });
+    await ate(() => m.ultimoToken(t).hpCurrent === 25);
+    expect(await vidaNaFicha()).toBe(25);
+
+    /* Mudar a vitalidade muda o máximo do token. */
+    await jogador.c('PATCH', `/api/fichas/${ficha.id}`, { corpo: { vitalidade: 6 } });
+    await ate(() => m.ultimoToken(t).hpMax === 27);
+
+    /* Sem laço: parado, nada mais chega. */
+    await new Promise(ok => setTimeout(ok, 300));
+    const antes = m.eventos.length;
+    await new Promise(ok => setTimeout(ok, 1500));
+    expect(m.eventos.filter((e, i) => i >= antes && e.type === 'token:updated')).toHaveLength(0);
+
+    /* O máximo de um token vinculado não muda por fora. */
+    j.comando({ type: 'token:update', id: t, changes: { hpMax: 999 } });
+    await ate(() => j.eventos.some(e => e.type === 'permission:error'));
+  });
+
+  it('colega não recebe a vida da ficha e não altera', async () => {
+    const { jogador, colega, mestre, id, ficha } = await mesaCompleta();
+    const j = await entrar(jogador, id);
+    const col = await entrar(colega, id);
+    const m = await entrar(mestre, id);
+    const t = await criarToken(m);
+    m.comando({ type: 'token:update', id: t, changes: { characterId: ficha.id, ownerIds: [colega.id, jogador.id] } });
+    const noColega = await ate(() => { const k = col.ultimoToken(t); return k?.characterId === ficha.id && k; });
+    expect(noColega.hpCurrent).toBeUndefined();
+    expect(noColega.manaMax).toBeUndefined();
+    await ate(() => j.ultimoToken(t)?.hpCurrent === 25);
+    col.comando({ type: 'token:update', id: t, changes: { hpCurrent: 1 } });
+    await ate(() => col.eventos.some(e => e.type === 'permission:error'));
+    expect((await jogador.c('GET', `/api/fichas/${ficha.id}`)).corpo.ficha.vidaAtual).toBe(25);
+    expect(JSON.stringify((await entrar(colega, id)).snapshot.tokens)).not.toContain('hpCurrent');
+  });
+
+  it('ficha que sai da campanha desvincula o token', async () => {
+    const { jogador, id, ficha } = await mesaCompleta();
+    const j = await entrar(jogador, id);
+    const t = await criarToken(j);
+    j.comando({ type: 'token:update', id: t, changes: { characterId: ficha.id } });
+    await ate(() => j.ultimoToken(t).characterId === ficha.id);
+    await jogador.c('DELETE', `/api/campanhas/${id}/fichas/${ficha.id}`);
+    await ate(() => j.ultimoToken(t).characterId === undefined);
+    expect(j.ultimoToken(t).hpCurrent).toBeUndefined();
+  });
+});
+
+describe('rolagens e chat', () => {
+  it('rolagem pela ficha usa o valor guardado, aparece para todos e no chat do site', async () => {
+    const { mestre, jogador, colega, id, ficha } = await mesaCompleta();
+    const j = await entrar(jogador, id);
+    const m = await entrar(mestre, id);
+    const col = await entrar(colega, id);
+    j.comando({ type: 'ficha:rolar', fichaId: ficha.id, acao: 'corpo.destreza', bonus: 500 });
+    const noMestre = (await ate(() => m.eventos.find(e => e.type === 'chat:message'))).message;
+    await ate(() => col.eventos.some(e => e.type === 'chat:message'));
+    expect(noMestre.label).toBe('Destreza');
+    expect(noMestre.author).toBe('Kael');
+    expect(noMestre.roll.expression).toBe('1d20+7');
+    expect(noMestre.roll.total).toBeGreaterThanOrEqual(8);
+    expect(noMestre.roll.total).toBeLessThanOrEqual(27);
+    const noSite = (await jogador.c('GET', `/api/campanhas/${id}/chat`)).corpo.mensagens;
+    expect(noSite[noSite.length - 1]).toMatchObject({ rotulo: 'Destreza', total: noMestre.roll.total, autor: 'Kael' });
+
+    col.comando({ type: 'ficha:rolar', fichaId: ficha.id, acao: 'corpo.destreza' });
+    await ate(() => col.eventos.some(e => e.type === 'permission:error'));
+    j.comando({ type: 'ficha:rolar', fichaId: ficha.id, acao: 'constructor.x' });
+    await ate(() => j.eventos.some(e => e.type === 'permission:error'));
+  });
+
+  it('o chat de dados tem um motor só: rolagem do site chega à mesa, e da mesa chega ao site', async () => {
+    const { mestre, jogador, id } = await mesaCompleta();
+    const m = await entrar(mestre, id);
+    const r = (await jogador.c('POST', `/api/campanhas/${id}/rolar`, { lados: 20, bonus: 3 })).corpo.rolagem;
+    expect(r.det).toMatch(/^d20 \(\d+\) \+ 3$/);
+    const chegou = (await ate(() => m.eventos.find(e => e.type === 'chat:message' && e.message.id === r.id))).message;
+    expect(chegou.roll.total).toBe(r.total);
+
+    m.comando({ type: 'chat:roll', expression: '2d20kh1+5', label: 'Ataque' });
+    const mesa = (await ate(() => m.eventos.find(e => e.type === 'chat:message' && e.message.label === 'Ataque'))).message;
+    expect(mesa.roll.groups[0].selection).toBe('kh');
+    const noSite = (await jogador.c('GET', `/api/campanhas/${id}/chat`)).corpo.mensagens;
+    expect(noSite[noSite.length - 1]).toMatchObject({ rotulo: 'Ataque', total: mesa.roll.total });
+    expect(noSite[noSite.length - 1].det).toContain('2d20kh1');
+
+    m.comando({ type: 'chat:roll', expression: 'alert(1)' });
+    await ate(() => m.eventos.some(e => e.type === 'chat:error'));
+  });
+
+  it('o chat fica no banco, e sussurro só chega a quem deve', async () => {
+    const { mestre, jogador, colega, id } = await mesaCompleta();
+    const m = await entrar(mestre, id);
+    const j = await entrar(jogador, id);
+    const col = await entrar(colega, id);
+    j.comando({ type: 'chat:send', message: { type: 'normal', text: 'olá, mesa' } });
+    await ate(() => col.eventos.some(e => e.message?.text === 'olá, mesa'));
+    j.comando({ type: 'chat:send', message: { type: 'whisper', text: 'segredo', recipient: 'Mestra' } });
+    await ate(() => m.eventos.some(e => e.message?.text === 'segredo'));
+    await new Promise(ok => setTimeout(ok, 200));
+    expect(col.eventos.some(e => e.message?.text === 'segredo')).toBe(false);
+    const novo = await entrar(colega, id);
+    const textos = novo.snapshot.messages.map((x: any) => x.text);
+    expect(textos).toContain('olá, mesa');
+    expect(textos).not.toContain('segredo');
+  });
+
+  it('comando malformado é ignorado sem derrubar a conexão', async () => {
+    const { mestre, id } = await mesaCompleta();
+    const m = await entrar(mestre, id);
+    for (const ruim of [null, 'texto', {}, { type: 'inventado' }, { type: 'token:create', token: 5, sprites: [] }, { type: 'fog:paint', x: 'a', y: 0, radius: 99, reveal: true }, { type: 'chat:roll', expression: 'x'.repeat(500) }]) {
+      m.socket.emit('room:command', ruim);
+    }
+    m.comando({ type: 'chat:send', message: { type: 'normal', text: 'ainda aqui' } });
+    await ate(() => m.eventos.some(e => e.message?.text === 'ainda aqui'));
+    expect(m.socket.connected).toBe(true);
+  });
+});
+
+describe('persistência', () => {
+  it('a mesa continua igual depois de derrubar o servidor', async () => {
+    const { mestre, jogador, id, ficha } = await mesaCompleta();
+    const m = await entrar(mestre, id);
+    const t = await criarToken(m, { name: 'Salvo', hidden: true });
+    m.comando({ type: 'token:sprite:add', id: t, sprite: { id: 's1', label: 'Rosto', imageUrl: PIXEL } });
+    await ate(() => m.ultimoToken(t).spriteIds.length === 1);
+    m.comando({ type: 'token:update', id: t, changes: { characterId: ficha.id } });
+    await ate(() => m.ultimoToken(t).characterId === ficha.id);
+    m.comando({ type: 'grid:update', grid: { enabled: true, cellSize: 50, opacity: 0.3 } });
+    m.comando({ type: 'fog:paint', x: 0, y: 0, radius: 1, reveal: false });
+    m.comando({ type: 'scene:add', scene: { id: 'c1', imageUrl: PIXEL, x: 10, y: 20, width: 100, height: 200 } });
+    m.comando({ type: 'player:role', playerKey: jogador.id, role: 'spectator' });
+    m.comando({ type: 'chat:send', message: { type: 'normal', text: 'antes de cair' } });
+    m.comando({ type: 'chat:roll', expression: '1d6' });
+    await ate(() => m.eventos.filter(e => e.type === 'chat:message').length >= 2);
+    await ate(() => m.eventos.some(e => e.type === 'fog:updated') && m.eventos.some(e => e.type === 'scene:added'));
+    /* Mais que o intervalo de salvamento. A queda é sem aviso: nada de salvar ao sair. */
+    await new Promise(ok => setTimeout(ok, 1600));
+    derrubar();
+    for (const c of abertos.splice(0)) c.fechar();
+    await subir();
+
+    const volta = await entrar(mestre, id);
+    const s = volta.snapshot;
+    expect(s.role).toBe('gm');
+    expect(s.grid).toEqual({ enabled: true, cellSize: 50, opacity: 0.3 });
+    expect(s.fogCells.length).toBeGreaterThan(0);
+    expect(s.scenes).toEqual([{ id: 'c1', imageUrl: PIXEL, x: 10, y: 20, width: 100, height: 200 }]);
+    const token = s.tokens.find((x: any) => x.id === t);
+    expect(token).toMatchObject({ name: 'Salvo', hidden: true, characterId: ficha.id, hpCurrent: 25, activeSpriteId: 's1' });
+    expect(s.spritesByTokenId[t]).toEqual([{ id: 's1', label: 'Rosto', imageUrl: PIXEL }]);
+    const textos = s.messages.map((x: any) => x.text);
+    expect(textos).toContain('antes de cair');
+    expect(s.messages.some((x: any) => x.type === 'roll' && x.roll?.expression === '1d6')).toBe(true);
+    const j = await entrar(jogador, id);
+    expect(j.snapshot.role).toBe('spectator');
+    expect(j.snapshot.tokens.some((x: any) => x.id === t)).toBe(false);
+  }, 60000);
+});

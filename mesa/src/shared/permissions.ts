@@ -73,7 +73,8 @@ export function can(
   if (
     action === 'chat:gm' ||
     action === 'chat:whisper' ||
-    action === 'chat:action'
+    action === 'chat:action' ||
+    action === 'chat:roll'
   )
     return true
   if (action === 'token:create') return true

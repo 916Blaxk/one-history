@@ -1,7 +1,6 @@
 import crypto from 'crypto';
 import { promisify } from 'util';
 import { and, eq, lt, ne } from 'drizzle-orm';
-import { cookies } from 'next/headers';
 import { db } from './db';
 import { sessoes, usuarios } from './schema';
 import type { Usuario } from '../tipos';
@@ -39,6 +38,8 @@ export async function apagarSessoes(usuarioId: string, exceto?: string) {
   await db.delete(sessoes).where(exceto ? and(eq(sessoes.usuarioId, usuarioId), ne(sessoes.hash, exceto)) : eq(sessoes.usuarioId, usuarioId));
 }
 export async function usuarioDaSessao(): Promise<Usuario | null> {
+  /* Importado aqui: o servidor da mesa carrega este arquivo fora do Next, onde next/headers quebra ao carregar. */
+  const { cookies } = await import('next/headers');
   const u = await usuarioDoToken((await cookies()).get(COOKIE)?.value);
   return u && { id: u.id, nome: u.nome, email: u.email };
 }

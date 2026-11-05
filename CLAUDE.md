@@ -4,12 +4,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Real data, no undo
 
-- This folder is not a git repository, so there is no history to restore from. Read a file before overwriting it, and don't delete anything you didn't create without asking.
+- Read a file before overwriting it, and don't delete anything you didn't create without asking. Real data in `dados/` is not in Git, so nothing restores it.
 - `dados/one-history.db` holds real data. Never delete, reset or overwrite it.
 - `npm run dev`, `npm run build` and `npm start` all apply pending migrations to that database first. Use these instead:
   - Compile: `npx next build` (same build, no migration; the database stays untouched)
   - Run the app: `node scripts/servidor-teste.mjs 3457` (temporary database; needs a build)
-- Production runs `npm run build` and `npm start` on a server with `dados/` on disk, so a new migration applies to production data on the next deploy. Use `/migrar-banco` to apply migrations locally.
+- Production runs `npm run build` and `npm start` on a server with `dados/` on disk or a Turso database, so a new migration applies to production data on the next deploy. Use `/migrar-banco` to apply migrations locally.
+- `npm start` and `npm run dev` run `servidor.ts`, which holds Next and the Socket.IO table server in one process. It must run as a single instance, and Vercel cannot host it.
 
 ## Commands
 
@@ -24,8 +25,9 @@ Use `/verificar` for the full check. There is no formatter or typecheck script; 
 ## Testing
 
 - `test/api.test.ts` and `e2e/` run against the compiled build, not the source. Run `npx next build` after changing code or you will test stale code.
-- They use a temporary database through `scripts/servidor-teste.mjs`, on fixed ports 3457 (API) and 3458 (E2E), which must be free.
-- `vitest.config.ts` has no `@/` alias, so code imported by tests must use relative imports. That is why `lib/` and `test/` don't use `@/`.
+- `test/mesa.test.ts` does the same over Socket.IO.
+- They use a temporary database through `scripts/servidor-teste.mjs`, on fixed ports 3457 (API), 3458 (E2E) and 3459 (table), which must be free.
+- `vitest.config.ts` has no `@/` alias, so code imported by tests must use relative imports. That is why `lib/` and `test/` don't use `@/`. `mesa/` uses `@mesa/` (`mesa/src`), which has an alias.
 - Signup allows 20 attempts per IP. API tests send a distinct `X-Forwarded-For` per client to stay under it; do the same in new tests that create many accounts.
 - Playwright uses the installed Edge (`channel: 'msedge'`), not a bundled browser.
 
@@ -36,6 +38,14 @@ Use `/verificar` for the full check. There is no formatter or typecheck script; 
 - Schema fields are camelCase in TypeScript and snake_case in columns.
 - `lib/servidor/*` is server-only by convention, with no `server-only` guard. Client pages reach data through `/api/...` using SWR and `lib/cliente.ts`.
 - Game formulas belong in `lib/regras.ts`, which runs in both browser and server, so it must not import server code.
+
+## Table (`mesa/`)
+
+- Ported from Tablebola with `git subtree`. Its code keeps English identifiers; new code is in Portuguese.
+- `mesa/src` is the browser, and `mesa/server` is the Socket.IO server. The campaign is the room, and the role comes from the database. Never trust a role, id or dice result from the client.
+- The table page loads only `mesa/src/styles/mesa.css`, not `app/globals.css`, because both define `chat-*` classes. Links between the site and the table must be plain `<a>`, so the page reloads and the stylesheet changes.
+- Next bundles `rotas.ts` apart from `servidor.ts`. `lib/servidor/barramento.ts` keeps its emitter on `globalThis`, so route writes reach the table. Every sheet write must go through `alterarFicha`, and every roll through `gravarRolagem`, or the table won't hear about it.
+- A linked token mirrors the sheet. Only the DM and the sheet owner receive or change its life and mana.
 
 ## API (`lib/servidor/rotas.ts`)
 
@@ -49,6 +59,7 @@ Use `/verificar` for the full check. There is no formatter or typecheck script; 
 ## Data model
 
 - The schema has no foreign keys. Cascades are written by hand with `db.batch` in `rotas.ts`, so a new relation needs its cleanup added to `apagarCampanha` and `DELETE /api/conta`.
+- `chaves_integracao` is unused. It stays because migrations are additive.
 - `fichas.dados` is JSON. A new field on the sheet needs `DadosFicha` and `normalizar()` in `lib/regras.ts`, which drops unknown fields. A new top-level field also needs `CAMPOS_FICHA` in `rotas.ts`, or PATCH ignores it silently.
 - Run `normalizar()` before every write to `fichas.dados`.
 - Write sheets through `alterarFicha`, which compares `atualizado` to handle concurrent edits. `atualizado` must only grow, because `lib/useFicha.ts` relies on that to ignore stale responses.

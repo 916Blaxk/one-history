@@ -40,6 +40,10 @@ describe('sheet link fields', () => {
 })
 
 describe('room permissions', () => {
+  it('lets players roll dice, but not spectators', () => {
+    expect(can('player', 'chat:roll')).toBe(true)
+    expect(can('spectator', 'chat:roll')).toBe(false)
+  })
   it('allows GMs to manage tokens and grid', () => {
     expect(can('gm', 'token:remove', ownedToken, 'other')).toBe(true)
     expect(can('gm', 'grid:update')).toBe(true)
