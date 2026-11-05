@@ -1,6 +1,6 @@
 import { create } from 'zustand'
-import type { RoomPlayer } from '@/shared/room-protocol'
-import type { RoomRole } from '@/shared/permissions'
+import type { RoomPlayer } from '@mesa/shared/room-protocol'
+import type { RoomRole } from '@mesa/shared/permissions'
 
 export type RoomConnectionStatus =
   'connecting' | 'connected' | 'reconnecting' | 'offline'

@@ -22,14 +22,14 @@ export type RoomSnapshot = {
   messages: ChatMessage[]
   players: RoomPlayer[]
   role: RoomPlayer['role']
+  selfId: string
 }
 
 export type RoomTokenChanges = {
   [Key in keyof Omit<Token, 'id'>]?: Omit<Token, 'id'>[Key] | null
 }
 
-export type ClientRoomMessage =
-  | { type: 'join'; displayName: string; playerKey: string }
+export type RoomCommand =
   | { type: 'token:create'; token: Token; sprites: TokenSprite[] }
   | { type: 'token:update'; id: string; changes: RoomTokenChanges }
   | { type: 'token:sprites'; id: string; sprites: TokenSprite[] }
@@ -39,7 +39,7 @@ export type ClientRoomMessage =
   | { type: 'token:remove'; id: string }
   | { type: 'token:move'; id: string; position: TokenPosition; final: boolean }
   | { type: 'grid:update'; grid: RoomGrid }
-  | { type: 'player:role'; playerKey: string; role: RoomPlayer['role'] }
+  | { type: 'player:role'; playerKey: string; role: 'player' | 'spectator' }
   | { type: 'player:remove'; playerKey: string }
   | { type: 'scene:add'; scene: RoomScene }
   | { type: 'scene:move'; id: string; x: number; y: number }
@@ -55,9 +55,9 @@ export type ClientRoomMessage =
       }
     }
   | { type: 'chat:roll'; expression: string; label?: string }
+  | { type: 'ficha:rolar'; fichaId: string; acao: string }
 
 export type ServerRoomMessage =
-  | { type: 'snapshot'; snapshot: RoomSnapshot; playerId: string }
   | {
       type: 'token:added'
       token: Token
@@ -73,7 +73,6 @@ export type ServerRoomMessage =
       final: boolean
       playerId: string
     }
-  | { type: 'grid:updated'; grid: RoomGrid; tokens: Token[] }
   | { type: 'scene:added'; scene: RoomScene }
   | { type: 'scene:moved'; id: string; x: number; y: number }
   | { type: 'scene:removed'; id: string }
@@ -83,17 +82,19 @@ export type ServerRoomMessage =
   | { type: 'chat:error'; text: string }
   | { type: 'permission:error' }
   | { type: 'player:kicked' }
+  | { type: 'room:denied' }
+  | { type: 'ficha:atualizada'; fichaId: string }
   | { type: 'player:joined'; player: RoomPlayer; players: RoomPlayer[] }
   | { type: 'player:left'; playerId: string; players: RoomPlayer[] }
 
-export type RoomCommand = Exclude<ClientRoomMessage, { type: 'join' }>
-
 export interface ClientToServerEvents {
-  'room:join': (data: { roomCode: string; displayName: string; playerKey: string }) => void
+  'room:join': (data: { campanhaId: string }) => void
   'room:command': (message: RoomCommand) => void
+  'ficha:observar': (fichaId: string) => void
 }
 
 export interface ServerToClientEvents {
   'room:snapshot': (snapshot: RoomSnapshot, playerId: string) => void
   'room:event': (message: ServerRoomMessage) => void
+  'ficha:mudou': (fichaId: string) => void
 }

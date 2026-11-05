@@ -1,4 +1,3 @@
-import http from 'node:http';
 import { expect, test, type Browser, type Page } from '@playwright/test';
 
 let seq = 0;
@@ -218,76 +217,6 @@ test('magias: adicionar, conjurar com desconto de mana e continuar depois de rec
   await p.getByRole('button', { name: 'Conjurar Faísca' }).click();
   await expect(p.getByText(/Mana insuficiente/)).toBeVisible();
   await expect(p.locator('#v-manaAtual')).toHaveValue('25');
-});
-
-test('Tablebola: ficha embutida envia a expressão à origem permitida e recusa as outras', async ({ browser }) => {
-  const dono = await novaPessoa(browser, 'Dona Iara');
-  await criarFicha(dono, 'Embutida');
-  const fichaId = dono.url().split('/').pop()!;
-  await dono.locator('#a-corpo-destreza').fill('7');
-  await dono.locator('#a-corpo-destreza').press('Enter');
-  await expect(dono.getByRole('status').filter({ hasText: 'Salvo' })).toBeVisible();
-  await dono.getByText('Integração com o Tablebola').click();
-  await dono.getByLabel('Nome da nova chave').fill('Mesa de teste');
-  await dono.getByRole('button', { name: 'Criar chave' }).click();
-  const link = await dono.getByLabel('Link da ficha embutida').inputValue();
-  const destino = link.replace(/^https?:\/\/[^/]+/, 'http://127.0.0.1:3458');
-
-  /* Simula a página do Tablebola, sem login no site de fichas, só com o link da chave. Precisa de servidor de verdade:
-     uma página falsa do Playwright conta como rede pública, e o navegador bloqueia o iframe para 127.0.0.1. */
-  const paginaMesa = `<!doctype html><script>
-    window.recebidas = [];
-    addEventListener('message', e => { window.recebidas.push({ origem: e.origin, dados: e.data }); if (e.data.tipo === 'oh:pronto') clearInterval(window.ola); });
-    window.ola = setInterval(() => document.querySelector('iframe')?.contentWindow.postMessage({ tipo: 'tablebola:ola' }, 'http://127.0.0.1:3458'), 200);
-  </script><iframe src="${destino}" style="width:1400px;height:900px"></iframe>`;
-  const servidores: http.Server[] = [];
-  async function abrirMesa(porta: number) {
-    const servidor = http.createServer((_, res) => { res.setHeader('Content-Type', 'text/html'); res.end(paginaMesa); });
-    await new Promise<void>(ok => servidor.listen(porta, 'localhost', ok));
-    servidores.push(servidor);
-    const pagina = await (await browser.newContext()).newPage();
-    await pagina.goto(`http://localhost:${porta}/sala`);
-    return pagina;
-  }
-  type MensagemMesa = { origem: string; dados: { tipo: string; recursos?: { atual: number }[] } };
-  const recebidas = (p: Page) => p.evaluate(() => (window as unknown as { recebidas: MensagemMesa[] }).recebidas);
-
-  try {
-  const mesa = await abrirMesa(3999);
-  const ficha = mesa.frameLocator('iframe');
-  await expect(ficha.getByRole('heading', { name: 'Embutida' })).toBeVisible();
-  await expect(ficha.getByRole('link', { name: /Minhas fichas/ })).toHaveCount(0);
-  await expect(ficha.getByRole('button', { name: 'Chat de dados' })).toHaveCount(0);
-  await expect(ficha.getByRole('button', { name: 'Aumentar Destreza' })).toBeDisabled();
-  await expect(ficha.getByLabel('Nome', { exact: true })).not.toBeEditable();
-  await expect.poll(async () => (await recebidas(mesa)).some(m => m.dados.tipo === 'oh:pronto')).toBe(true);
-
-  await ficha.getByRole('button', { name: 'Rolar d20 mais Destreza' }).click();
-  await expect.poll(async () => (await recebidas(mesa)).find(m => m.dados.tipo === 'oh:rolagem')?.dados).toMatchObject({
-    tipo: 'oh:rolagem', schemaVersion: 1, fichaId, acao: 'corpo.destreza', rotulo: 'Destreza', expressao: '1d20+7',
-  });
-  /* Quem rola é a sala: a ficha embutida não grava rolagem. */
-  expect((await (await dono.request.get(`/api/fichas/${fichaId}/chat`)).json()).mensagens).toHaveLength(0);
-
-  /* Vida alterada na mesa aparece para o dono sem recarregar. */
-  await ficha.locator('.cor-vida').getByRole('button', { name: '−5' }).click();
-  await expect(dono.locator('#v-vidaAtual')).toHaveValue('10', { timeout: 10000 });
-  await expect.poll(async () => (await recebidas(mesa)).filter(m => m.dados.tipo === 'oh:recursos').at(-1)?.dados.recursos?.[0].atual).toBe(10);
-
-  /* Origem fora da lista: o navegador nem carrega a ficha, e nada é recebido. */
-  const estranha = await abrirMesa(3998);
-  await estranha.waitForTimeout(1500);
-  await expect(estranha.frameLocator('iframe').getByRole('heading', { name: 'Embutida' })).toHaveCount(0);
-  expect(await recebidas(estranha)).toHaveLength(0);
-
-  /* Fora do iframe, a mesma página não envia nada e avisa. */
-  const direta = await (await browser.newContext()).newPage();
-  await direta.goto(destino);
-  await direta.getByRole('button', { name: 'Rolar d20 mais Destreza' }).click();
-  await expect(direta.getByText(/não está conectada a uma sala/)).toBeVisible();
-  } finally {
-    for (const s of servidores) s.close();
-  }
 });
 
 test('chat de dados: abre ao rolar, guarda o histórico e continua depois de recarregar', async ({ browser }) => {

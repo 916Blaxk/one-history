@@ -1,7 +1,6 @@
 import type { Metadata } from 'next';
 import { Alegreya_Sans, Alegreya_Sans_SC, Grenze_Gotisch } from 'next/font/google';
 import { Toaster } from 'sonner';
-import './globals.css';
 
 const grenze = Grenze_Gotisch({ subsets: ['latin'], weight: ['500', '700'], variable: '--font-grenze' });
 const alegreya = Alegreya_Sans({ subsets: ['latin'], weight: ['400', '500', '700'], style: ['normal', 'italic'], variable: '--font-alegreya' });

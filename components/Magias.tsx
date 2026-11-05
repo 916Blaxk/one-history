@@ -7,8 +7,8 @@ const novoId = () => `m${Date.now().toString(36)}${Math.random().toString(36).sl
 const nomeElemento = (k: string) => R.GRUPOS.elementos.find(([e]) => e === k)?.[1] ?? '';
 
 /* A aba de feitiços da ficha. O custo mostrado já desconta o gasto universal do núcleo. */
-export default function Magias({ magias, gastoUniversal, somenteLeitura, aoMudar, aoConjurar }: {
-  magias: R.Magia[]; gastoUniversal: number; somenteLeitura: boolean;
+export default function Magias({ magias, gastoUniversal, aoMudar, aoConjurar }: {
+  magias: R.Magia[]; gastoUniversal: number;
   aoMudar: (magias: R.Magia[]) => void; aoConjurar: (m: R.Magia) => void;
 }) {
   const [abertas, setAbertas] = useState<ReadonlySet<string>>(new Set());
@@ -30,7 +30,7 @@ export default function Magias({ magias, gastoUniversal, somenteLeitura, aoMudar
         <h2 className="titulo-grupo">Magias</h2>
         {gastoUniversal > 0 && <span className="sp-saldo">Gasto universal: −{gastoUniversal} de mana</span>}
       </div>
-      {magias.length === 0 && <p className="apagado">{somenteLeitura ? 'Esta ficha não tem magias.' : 'Nenhuma magia ainda. Adicione o primeiro feitiço desta ficha.'}</p>}
+      {magias.length === 0 && <p className="apagado">Nenhuma magia ainda. Adicione o primeiro feitiço desta ficha.</p>}
       <ul className="lista-magias">
         {magias.map(m => {
           const aberta = abertas.has(m.id), custo = Math.max(0, m.custo - gastoUniversal), nome = m.nome || 'Magia sem nome', elemento = nomeElemento(m.elemento);
@@ -44,12 +44,7 @@ export default function Magias({ magias, gastoUniversal, somenteLeitura, aoMudar
                 <span className="magia-custo">{gastoUniversal > 0 && m.custo > 0 ? `${m.custo} − ${gastoUniversal} = ` : ''}<b>{custo}</b> de mana</span>
                 <button type="button" className="rolar" aria-label={`Conjurar ${nome}`} onClick={() => aoConjurar(m)}>Conjurar</button>
               </div>
-              {aberta && (somenteLeitura ? (
-                <div className="magia-corpo">
-                  {(m.alcance || m.duracao) && <p className="formula">{[m.alcance && `Alcance: ${m.alcance}`, m.duracao && `Duração: ${m.duracao}`].filter(Boolean).join(' · ')}</p>}
-                  <p className="magia-descricao">{m.descricao || 'Sem descrição.'}</p>
-                </div>
-              ) : (
+              {aberta && (
                 <div className="magia-corpo magia-campos">
                   <div className="campo campo-largo">
                     <label className="rotulo" htmlFor={`m-nome-${m.id}`}>Nome da magia</label>
@@ -82,12 +77,12 @@ export default function Magias({ magias, gastoUniversal, somenteLeitura, aoMudar
                     <BotaoConfirmar rotulo="Remover magia" confirmar="Confirmar: remover magia" aoConfirmar={() => aoMudar(magias.filter(o => o.id !== m.id))} />
                   </div>
                 </div>
-              ))}
+              )}
             </li>
           );
         })}
       </ul>
-      {!somenteLeitura && magias.length < R.LIMITE_MAGIAS && <button type="button" className="btn" onClick={adicionar}>Adicionar magia</button>}
+      {magias.length < R.LIMITE_MAGIAS && <button type="button" className="btn" onClick={adicionar}>Adicionar magia</button>}
     </div>
   );
 }

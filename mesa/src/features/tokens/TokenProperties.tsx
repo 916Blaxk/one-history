@@ -1,22 +1,23 @@
 import { useRef, useState } from 'react'
 import { ChevronDown, ChevronUp, ImagePlus, Trash2, X } from 'lucide-react'
-import { Card, CardContent } from '@/components/ui/card'
-import { useTokenStore } from '@/features/tokens/token-store'
-import { useUiStore } from '@/stores/ui-store'
-import type { Token } from '@/features/tokens/token-types'
-import type { TokenSprite } from '@/features/tokens/token-types'
-import { useBottomSheetDismiss } from '@/hooks/use-bottom-sheet-dismiss'
-import { isRoomMode } from '@/features/rooms/room-commands'
-import { useRoomStore } from '@/features/rooms/room-store'
-import { MiniSheet } from '@/features/sheets/MiniSheet'
-import { useSheetKeyStore } from '@/features/sheets/sheet-keys'
+import { Card, CardContent } from '@mesa/components/ui/card'
+import { useTokenStore } from '@mesa/features/tokens/token-store'
+import { useUiStore } from '@mesa/stores/ui-store'
+import type { Token } from '@mesa/features/tokens/token-types'
+import type { TokenSprite } from '@mesa/features/tokens/token-types'
+import { useBottomSheetDismiss } from '@mesa/hooks/use-bottom-sheet-dismiss'
+import { isRoomMode } from '@mesa/features/rooms/room-commands'
+import { useRoomStore } from '@mesa/features/rooms/room-store'
+import { FichaDoToken } from '@mesa/features/tokens/FichaDoToken'
 
 const EMPTY_SPRITES: TokenSprite[] = []
 
 export function TokenProperties({
+  campanhaId,
   mobileOpen,
   onMobileClose,
 }: {
+  campanhaId: string
   mobileOpen?: boolean
   onMobileClose?: () => void
 }) {
@@ -39,16 +40,14 @@ export function TokenProperties({
   const players = useRoomStore((state) => state.players)
   const playerKey = useRoomStore((state) => state.playerKey)
   const role = useRoomStore((state) => state.role)
-  /* Com a ficha ligada, o máximo vem dela. */
-  const maxFromSheet = useSheetKeyStore((state) =>
-    Boolean(token?.characterId && state.keys[token.characterId]),
-  )
   const mobileMode = mobileOpen !== undefined
   const contentVisible = mobileMode ? mobileOpen : !collapsed
   const dragHandlers = useBottomSheetDismiss(Boolean(mobileOpen), onMobileClose)
 
   if (!token) return null
   const selectedToken = token
+  /* Com a ficha ligada, ela manda: o máximo vem dela, e só o mestre e o dono recebem e alteram os valores. */
+  const linked = Boolean(selectedToken.characterId)
   const inRoom = isRoomMode()
   const canEdit =
     !inRoom ||
@@ -224,6 +223,7 @@ export function TokenProperties({
               <input
                 type="number"
                 min="0"
+                disabled={linked && selectedToken.hpCurrent === undefined}
                 value={selectedToken.hpCurrent ?? ''}
                 placeholder="—"
                 onChange={(event) =>
@@ -241,7 +241,7 @@ export function TokenProperties({
               <input
                 type="number"
                 min="0"
-                disabled={maxFromSheet}
+                disabled={linked}
                 value={selectedToken.hpMax ?? ''}
                 placeholder="—"
                 onChange={(event) =>
@@ -261,6 +261,7 @@ export function TokenProperties({
               <input
                 type="number"
                 min="0"
+                disabled={linked && selectedToken.manaCurrent === undefined}
                 value={selectedToken.manaCurrent ?? ''}
                 placeholder="—"
                 onChange={(event) =>
@@ -278,7 +279,7 @@ export function TokenProperties({
               <input
                 type="number"
                 min="0"
-                disabled={maxFromSheet}
+                disabled={linked}
                 value={selectedToken.manaMax ?? ''}
                 placeholder="—"
                 onChange={(event) =>
@@ -292,7 +293,7 @@ export function TokenProperties({
               />
             </label>
           </div>
-          <MiniSheet token={selectedToken} />
+          <FichaDoToken token={selectedToken} campanhaId={campanhaId} />
           <section
             className={`token-sprites-section ${spritesExpanded ? 'is-expanded' : ''}`}
             aria-label="Sprites do token"

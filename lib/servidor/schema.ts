@@ -59,9 +59,39 @@ export const rolagens = sqliteTable('rolagens', {
   rotulo: text('rotulo').notNull().default(''),
   det: text('det').notNull(),
   total: integer('total').notNull(),
+  /* Vazios nas rolagens antigas: a mesa as mostra como texto, sem os dados um a um. */
+  expressao: text('expressao'),
+  detalhe: text('detalhe', { mode: 'json' }).$type<unknown>(),
 }, t => [index('rolagens_campanha').on(t.campanhaId, t.em), index('rolagens_ficha').on(t.fichaId, t.em)]);
 
-/* Chaves que o dono cria para o Tablebola ler a ficha. Guarda só o hash: quem ler o banco não consegue usar a chave. */
+/* O chat de texto da mesa. As rolagens ficam em `rolagens`, para o chat de dados do site continuar vendo todas. */
+export const mensagensMesa = sqliteTable('mensagens_mesa', {
+  id: text('id').primaryKey(),
+  campanhaId: text('campanha_id').notNull(),
+  usuarioId: text('usuario_id'),
+  autor: text('autor').notNull(),
+  tipo: text('tipo').notNull(),
+  texto: text('texto').notNull(),
+  destinatario: text('destinatario'),
+  /* Sussurro e mensagem ao mestre: só estas contas leem. Vazio: toda a mesa. */
+  visivelPara: text('visivel_para', { mode: 'json' }).$type<string[]>(),
+  em: integer('em').notNull(),
+}, t => [index('mensagens_mesa_campanha').on(t.campanhaId, t.em)]);
+
+/* Tokens, grade, névoa e cenários de cada campanha. As imagens ficam à parte: cada salvamento não pode reescrever todas. */
+export const mesas = sqliteTable('mesas', {
+  campanhaId: text('campanha_id').primaryKey(),
+  estado: text('estado', { mode: 'json' }).$type<unknown>().notNull(),
+  atualizado: integer('atualizado').notNull(),
+});
+
+export const mesaImagens = sqliteTable('mesa_imagens', {
+  campanhaId: text('campanha_id').notNull(),
+  id: text('id').notNull(),
+  dados: text('dados').notNull(),
+}, t => [primaryKey({ columns: [t.campanhaId, t.id] })]);
+
+/* Sem uso desde a unificação com a mesa. Fica no banco porque as migrações são só aditivas. */
 export const chavesIntegracao = sqliteTable('chaves_integracao', {
   id: text('id').primaryKey(),
   fichaId: text('ficha_id').notNull(),

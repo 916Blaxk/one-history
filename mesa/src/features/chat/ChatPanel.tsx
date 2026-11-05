@@ -6,19 +6,19 @@ import {
   type KeyboardEvent,
 } from 'react'
 import { ChevronDown, MessageCircle, Send, X } from 'lucide-react'
-import { Card, CardContent } from '@/components/ui/card'
-import { useChatStore } from '@/features/chat/chat-store'
-import type { ChatMessage } from '@/features/chat/chat-types'
+import { Card, CardContent } from '@mesa/components/ui/card'
+import { useChatStore } from '@mesa/features/chat/chat-store'
+import type { ChatMessage } from '@mesa/features/chat/chat-types'
 import type {
   DiceGroupResult,
   DiceRollResult,
   DieResult,
-} from '@/features/chat/dice-types'
-import { postRoll } from '@/features/chat/post-roll'
-import { useTokenStore } from '@/features/tokens/token-store'
-import { useBottomSheetDismiss } from '@/hooks/use-bottom-sheet-dismiss'
-import { isRoomMode, sendRoomCommand } from '@/features/rooms/room-commands'
-import { useRoomStore } from '@/features/rooms/room-store'
+} from '@mesa/features/chat/dice-types'
+import { postRoll } from '@mesa/features/chat/post-roll'
+import { useTokenStore } from '@mesa/features/tokens/token-store'
+import { useBottomSheetDismiss } from '@mesa/hooks/use-bottom-sheet-dismiss'
+import { isRoomMode, sendRoomCommand } from '@mesa/features/rooms/room-commands'
+import { useRoomStore } from '@mesa/features/rooms/room-store'
 
 const QUICK_DICE = [4, 6, 8, 10, 12, 20, 100]
 const COMMAND_HELP =
@@ -116,7 +116,7 @@ export function ChatPanel({
   )
 
   function roll(expression: string) {
-    postRoll(expression, author)
+    postRoll(expression)
     setIsOpen(true)
   }
 
@@ -240,7 +240,7 @@ export function ChatPanel({
           >
             <span className="mobile-sheet-handle" />
             <div>
-              <span className="chat-panel-kicker">MESA DE TESTES</span>
+              <span className="chat-panel-kicker">MESA DA CAMPANHA</span>
               <h2>Chat da mesa</h2>
             </div>
             <button
@@ -411,7 +411,7 @@ function ChatMessageView({ message }: { message: ChatMessage }) {
         <span>{authorLine}</span>
         <time>{timestamp}</time>
       </div>
-      {message.type !== 'action' && message.type !== 'roll' && (
+      {message.type !== 'action' && (message.type !== 'roll' || !message.roll) && (
         <p>{message.text}</p>
       )}
       {message.label && <p className="chat-roll-label">{message.label}</p>}

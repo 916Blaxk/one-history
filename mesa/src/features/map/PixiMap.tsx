@@ -1,11 +1,13 @@
 import { useEffect, useRef } from 'react'
 import { Application, Container, Graphics, Sprite, Texture } from 'pixi.js'
-import { useUiStore } from '@/stores/ui-store'
-import { useTokenStore } from '@/features/tokens/token-store'
-import { isRoomMode, sendRoomMove } from '@/features/rooms/room-commands'
-import { useRoomStore } from '@/features/rooms/room-store'
-import type { TokenSprite } from '@/features/tokens/token-types'
-import type { RoomScene } from '@/shared/room-protocol'
+/* O CSP do site proíbe eval, e o PixiJS gera funções em tempo de execução sem este módulo. */
+import 'pixi.js/unsafe-eval'
+import { useUiStore } from '@mesa/stores/ui-store'
+import { useTokenStore } from '@mesa/features/tokens/token-store'
+import { isRoomMode, sendRoomMove } from '@mesa/features/rooms/room-commands'
+import { useRoomStore } from '@mesa/features/rooms/room-store'
+import type { TokenSprite } from '@mesa/features/tokens/token-types'
+import type { RoomScene } from '@mesa/shared/room-protocol'
 import {
   createTokenView,
   destroyTokenView,
@@ -14,7 +16,7 @@ import {
   tokenHitTest,
   updateTokenView,
   type TokenView,
-} from '@/features/map/TokenLayer'
+} from '@mesa/features/map/TokenLayer'
 
 const MIN_ZOOM = 0.2
 const MAX_ZOOM = 4

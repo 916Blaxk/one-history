@@ -1,27 +1,24 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
 import {
   ArrowLeft,
   Map as MapIcon,
   MessageCircle,
   UserRound,
 } from 'lucide-react'
-import { PixiMap } from '@/features/map/PixiMap'
-import { MapControls } from '@/features/map/MapControls'
-import { TokenProperties } from '@/features/tokens/TokenProperties'
-import { ChatPanel } from '@/features/chat/ChatPanel'
-import { useTokenStore } from '@/features/tokens/token-store'
-import { useSheetSync } from '@/features/sheets/use-sheet-sync'
+import { PixiMap } from '@mesa/features/map/PixiMap'
+import { MapControls } from '@mesa/features/map/MapControls'
+import { TokenProperties } from '@mesa/features/tokens/TokenProperties'
+import { ChatPanel } from '@mesa/features/chat/ChatPanel'
+import { useTokenStore } from '@mesa/features/tokens/token-store'
 
 type MobilePanel = 'map' | 'token' | 'chat'
 
-export function MapPage() {
+export function MapPage({ campanha }: { campanha: { id: string; nome: string } }) {
   const [mobile, setMobile] = useState(
     () => window.matchMedia('(max-width: 768px)').matches,
   )
   const [activePanel, setActivePanel] = useState<MobilePanel | null>(null)
   const selectedTokenId = useTokenStore((state) => state.selectedTokenId)
-  useSheetSync()
 
   useEffect(() => {
     const query = window.matchMedia('(max-width: 768px)')
@@ -48,15 +45,18 @@ export function MapPage() {
           if (mobile) setActivePanel(null)
         }}
       />
-      <Link className="map-back-link" to="/" aria-label="Voltar ao início">
+      {/* Um link comum, não o do Next: a página da campanha troca a folha de estilos inteira. */}
+      {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+      <a className="map-back-link" href={`/campanhas/${campanha.id}`} aria-label={`Voltar para ${campanha.nome}`}>
         <ArrowLeft size={16} />
-        <span>Voltar ao in&iacute;cio</span>
-      </Link>
+        <span>Voltar para a campanha</span>
+      </a>
       <MapControls
         mobileOpen={mobile ? visiblePanel === 'map' : undefined}
         onMobileClose={() => setActivePanel(null)}
       />
       <TokenProperties
+        campanhaId={campanha.id}
         mobileOpen={mobile ? visiblePanel === 'token' : undefined}
         onMobileClose={() => setActivePanel(null)}
       />

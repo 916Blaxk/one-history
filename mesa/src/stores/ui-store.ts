@@ -1,6 +1,6 @@
 import { create } from 'zustand'
-import { isRoomMode, sendRoomCommand } from '@/features/rooms/room-commands'
-import type { RoomScene } from '@/shared/room-protocol'
+import { isRoomMode, sendRoomCommand } from '@mesa/features/rooms/room-commands'
+import type { RoomScene } from '@mesa/shared/room-protocol'
 
 type Camera = { x: number; y: number; zoom: number }
 type GridSettings = { enabled: boolean; cellSize: number; opacity: number }

@@ -3,14 +3,14 @@ import type {
   Token,
   TokenPosition,
   TokenSprite,
-} from '@/features/tokens/token-types'
+} from '@mesa/features/tokens/token-types'
 import {
   isRoomMode,
   sendRoomCommand,
   sendRoomMove,
-} from '@/features/rooms/room-commands'
-import { fileToRoomImage } from '@/features/rooms/image-serializer'
-import type { RoomTokenChanges } from '@/shared/room-protocol'
+} from '@mesa/features/rooms/room-commands'
+import { fileToRoomImage } from '@mesa/features/rooms/image-serializer'
+import type { RoomTokenChanges } from '@mesa/shared/room-protocol'
 
 const tokenColors = [
   '#806247',

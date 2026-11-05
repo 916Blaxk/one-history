@@ -3,8 +3,8 @@ import { useEffect, useRef, useState } from 'react';
 import { urlFoto } from '@/lib/cliente';
 import { estagio } from '@/lib/regras';
 
-export function Capitular({ nome, fichaId, fotoV, src, className = '' }: { nome: string; fichaId?: string; fotoV?: number; src?: string; className?: string }) {
-  const imagem = src ?? (fichaId && fotoV ? urlFoto(fichaId, fotoV) : null);
+export function Capitular({ nome, fichaId, fotoV, className = '' }: { nome: string; fichaId?: string; fotoV?: number; className?: string }) {
+  const imagem = fichaId && fotoV ? urlFoto(fichaId, fotoV) : null;
   return (
     <span className={`capitular ${className}`}>
       {imagem

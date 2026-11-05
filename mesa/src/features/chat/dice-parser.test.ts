@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { DiceExpressionError, rollDice } from '@/features/chat/dice-parser'
+import { DiceExpressionError, rollDice } from '@mesa/features/chat/dice-parser'
 
 function sequence(values: number[]) {
   let index = 0

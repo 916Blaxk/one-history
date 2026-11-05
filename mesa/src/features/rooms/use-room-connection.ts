@@ -1,38 +1,24 @@
 import { useEffect } from 'react'
 import { io, type Socket } from 'socket.io-client'
+import { mutate } from 'swr'
 import type {
   ClientToServerEvents,
   RoomCommand,
   ServerRoomMessage,
   ServerToClientEvents,
-} from '@/shared/room-protocol'
-import { useTokenStore } from '@/features/tokens/token-store'
-import { useChatStore } from '@/features/chat/chat-store'
-import { useUiStore } from '@/stores/ui-store'
-import { setRoomCommandSender } from '@/features/rooms/room-commands'
-import { useRoomStore } from '@/features/rooms/room-store'
+} from '@mesa/shared/room-protocol'
+import { useTokenStore } from '@mesa/features/tokens/token-store'
+import { useChatStore } from '@mesa/features/chat/chat-store'
+import { useUiStore } from '@mesa/stores/ui-store'
+import { setRoomCommandSender } from '@mesa/features/rooms/room-commands'
+import { useRoomStore } from '@mesa/features/rooms/room-store'
 
-const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:3001'
-const PLAYER_KEY = 'tablebola.player-key'
-
-export function useRoomConnection(roomCode: string, displayName: string) {
+/* A conexão usa o cookie de sessão do site. O servidor decide quem é a pessoa e qual o papel dela. */
+export function useRoomConnection(campanhaId: string) {
   useEffect(() => {
-    const localTokens = useTokenStore.getState()
-    const localGrid = useUiStore.getState().grid
-    const localScenes = useUiStore.getState().scenes
-    const localFogCells = useUiStore.getState().fogCells
-    const localMessages = useChatStore.getState().messages
-    const localSelectedTokenId = localTokens.selectedTokenId
-    let playerKey = localStorage.getItem(PLAYER_KEY)
-    if (!playerKey) {
-      playerKey = crypto.randomUUID()
-      localStorage.setItem(PLAYER_KEY, playerKey)
-    }
-
-    const socket = io(SERVER_URL, {
+    const socket = io({
       autoConnect: false,
       reconnection: true,
-      withCredentials: true,
     }) as Socket<ServerToClientEvents, ClientToServerEvents>
     let active = true
     let ready = false
@@ -46,18 +32,22 @@ export function useRoomConnection(roomCode: string, displayName: string) {
     useRoomStore.getState().setStatus('connecting')
     useRoomStore.getState().setPlayers([])
     useRoomStore.getState().setPlayerId(null)
-    useRoomStore.getState().setPlayerKey(playerKey)
+    useRoomStore.getState().setPlayerKey(null)
     useRoomStore.getState().setRole(null)
     useRoomStore.getState().setNotice(null)
 
     const onConnect = () => {
       ready = false
       useRoomStore.getState().setStatus('connected')
-      socket.emit('room:join', {
-        roomCode: roomCode.toLowerCase(),
-        displayName,
-        playerKey,
-      })
+      socket.emit('room:join', { campanhaId })
+    }
+    const onConnectError = (error: Error) => {
+      if (!active) return
+      if (error.message === 'nao-autenticado') {
+        window.location.assign(`/entrar?destino=${encodeURIComponent(window.location.pathname)}`)
+        return
+      }
+      useRoomStore.getState().setStatus('reconnecting')
     }
     const onDisconnect = () => {
       ready = false
@@ -78,7 +68,7 @@ export function useRoomConnection(roomCode: string, displayName: string) {
       useChatStore.getState().replaceRoomMessages(snapshot.messages)
       useRoomStore.getState().setPlayers(snapshot.players)
       useRoomStore.getState().setPlayerId(playerId)
-      useRoomStore.getState().setPlayerKey(playerKey)
+      useRoomStore.getState().setPlayerKey(snapshot.selfId)
       useRoomStore.getState().setRole(snapshot.role)
       useRoomStore.getState().setStatus('connected')
       ready = true
@@ -100,12 +90,6 @@ export function useRoomConnection(roomCode: string, displayName: string) {
           if (message.playerId !== useRoomStore.getState().playerId || message.final)
             useTokenStore.getState().applyRoomPosition(message.id, message.position)
           break
-        case 'grid:updated': {
-          const state = useTokenStore.getState()
-          state.applyRoomSnapshot(message.tokens, state.spritesByTokenId)
-          useUiStore.getState().applyRoomGrid(message.grid)
-          break
-        }
         case 'scene:added':
           useUiStore.setState((state) => state.scenes.some((scene) => scene.id === message.scene.id)
             ? state : { scenes: [...state.scenes, message.scene] })
@@ -136,8 +120,15 @@ export function useRoomConnection(roomCode: string, displayName: string) {
           window.setTimeout(() => useRoomStore.getState().setNotice(null), 2200)
           break
         case 'player:kicked':
-          useRoomStore.getState().setNotice('Você foi removido da sala')
+          useRoomStore.getState().setNotice('Você foi removido da mesa')
           socket.disconnect()
+          break
+        case 'room:denied':
+          useRoomStore.getState().setNotice('Esta mesa não está disponível para a sua conta')
+          socket.disconnect()
+          break
+        case 'ficha:atualizada':
+          void mutate(`/api/fichas/${message.fichaId}/resumo`)
           break
         case 'player:joined':
         case 'player:left':
@@ -147,6 +138,7 @@ export function useRoomConnection(roomCode: string, displayName: string) {
     }
 
     socket.on('connect', onConnect)
+    socket.on('connect_error', onConnectError)
     socket.on('disconnect', onDisconnect)
     socket.io.on('reconnect_attempt', onReconnectAttempt)
     socket.io.on('reconnect_failed', onReconnectFailed)
@@ -159,20 +151,15 @@ export function useRoomConnection(roomCode: string, displayName: string) {
       ready = false
       setRoomCommandSender(null)
       socket.off('connect', onConnect)
+      socket.off('connect_error', onConnectError)
       socket.off('disconnect', onDisconnect)
       socket.io.off('reconnect_attempt', onReconnectAttempt)
       socket.io.off('reconnect_failed', onReconnectFailed)
       socket.off('room:snapshot', onSnapshot)
       socket.off('room:event', onRoomEvent)
       socket.disconnect()
-      useTokenStore.getState().applyRoomSnapshot(localTokens.tokens, localTokens.spritesByTokenId)
-      useTokenStore.getState().selectToken(localSelectedTokenId)
-      useUiStore.getState().applyRoomGrid(localGrid)
-      useUiStore.getState().applyRoomScenes(localScenes)
-      useUiStore.getState().applyFogCells(localFogCells)
-      useChatStore.getState().replaceRoomMessages(localMessages)
       useRoomStore.getState().setStatus('offline')
       useRoomStore.getState().setRole(null)
     }
-  }, [roomCode, displayName])
+  }, [campanhaId])
 }

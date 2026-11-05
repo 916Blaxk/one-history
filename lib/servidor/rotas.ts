@@ -1,11 +1,14 @@
 import crypto from 'crypto';
 import { and, count, desc, eq, inArray, isNull, lt, notInArray, or, sql, type SQL } from 'drizzle-orm';
 import { z } from 'zod';
-import { lerOrigens, origemPermitida, recursosDaFicha, resumoDaFicha } from '../integracao';
+import { rollDice } from '../../mesa/src/features/chat/dice-parser';
+import type { DiceRollResult } from '../../mesa/src/features/chat/dice-types';
 import * as R from '../regras';
-import type { ChaveIntegracao, Ficha, Mensagem, PaginaChat, Papel, ResumoFicha } from '../tipos';
+import { itemDaAcao, resumoDaFicha } from '../resumoFicha';
+import type { Ficha, Mensagem, PaginaChat, Papel, ResumoFicha } from '../tipos';
+import { avisarMesa } from './barramento';
 import { db } from './db';
-import { campanhas, chavesIntegracao, fichas, membros, rolagens, sessoes, tentativas, usuarios } from './schema';
+import { campanhas, chavesIntegracao, fichas, membros, mensagensMesa, mesaImagens, mesas, rolagens, sessoes, tentativas, usuarios } from './schema';
 import { apagarSessoes, conferirHash, COOKIE, criarSessao, gerarHash, hashToken, SESSAO_S, usuarioDoToken } from './sessao';
 
 const LIMITE_CORPO = 512 * 1024;
@@ -15,12 +18,11 @@ const LIMITE_ROLAGENS = 500, PAGINA_CHAT = 50;
 const ALFABETO_CODIGO = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 const FOTO_VALIDA = /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/;
 const CAMPOS_FICHA = new Set(['player', 'nome', 'idade', 'raca', 'estilo', 'tier', 'inventario', 'notas', 'manaPerdida', 'fadiga', 'vidaAtual', 'manaAtual', 'magias']);
-const LIMITE_CHAVES = 10;
 /* O núcleo define os SP: se o jogador pudesse mudá-lo, o limite de SP não valeria nada. */
 const CAMPOS_MESTRE = new Set(['ajustes', 'limites', 'nucleo']);
 const JANELA_MS = 15 * 60 * 1000;
 
-class Erro extends Error {
+export class Erro extends Error {
   constructor(public status: number, mensagem: string) { super(mensagem); }
 }
 
@@ -46,13 +48,6 @@ const esquemaCampanha = z.object({
   nome: z.string({ error: 'Dê à campanha um nome entre 2 e 80 caracteres.' }).trim().min(2, 'Dê à campanha um nome entre 2 e 80 caracteres.').max(80, 'Dê à campanha um nome entre 2 e 80 caracteres.'),
   descricao: z.string().trim().max(600, 'A descrição pode ter até 600 caracteres.').default(''),
 });
-const esquemaChave = z.object({
-  rotulo: z.string({ error: 'Dê à chave um nome entre 1 e 60 caracteres.' }).trim().min(1, 'Dê à chave um nome entre 1 e 60 caracteres.').max(60, 'Dê à chave um nome entre 1 e 60 caracteres.'),
-});
-const erroRecursos = 'Envie só vidaAtual e manaAtual, como números inteiros entre 0 e 999999.';
-const valorRecurso = z.number({ error: erroRecursos }).int(erroRecursos).min(0, erroRecursos).max(999999, erroRecursos).optional();
-const esquemaRecursos = z.strictObject({ vidaAtual: valorRecurso, manaAtual: valorRecurso }, { error: erroRecursos })
-  .refine(r => r.vidaAtual !== undefined || r.manaAtual !== undefined, erroRecursos);
 function validar<T extends z.ZodType>(esquema: T, corpo: unknown): z.output<T> {
   const r = esquema.safeParse(corpo);
   if (!r.success) throw new Erro(400, r.error.issues[0].message);
@@ -155,7 +150,7 @@ async function comContexto(f: LinhaFicha, usuario: UsuarioSessao): Promise<Ficha
   };
 }
 /* Grava comparando `atualizado`: se outra pessoa salvou no meio do caminho, relê e aplica de novo em vez de sobrescrever. */
-async function alterarFicha(id: string, mudar: (f: LinhaFicha) => void, extras: Partial<typeof fichas.$inferInsert> = {}): Promise<LinhaFicha> {
+export async function alterarFicha(id: string, mudar: (f: LinhaFicha) => void, extras: Partial<typeof fichas.$inferInsert> = {}): Promise<LinhaFicha> {
   for (let i = 0; i < 6; i++) {
     const [f] = await db.select(colunasFicha).from(fichas).where(eq(fichas.id, id));
     if (!f) throw new Erro(404, 'Ficha não encontrada.');
@@ -166,6 +161,7 @@ async function alterarFicha(id: string, mudar: (f: LinhaFicha) => void, extras: 
       .where(and(eq(fichas.id, id), eq(fichas.atualizado, antes))).returning({ id: fichas.id });
     if (feito.length) {
       if (extras.fotoV !== undefined) f.fotoV = extras.fotoV;
+      avisarMesa({ tipo: 'ficha', fichaId: f.id, campanhaId: f.campanhaId });
       return f;
     }
   }
@@ -188,35 +184,60 @@ async function apagarCampanha(id: string) {
     soltarFichas(eq(fichas.campanhaId, id)),
     db.delete(membros).where(eq(membros.campanhaId, id)),
     db.delete(rolagens).where(eq(rolagens.campanhaId, id)),
+    db.delete(mensagensMesa).where(eq(mensagensMesa.campanhaId, id)),
+    db.delete(mesaImagens).where(eq(mesaImagens.campanhaId, id)),
+    db.delete(mesas).where(eq(mesas.campanhaId, id)),
     db.delete(campanhas).where(eq(campanhas.id, id)),
   ]);
+  avisarMesa({ tipo: 'campanha-apagada', campanhaId: id });
 }
 async function removerMembro(campanhaId: string, usuarioId: string) {
   await db.batch([
     db.delete(membros).where(and(eq(membros.campanhaId, campanhaId), eq(membros.usuarioId, usuarioId))),
     soltarFichas(and(eq(fichas.campanhaId, campanhaId), eq(fichas.donoId, usuarioId))),
   ]);
+  avisarMesa({ tipo: 'campanha', campanhaId });
 }
 function rolar(lados: number, bonus: number) {
   if (!R.DADOS.includes(lados)) throw new Erro(400, 'Esse dado não existe no rolador. Use d4, d6, d8, d10, d12, d20 ou d100.');
-  const d = crypto.randomInt(1, lados + 1);
-  return { d, lados, bonus, total: d + bonus };
+  const expressao = `1d${lados}${bonus > 0 ? `+${bonus}` : bonus < 0 ? `-${-bonus}` : ''}`;
+  const detalhe = rollDice(expressao);
+  return { d: detalhe.groups[0].dice[0].rolls[0], lados, bonus, total: detalhe.total, expressao, detalhe };
 }
 const detalheRolagem = (r: ReturnType<typeof rolar>) =>
   `d${r.lados} (${r.d})${r.bonus ? ` ${r.bonus > 0 ? '+' : '−'} ${Math.abs(r.bonus)}` : ''}`;
+/* O mesmo texto de uma rolagem, para expressões que só a mesa aceita: o chat de dados do site mostra só isto. */
+export function textoDaRolagem(r: DiceRollResult) {
+  const partes = r.groups.map(g => {
+    const selecao = g.selection ? `${g.selection}${g.selectionCount}` : '';
+    const dados = g.dice.filter(d => d.kept).flatMap(d => d.rolls).join(', ');
+    return `${g.sign < 0 ? '− ' : ''}${g.count}d${g.sides}${selecao}${g.exploding ? '!' : ''} (${dados})${g.modifier ? ` ${g.modifier > 0 ? '+' : '−'} ${Math.abs(g.modifier)}` : ''}`;
+  });
+  for (const m of r.flatModifiers) partes.push(`${m.value > 0 ? '+' : '−'} ${Math.abs(m.value)}`);
+  return partes.join(' ').slice(0, 500);
+}
 
 const escopoCampanha = (campanhaId: string) => eq(rolagens.campanhaId, campanhaId);
 const escopoFichaSolo = (fichaId: string) => and(isNull(rolagens.campanhaId), eq(rolagens.fichaId, fichaId))!;
 
+/* Grava e avisa a mesa. É o único caminho de uma rolagem até o banco, venha do site ou da mesa. */
+export async function gravarRolagem(d: {
+  campanhaId: string | null; fichaId: string | null; usuarioId: string; autor: string; rotulo: string;
+  det: string; total: number; expressao: string; detalhe: DiceRollResult;
+}) {
+  const linha = { id: novoId('r'), em: Date.now(), ...d };
+  await db.insert(rolagens).values(linha);
+  const escopo = d.campanhaId ? escopoCampanha(d.campanhaId) : escopoFichaSolo(d.fichaId!);
+  const recentes = db.select({ id: rolagens.id }).from(rolagens).where(escopo).orderBy(desc(rolagens.em), desc(rolagens.id)).limit(LIMITE_ROLAGENS);
+  await db.delete(rolagens).where(and(escopo, notInArray(rolagens.id, recentes)));
+  if (d.campanhaId) avisarMesa({ tipo: 'rolagem', campanhaId: d.campanhaId, linha });
+  return linha;
+}
 async function registrarRolagem(
   campanhaId: string | null, fichaId: string | null, usuario: UsuarioSessao,
   autor: string, rotulo: string, r: ReturnType<typeof rolar>, fotoV = 0,
 ): Promise<Mensagem> {
-  const linha = { id: novoId('r'), campanhaId, fichaId, usuarioId: usuario.id, em: Date.now(), autor, rotulo, det: detalheRolagem(r), total: r.total };
-  await db.insert(rolagens).values(linha);
-  const escopo = campanhaId ? escopoCampanha(campanhaId) : escopoFichaSolo(fichaId!);
-  const recentes = db.select({ id: rolagens.id }).from(rolagens).where(escopo).orderBy(desc(rolagens.em), desc(rolagens.id)).limit(LIMITE_ROLAGENS);
-  await db.delete(rolagens).where(and(escopo, notInArray(rolagens.id, recentes)));
+  const linha = await gravarRolagem({ campanhaId, fichaId, usuarioId: usuario.id, autor, rotulo, det: detalheRolagem(r), total: r.total, expressao: r.expressao, detalhe: r.detalhe });
   return { id: linha.id, em: linha.em, autor, rotulo, det: linha.det, total: r.total, minha: true, fichaId, fotoV };
 }
 
@@ -331,16 +352,19 @@ rota('DELETE', '/api/conta', async ctx => {
   }
   const id = ctx.usuario.id;
   for (const c of await db.select({ id: campanhas.id }).from(campanhas).where(eq(campanhas.mestreId, id))) await apagarCampanha(c.id);
+  const mesasDaPessoa = await db.select({ id: membros.campanhaId }).from(membros).where(eq(membros.usuarioId, id));
   await db.batch([
     /* Nas mesas dos outros, o histórico fica, mas sem o nome e o vínculo de quem saiu. */
     db.delete(rolagens).where(and(isNull(rolagens.campanhaId), eq(rolagens.usuarioId, id))),
     db.update(rolagens).set({ autor: 'Conta removida', usuarioId: null, fichaId: null }).where(eq(rolagens.usuarioId, id)),
+    db.update(mensagensMesa).set({ autor: 'Conta removida', usuarioId: null }).where(eq(mensagensMesa.usuarioId, id)),
     db.delete(membros).where(eq(membros.usuarioId, id)),
     db.delete(chavesIntegracao).where(inArray(chavesIntegracao.fichaId, db.select({ id: fichas.id }).from(fichas).where(eq(fichas.donoId, id)))),
     db.delete(fichas).where(eq(fichas.donoId, id)),
     db.delete(sessoes).where(eq(sessoes.usuarioId, id)),
     db.delete(usuarios).where(eq(usuarios.id, id)),
   ]);
+  for (const m of mesasDaPessoa) avisarMesa({ tipo: 'campanha', campanhaId: m.id });
   ctx.cookie = cabecalhoCookie(ctx.req, '', 0);
   return { ok: true };
 });
@@ -382,6 +406,9 @@ rota('POST', '/api/fichas', async ctx => {
   return { ficha: await comContexto(linha, ctx.usuario) };
 });
 
+/* O resumo que a mesa mostra: mesma permissão de abrir a ficha. */
+rota('GET', '/api/fichas/:id/resumo', async ctx => resumoDaFicha(await fichaEditavel(ctx.params.id, ctx.usuario)));
+
 rota('GET', '/api/fichas/:id', async ctx => ({ ficha: await comContexto(await fichaEditavel(ctx.params.id, ctx.usuario), ctx.usuario) }));
 
 rota('GET', '/api/fichas/:id/foto', async ctx => {
@@ -420,90 +447,9 @@ rota('DELETE', '/api/fichas/:id', async ctx => {
     db.delete(chavesIntegracao).where(eq(chavesIntegracao.fichaId, f.id)),
     db.delete(fichas).where(eq(fichas.id, f.id)),
   ]);
+  if (f.campanhaId) avisarMesa({ tipo: 'campanha', campanhaId: f.campanhaId });
   return { ok: true };
 });
-
-/* Chaves de integração: só o dono vê, cria e revoga. O segredo aparece uma única vez, na criação. */
-const dadosDaChave = (c: typeof chavesIntegracao.$inferSelect): ChaveIntegracao => ({ id: c.id, rotulo: c.rotulo, criadoEm: c.criadoEm });
-
-rota('GET', '/api/fichas/:id/chaves', async ctx => {
-  const f = await fichaDoDono(ctx.params.id, ctx.usuario);
-  const linhas = await db.select().from(chavesIntegracao).where(eq(chavesIntegracao.fichaId, f.id)).orderBy(desc(chavesIntegracao.criadoEm));
-  return { chaves: linhas.map(dadosDaChave) };
-});
-
-rota('POST', '/api/fichas/:id/chaves', async ctx => {
-  const f = await fichaDoDono(ctx.params.id, ctx.usuario);
-  const { rotulo } = validar(esquemaChave, ctx.corpo);
-  const [{ n }] = await db.select({ n: count() }).from(chavesIntegracao).where(eq(chavesIntegracao.fichaId, f.id));
-  if (n >= LIMITE_CHAVES) throw new Erro(400, `Esta ficha chegou ao limite de ${LIMITE_CHAVES} chaves. Revogue alguma para criar outra.`);
-  const segredo = 'ohi_' + crypto.randomBytes(32).toString('base64url');
-  const linha = { id: novoId('k'), fichaId: f.id, hash: hashToken(segredo), rotulo, criadoEm: Date.now() };
-  await db.insert(chavesIntegracao).values(linha);
-  ctx.status = 201;
-  return { chave: dadosDaChave(linha), segredo };
-});
-
-rota('DELETE', '/api/fichas/:id/chaves/:chaveId', async ctx => {
-  const f = await fichaDoDono(ctx.params.id, ctx.usuario);
-  await db.delete(chavesIntegracao).where(and(eq(chavesIntegracao.id, ctx.params.chaveId), eq(chavesIntegracao.fichaId, f.id)));
-  return { ok: true };
-});
-
-/* ---------- Integração com o Tablebola ---------- */
-function eDoProprioSite(req: Request) {
-  const origem = req.headers.get('origin');
-  if (!origem) return true;
-  try { return new URL(origem).host === (req.headers.get('x-forwarded-host') || req.headers.get('host')); }
-  catch { return false; }
-}
-/* Único ponto que decide quem acessa a ficha pela integração: para trocar a forma de acesso, mude só esta função.
-   O Tablebola não tem login, então o papel de GM na sala não prova nada aqui. Vale a chave dada pelo dono.
-   Sem chave, vale a sessão de quem já pode editar a ficha, mas só em pedidos do próprio site. */
-async function autorizarIntegracao(ctx: Ctx): Promise<LinhaFicha> {
-  const naoEncontrada = new Erro(404, 'Ficha não encontrada, ou esta chave não dá acesso a ela.');
-  const cabecalho = ctx.req.headers.get('authorization');
-  if (cabecalho) {
-    const segredo = /^Bearer (ohi_[\w-]{20,100})$/i.exec(cabecalho)?.[1];
-    if (!segredo) throw naoEncontrada;
-    const [c] = await db.select({ id: chavesIntegracao.id }).from(chavesIntegracao)
-      .where(and(eq(chavesIntegracao.hash, hashToken(segredo)), eq(chavesIntegracao.fichaId, ctx.params.id)));
-    const [f] = c ? await db.select(colunasFicha).from(fichas).where(eq(fichas.id, ctx.params.id)) : [];
-    if (!f) throw naoEncontrada;
-    return f;
-  }
-  if (!ctx.usuario || !eDoProprioSite(ctx.req)) throw new Erro(401, 'Envie a chave de integração da ficha.');
-  return fichaEditavel(ctx.params.id, ctx.usuario);
-}
-/* A ficha como a tela embutida espera. O contexto é neutro: quem usa a chave não vira dono nem mestre. */
-async function fichaParaEmbutir(f: LinhaFicha): Promise<Ficha> {
-  return {
-    ...R.normalizar(f.dados), id: f.id, donoId: f.donoId, campanhaId: f.campanhaId, registro: f.registro, fotoV: f.fotoV, atualizado: f.atualizado,
-    contexto: { souDono: false, souMestre: false, donoNome: await nomeDe(f.donoId), campanha: null },
-  };
-}
-
-rota('GET', '/api/integracao/fichas/:id/resumo', async ctx => resumoDaFicha(await autorizarIntegracao(ctx)), true);
-
-rota('GET', '/api/integracao/fichas/:id/retrato', async ctx => {
-  const f = await autorizarIntegracao(ctx);
-  const [{ foto }] = await db.select({ foto: fichas.foto }).from(fichas).where(eq(fichas.id, f.id));
-  if (!foto) throw new Erro(404, 'Foto não encontrada.');
-  /* Revogar a chave precisa valer na hora, por isso o navegador confere de novo a cada uso. */
-  return respostaFoto(foto, 'private, no-cache');
-}, true);
-
-rota('GET', '/api/integracao/fichas/:id', async ctx => ({ ficha: await fichaParaEmbutir(await autorizarIntegracao(ctx)) }), true);
-
-rota('PATCH', '/api/integracao/fichas/:id/recursos', async ctx => {
-  await autorizarIntegracao(ctx);
-  const pedido = validar(esquemaRecursos, ctx.corpo);
-  const f = await alterarFicha(ctx.params.id, l => {
-    /* normalizar() limita ao máximo da ficha: o Tablebola não consegue dar mais vida do que a ficha permite. */
-    l.dados = R.normalizar({ ...l.dados, ...pedido });
-  });
-  return { recursos: recursosDaFicha(f.dados), atualizado: f.atualizado, ficha: await fichaParaEmbutir(f) };
-}, true);
 
 rota('POST', '/api/fichas/:id/encerrar-cena', async ctx => {
   await fichaEditavel(ctx.params.id, ctx.usuario);
@@ -524,11 +470,10 @@ rota('POST', '/api/fichas/:id/rolar', async ctx => {
   let r: ReturnType<typeof rolar>;
   if (ctx.corpo.atributo) {
     /* Rolagem de atributo é sempre d20 + o valor guardado na ficha: o navegador não escolhe o bônus. */
-    const [g, k] = String(ctx.corpo.atributo).split('.') as [R.Grupo, string];
-    const item = (Object.prototype.hasOwnProperty.call(R.GRUPOS, g) ? (R.GRUPOS[g] as readonly (readonly string[])[]) : []).find(i => i[0] === k);
+    const item = itemDaAcao(String(ctx.corpo.atributo));
     if (!item) throw new Erro(400, 'Esse atributo não existe na ficha.');
-    rotulo = item[1];
-    r = rolar(20, R.normalizar(f.dados)[g][k]);
+    rotulo = item.rotulo;
+    r = rolar(20, R.normalizar(f.dados)[item.grupo][item.chave]);
   } else {
     r = rolar(Number(ctx.corpo.lados), R.inteiro(ctx.corpo.bonus, -999, 999));
   }
@@ -624,6 +569,7 @@ rota('POST', '/api/campanhas/:id/fichas', async ctx => {
     throw new Erro(409, `Essa ficha já está em “${outra?.nome}”. Retire-a de lá primeiro.`);
   }
   await db.update(fichas).set({ campanhaId: c.id, atualizado: Math.max(Date.now(), f.atualizado + 1) }).where(eq(fichas.id, f.id));
+  avisarMesa({ tipo: 'campanha', campanhaId: c.id });
   return { ok: true };
 });
 
@@ -633,6 +579,7 @@ rota('DELETE', '/api/campanhas/:id/fichas/:fichaId', async ctx => {
   if (!f || f.campanhaId !== c.id) throw new Erro(404, 'Essa ficha não está nesta campanha.');
   if (f.donoId !== ctx.usuario.id && c.mestreId !== ctx.usuario.id) throw new Erro(403, 'Só o dono da ficha ou o mestre pode retirá-la da campanha.');
   await soltarFichas(eq(fichas.id, f.id));
+  avisarMesa({ tipo: 'campanha', campanhaId: c.id });
   return { ok: true };
 });
 
@@ -670,15 +617,21 @@ rota('POST', '/api/convites/:codigo/entrar', async ctx => {
     const [{ n }] = await db.select({ n: count() }).from(membros).where(eq(membros.campanhaId, c.id));
     if (n >= LIMITE_MEMBROS) throw new Erro(400, 'Essa campanha está cheia. Fale com o mestre.');
     await db.insert(membros).values({ campanhaId: c.id, usuarioId: ctx.usuario.id, papel: 'jogador', entrouEm: Date.now() }).onConflictDoNothing();
+    avisarMesa({ tipo: 'campanha', campanhaId: c.id });
   }
   return { campanha: { id: c.id } };
 });
 
 /* ---------- Atendimento ---------- */
-function conferirOrigem(req: Request, aceitas: readonly string[]) {
+function conferirOrigem(req: Request) {
   /* Bloqueia pedidos forjados por outros sites: além do cookie SameSite, exige JSON e mesma origem. */
   if (!/^application\/json/i.test(req.headers.get('content-type') || '')) throw new Erro(415, 'Envie os dados em JSON.');
-  if (!eDoProprioSite(req) && !origemPermitida(req.headers.get('origin'), aceitas)) throw new Erro(403, 'Pedido recusado: origem diferente do site.');
+  const origem = req.headers.get('origin');
+  if (!origem) return;
+  const host = req.headers.get('x-forwarded-host') || req.headers.get('host');
+  let hostOrigem: string | null = null;
+  try { hostOrigem = new URL(origem).host; } catch { /* origem malformada cai na recusa abaixo */ }
+  if (hostOrigem !== host) throw new Erro(403, 'Pedido recusado: origem diferente do site.');
 }
 async function lerCorpo(req: Request) {
   if (Number(req.headers.get('content-length') || 0) > LIMITE_CORPO) throw new Erro(413, 'O envio é grande demais.');
@@ -704,30 +657,7 @@ function lerCookie(req: Request) {
   return undefined;
 }
 
-/* Só as rotas de integração falam com outra origem, e só com as da lista. Sem credenciais de cookie: o acesso de fora é sempre pela chave. */
-async function atenderIntegracao(req: Request): Promise<Response> {
-  const origem = req.headers.get('origin');
-  const aceitas = lerOrigens(process.env.ORIGENS_TABLEBOLA);
-  const doSite = eDoProprioSite(req);
-  if (!doSite && !origemPermitida(origem, aceitas)) return responderJson(403, { erro: 'Pedido recusado: esta origem não está autorizada.' });
-  const resposta = req.method === 'OPTIONS'
-    ? new Response(null, { status: 204, headers: { 'Access-Control-Allow-Methods': 'GET, PATCH, OPTIONS', 'Access-Control-Allow-Headers': 'Authorization, Content-Type', 'Access-Control-Max-Age': '600' } })
-    : await processar(req, aceitas);
-  if (!doSite) {
-    resposta.headers.set('Access-Control-Allow-Origin', origem!);
-    resposta.headers.set('Vary', 'Origin');
-  }
-  return resposta;
-}
-
 export async function atender(req: Request): Promise<Response> {
-  if (new URL(req.url).pathname.startsWith('/api/integracao/')) return atenderIntegracao(req);
-  /* Exportar OPTIONS desliga a resposta automática do Next: as outras rotas continuam respondendo como antes. */
-  if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: { Allow: 'GET, POST, PATCH, DELETE, OPTIONS' } });
-  return processar(req, []);
-}
-
-async function processar(req: Request, origensAceitas: readonly string[]): Promise<Response> {
   try {
     const caminho = new URL(req.url).pathname;
     let encontrada: { r: Rota; m: RegExpMatchArray } | null = null;
@@ -738,7 +668,7 @@ async function processar(req: Request, origensAceitas: readonly string[]): Promi
     if (!encontrada) throw new Erro(404, 'Rota não encontrada.');
     const { r, m } = encontrada;
     let corpo: Record<string, any> = {};
-    if (req.method !== 'GET') { conferirOrigem(req, origensAceitas); corpo = await lerCorpo(req); }
+    if (req.method !== 'GET') { conferirOrigem(req); corpo = await lerCorpo(req); }
     const token = lerCookie(req);
     const usuario = await usuarioDoToken(token);
     if (!r.publica && !usuario) throw new Erro(401, 'Entre na sua conta para continuar.');

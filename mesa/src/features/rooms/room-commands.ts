@@ -1,5 +1,5 @@
-import type { RoomCommand } from '@/shared/room-protocol'
-import type { TokenPosition } from '@/features/tokens/token-types'
+import type { RoomCommand } from '@mesa/shared/room-protocol'
+import type { TokenPosition } from '@mesa/features/tokens/token-types'
 
 type Sender = (message: RoomCommand) => void
 let sender: Sender | null = null

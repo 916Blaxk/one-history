@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { ChatMessage, NewChatMessage } from '@/features/chat/chat-types'
+import type { ChatMessage, NewChatMessage } from '@mesa/features/chat/chat-types'
 
 type ChatState = {
   messages: ChatMessage[]

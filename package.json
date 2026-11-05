@@ -7,10 +7,10 @@
     "db:gerar": "drizzle-kit generate",
     "db:migrar": "node scripts/migrar.mjs",
     "predev": "npm run db:migrar",
-    "dev": "next dev",
+    "dev": "node --import tsx servidor.ts --dev",
     "build": "npm run db:migrar && next build",
     "prestart": "npm run db:migrar",
-    "start": "next start",
+    "start": "node --import tsx servidor.ts",
     "senha": "node scripts/redefinir-senha.mjs",
     "test": "vitest run",
     "test:e2e": "playwright test",
@@ -19,12 +19,18 @@
   "dependencies": {
     "@libsql/client": "^0.18.0",
     "drizzle-orm": "^0.45.4",
+    "lucide-react": "^1.69.0",
     "next": "^16.4.5",
+    "pixi.js": "^8.22.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
+    "socket.io": "^4.8.4",
+    "socket.io-client": "^4.8.4",
     "sonner": "^2.0.8",
     "swr": "^2.5.1",
-    "zod": "^4.6.7"
+    "tsx": "^4.23.15",
+    "zod": "^4.6.7",
+    "zustand": "^5.0.16"
   },
   "devDependencies": {
     "@playwright/test": "^1.64.1",

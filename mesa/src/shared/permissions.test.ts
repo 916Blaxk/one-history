@@ -7,7 +7,7 @@ import {
   validCharacterId,
   validRollLabel,
 } from './permissions'
-import type { Token } from '@/features/tokens/token-types'
+import type { Token } from '@mesa/features/tokens/token-types'
 
 const ownedToken = {
   hidden: false,

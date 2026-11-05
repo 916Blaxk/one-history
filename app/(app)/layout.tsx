@@ -1,3 +1,4 @@
+import '@/app/globals.css';
 import IrParaEntrar from '@/components/IrParaEntrar';
 import Navegacao from '@/components/Navegacao';
 import { usuarioDaSessao } from '@/lib/servidor/sessao';

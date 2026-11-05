@@ -1,0 +1,141 @@
+import { useMemo, useState } from 'react'
+import { ExternalLink, Search } from 'lucide-react'
+import useSWR from 'swr'
+import { buscar, mensagem, urlFoto } from '@/lib/cliente'
+import type { AcaoRolagem, ResumoDaFicha } from '@/lib/resumoFicha'
+import type { DetalheCampanha } from '@/lib/tipos'
+import { postSheetRoll } from '@mesa/features/chat/post-roll'
+import { useTokenStore } from '@mesa/features/tokens/token-store'
+import type { Token } from '@mesa/features/tokens/token-types'
+
+/* A lista vem da campanha: mostra só as fichas que a pessoa pode usar, as dela e, para o mestre, todas. */
+export function FichaDoToken({ token, campanhaId }: { token: Token; campanhaId: string }) {
+  return (
+    <section className="mini-sheet" aria-label="Ficha do personagem">
+      <span className="token-sprites-title">Ficha</span>
+      {token.characterId ? (
+        <FichaVinculada key={token.characterId} token={token} fichaId={token.characterId} />
+      ) : (
+        <EscolherFicha tokenId={token.id} campanhaId={campanhaId} />
+      )}
+    </section>
+  )
+}
+
+function EscolherFicha({ tokenId, campanhaId }: { tokenId: string; campanhaId: string }) {
+  const { data, error } = useSWR<DetalheCampanha>(`/api/campanhas/${campanhaId}`, buscar)
+  const [escolhida, setEscolhida] = useState('')
+  if (error) return <p className="mini-sheet-error">{mensagem(error)}</p>
+  if (!data) return <p className="mini-sheet-note">Abrindo as fichas…</p>
+  const fichas = data.fichas.filter((f) => f.completo)
+  if (!fichas.length)
+    return <p className="mini-sheet-note">Nenhuma ficha sua nesta campanha. Adicione uma na página da campanha.</p>
+  const fichaId = escolhida || fichas[0].id
+  return (
+    <div className="mini-sheet-form">
+      <label className="token-field">
+        Usar a ficha
+        <select value={fichaId} onChange={(event) => setEscolhida(event.target.value)}>
+          {fichas.map((f) => (
+            <option key={f.id} value={f.id}>
+              {f.nome || 'Sem nome'}
+              {data.papel === 'mestre' ? ` · ${f.donoNome}` : ''}
+            </option>
+          ))}
+        </select>
+      </label>
+      <button
+        className="token-image-button"
+        type="button"
+        onClick={() => useTokenStore.getState().updateToken(tokenId, { characterId: fichaId })}
+      >
+        Vincular ficha
+      </button>
+    </div>
+  )
+}
+
+function FichaVinculada({ token, fichaId }: { token: Token; fichaId: string }) {
+  const { data, error } = useSWR<ResumoDaFicha>(`/api/fichas/${fichaId}/resumo`, buscar, { shouldRetryOnError: false })
+  const [busca, setBusca] = useState('')
+  const grupos = useMemo(() => {
+    const termo = busca.trim().toLowerCase()
+    const mapa = new Map<string, AcaoRolagem[]>()
+    for (const acao of data?.acoes ?? []) {
+      if (termo && !acao.rotulo.toLowerCase().includes(termo)) continue
+      mapa.set(acao.categoria, [...(mapa.get(acao.categoria) ?? []), acao])
+    }
+    return [...mapa]
+  }, [data, busca])
+  const desvincular = () => useTokenStore.getState().updateToken(token.id, { characterId: undefined })
+
+  /* Colega da mesa: o token aparece no mapa, mas a ficha continua privada. */
+  if (error) {
+    return (
+      <div className="mini-sheet-body">
+        <p className="mini-sheet-note">Só o mestre e o dono veem esta ficha.</p>
+        <button className="mini-sheet-text-button" type="button" onClick={desvincular}>Desvincular</button>
+      </div>
+    )
+  }
+  if (!data) return <p className="mini-sheet-note" role="status">Abrindo a ficha…</p>
+  return (
+    <div className="mini-sheet-body">
+      <div className="mini-sheet-head">
+        {data.fotoV > 0 && (
+          <img className="mini-sheet-portrait" src={urlFoto(fichaId, data.fotoV)} alt={`Retrato de ${data.nome}`} />
+        )}
+        <div className="mini-sheet-identity">
+          <strong>{data.nome}</strong>
+          {data.recursos.map((recurso) => (
+            <span key={recurso.id}>
+              {recurso.rotulo}: <b>{recurso.atual}</b> / {recurso.max}
+            </span>
+          ))}
+        </div>
+      </div>
+      <a className="token-image-button" href={`/fichas/${fichaId}`} target="_blank" rel="noreferrer">
+        <ExternalLink size={15} /> Abrir ficha completa
+      </a>
+      <label className="mini-sheet-search">
+        <Search size={14} />
+        <span className="visually-hidden">Buscar rolagem</span>
+        <input type="search" placeholder="Buscar rolagem" value={busca} onChange={(event) => setBusca(event.target.value)} />
+      </label>
+      {grupos.map(([categoria, acoes]) => (
+        <details className="mini-sheet-group" key={categoria} open={Boolean(busca)}>
+          <summary>{categoria}</summary>
+          <ul>
+            {acoes.map((acao) => (
+              <li key={acao.id}>
+                <button
+                  type="button"
+                  aria-label={`Rolar ${acao.rotulo}: ${acao.expressao}`}
+                  onClick={() => postSheetRoll(fichaId, acao.id)}
+                >
+                  <span>{acao.rotulo}</span>
+                  <b>{acao.expressao}</b>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </details>
+      ))}
+      {busca && grupos.length === 0 && <p className="mini-sheet-note">Nenhuma rolagem com esse nome.</p>}
+      {data.magias.length > 0 && (
+        <details className="mini-sheet-group">
+          <summary>Magias</summary>
+          <ul>
+            {data.magias.map((magia) => (
+              <li className="mini-sheet-spell" key={magia.id}>
+                <span>{magia.nome || 'Magia sem nome'}</span>
+                <b>{magia.custo} de mana</b>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+      <button className="mini-sheet-text-button" type="button" onClick={desvincular}>Desvincular ficha</button>
+    </div>
+  )
+}

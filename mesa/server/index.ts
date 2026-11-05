@@ -1,6 +1,6 @@
-import 'dotenv/config'
-import { createServer } from 'node:http'
+import type { Server as HttpServer } from 'node:http'
 import { Server, type Socket } from 'socket.io'
+import { z } from 'zod'
 import { DiceExpressionError, rollDice } from '../src/features/chat/dice-parser.js'
 import type { ChatMessage } from '../src/features/chat/chat-types.js'
 import type { Token, TokenPosition, TokenSprite } from '../src/features/tokens/token-types.js'
@@ -11,17 +11,26 @@ import type {
 import {
   GM_TOKEN_FIELDS, NULLABLE_TOKEN_FIELDS, PLAYER_TOKEN_FIELDS, can, validCharacterId, validRollLabel,
 } from '../src/shared/permissions.js'
+import * as R from '../../lib/regras'
+import { expressaoAtributo, itemDaAcao } from '../../lib/resumoFicha'
+import { ouvirMesa, type EventoMesa } from '../../lib/servidor/barramento'
+import { alterarFicha, gravarRolagem, textoDaRolagem } from '../../lib/servidor/rotas'
+import { COOKIE, usuarioDoToken } from '../../lib/servidor/sessao'
+import {
+  campanhaExiste, carregarHistorico, carregarMesa, gravarMensagem, lerAcesso, lerFicha, lerMembros, rolagemParaChat, salvarMesa, type EstadoMesa,
+} from './armazem'
 
-const PORT = Number(process.env.PORT) || 3001
 const MAX_IMAGE_DATA_URL_LENGTH = 700_000
 const MAX_SCENE_DATA_URL_LENGTH = 950_000
 const MAX_SPRITES_PER_TOKEN = 12
 const MAX_TOKENS_PER_ROOM = 200
 const MAX_MESSAGE_LENGTH = 1000
 const ROOM_TTL_MS = 30 * 60 * 1000
+const INTERVALO_SALVAR_MS = 1000
+const INTERVALO_SESSAO_MS = 60 * 1000
 const defaultGrid: RoomGrid = { enabled: true, cellSize: 70, opacity: 0.24 }
 
-type SocketData = { roomCode?: string; displayName?: string; playerKey?: string }
+type SocketData = { usuario: { id: string; nome: string }; token: string; campanhaId?: string }
 type TableSocket = Socket<ClientToServerEvents, ServerToClientEvents, Record<string, never>, SocketData>
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -78,33 +87,40 @@ function validToken(value: unknown, sprites: TokenSprite[]): value is Token {
     typeof value.hidden === 'boolean' &&
     (value.createdByPlayerKey === undefined || typeof value.createdByPlayerKey === 'string')
 }
-function validCommand(value: unknown): value is RoomCommand {
-  if (!isRecord(value) || typeof value.type !== 'string') return false
-  switch (value.type) {
-    case 'token:create': return isRecord(value.token) && validSprites(value.sprites)
-    case 'token:update': return typeof value.id === 'string' && value.id.length <= 80 && isRecord(value.changes)
-    case 'token:sprites': return typeof value.id === 'string' && value.id.length <= 80 && validSprites(value.sprites)
-    case 'token:sprite:add': return typeof value.id === 'string' && value.id.length <= 80 && validSprite(value.sprite)
-    case 'token:sprite:rename': return typeof value.id === 'string' && value.id.length <= 80 && typeof value.spriteId === 'string' && value.spriteId.length <= 80 && typeof value.label === 'string' && value.label.length <= 40
-    case 'token:sprite:remove': return typeof value.id === 'string' && value.id.length <= 80 && typeof value.spriteId === 'string' && value.spriteId.length <= 80
-    case 'token:remove': return typeof value.id === 'string' && value.id.length <= 80
-    case 'token:move': return typeof value.id === 'string' && value.id.length <= 80 && validPosition(value.position) && typeof value.final === 'boolean'
-    case 'grid:update': return validGrid(value.grid)
-    case 'player:role': return typeof value.playerKey === 'string' && ['gm','player','spectator'].includes(String(value.role))
-    case 'player:remove': return typeof value.playerKey === 'string'
-    case 'scene:add': return isRoomScene(value.scene)
-    case 'scene:move': return typeof value.id === 'string' && value.id.length <= 80 && isFiniteNumber(value.x) && isFiniteNumber(value.y)
-    case 'scene:remove': return typeof value.id === 'string' && value.id.length <= 80
-    case 'fog:paint': return isFiniteNumber(value.x) && isFiniteNumber(value.y) && Number.isInteger(value.radius) && Number(value.radius) >= 1 && Number(value.radius) <= 8 && typeof value.reveal === 'boolean'
-    case 'fog:clear': return true
-    case 'chat:send': return isRecord(value.message) && ['normal', 'whisper', 'gm', 'action'].includes(String(value.message.type)) &&
-      typeof value.message.text === 'string' && value.message.text.length <= MAX_MESSAGE_LENGTH &&
-      (value.message.type !== 'whisper' || (typeof value.message.recipient === 'string' && value.message.recipient.trim().length > 0 && value.message.recipient.length <= 24)) &&
-      (value.message.recipient === undefined || typeof value.message.recipient === 'string')
-    case 'chat:roll': return typeof value.expression === 'string' && value.expression.length <= 120 && validRollLabel(value.label)
-    default: return false
-  }
-}
+
+/* Primeira barreira: forma e tamanho de cada comando. As regras de cada campo vêm depois, com o estado da sala. */
+const idCurto = z.string().max(80)
+const numero = z.number().refine((n) => isFiniteNumber(n))
+const esquemaComando = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('token:create'), token: z.record(z.string(), z.unknown()), sprites: z.unknown().refine(validSprites) }),
+  z.object({ type: z.literal('token:update'), id: idCurto, changes: z.record(z.string(), z.unknown()) }),
+  z.object({ type: z.literal('token:sprites'), id: idCurto, sprites: z.unknown().refine(validSprites) }),
+  z.object({ type: z.literal('token:sprite:add'), id: idCurto, sprite: z.unknown().refine(validSprite) }),
+  z.object({ type: z.literal('token:sprite:rename'), id: idCurto, spriteId: idCurto, label: z.string().max(40) }),
+  z.object({ type: z.literal('token:sprite:remove'), id: idCurto, spriteId: idCurto }),
+  z.object({ type: z.literal('token:remove'), id: idCurto }),
+  z.object({ type: z.literal('token:move'), id: idCurto, position: z.unknown().refine(validPosition), final: z.boolean() }),
+  z.object({ type: z.literal('grid:update'), grid: z.unknown().refine(validGrid) }),
+  z.object({ type: z.literal('player:role'), playerKey: z.string().max(100), role: z.enum(['player', 'spectator']) }),
+  z.object({ type: z.literal('player:remove'), playerKey: z.string().max(100) }),
+  z.object({ type: z.literal('scene:add'), scene: z.unknown().refine(isRoomScene) }),
+  z.object({ type: z.literal('scene:move'), id: idCurto, x: numero, y: numero }),
+  z.object({ type: z.literal('scene:remove'), id: idCurto }),
+  z.object({ type: z.literal('fog:paint'), x: numero, y: numero, radius: z.number().int().min(1).max(8), reveal: z.boolean() }),
+  z.object({ type: z.literal('fog:clear') }),
+  z.object({
+    type: z.literal('chat:send'),
+    message: z.object({
+      type: z.enum(['normal', 'whisper', 'gm', 'action']),
+      text: z.string().max(MAX_MESSAGE_LENGTH),
+      recipient: z.string().max(60).optional(),
+    }).refine((m) => m.type !== 'whisper' || Boolean(m.recipient?.trim())),
+  }),
+  z.object({ type: z.literal('chat:roll'), expression: z.string().max(120), label: z.unknown().refine(validRollLabel).optional() }),
+  z.object({ type: z.literal('ficha:rolar'), fichaId: idCurto, acao: z.string().max(60) }),
+])
+const esquemaEntrada = z.object({ campanhaId: z.string().min(1).max(80) })
+
 function snap(value: number, size: Token['size'], cellSize: number) {
   return (Math.round(value / cellSize - size / 2) + size / 2) * cellSize
 }
@@ -122,12 +138,22 @@ class RoomState {
   fogCells = new Set<string>()
   lastMoveAt = new Map<string, number>()
   cleanupTimer?: ReturnType<typeof setTimeout>
+  /* Só para saber quem vê a vida e a mana de um token vinculado, sem consultar o banco a cada envio. */
+  donosFicha = new Map<string, string>()
+  espectadores = new Set<string>()
+  mestreId = ''
+  imagensSalvas = new Set<string>()
+  suja = false
+  timerSalvar?: ReturnType<typeof setTimeout>
+  /* Os comandos de uma sala rodam em ordem: o vínculo com a ficha consulta o banco no meio do caminho. */
+  fila: Promise<unknown> = Promise.resolve()
+  apagada = false
   constructor(readonly code: string) {}
   snapshot(player: RoomPlayer): RoomSnapshot {
     const tokens = [...this.tokens.values()].filter((token) => !token.hidden || player.role === 'gm')
     const ids = new Set(tokens.map((token) => token.id))
     return {
-      tokens,
+      tokens: tokens.map((token) => visaoDoToken(this, token, player)),
       spritesByTokenId: Object.fromEntries([...this.sprites].filter(([id]) => ids.has(id))),
       grid: this.grid,
       scenes: this.scenes,
@@ -136,35 +162,23 @@ class RoomState {
         .sort((a, b) => a.timestamp - b.timestamp).slice(-200),
       players: [...this.players.values()],
       role: player.role,
+      selfId: player.id,
     }
   }
 }
 
-const origins = (process.env.ALLOWED_ORIGINS ?? '').split(',').map((item) => item.trim()).filter(Boolean)
-const allowedOrigin = (origin: string | undefined) => {
-  if (!origin) return true
-  if (origins.includes(origin)) return true
-  return process.env.NODE_ENV !== 'production' && /^https?:\/\/localhost(?::\d+)?$/.test(origin)
+/* A vida e a mana de uma ficha só saem do servidor para o mestre e o dono, como no resto do site. */
+function visaoDoToken(room: RoomState, token: Token, player: RoomPlayer): Token {
+  if (!token.characterId || player.role === 'gm' || room.donosFicha.get(token.characterId) === player.id) return token
+  const visao = { ...token }
+  delete visao.hpCurrent; delete visao.hpMax; delete visao.manaCurrent; delete visao.manaMax
+  return visao
 }
-const httpServer = createServer((request, response) => {
-  if (request.method === 'GET' && new URL(request.url ?? '/', 'http://localhost').pathname === '/health') {
-    response.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({ status: 'ok' }))
-    return
-  }
-  response.writeHead(404).end('Not found')
-})
-const io = new Server<ClientToServerEvents, ServerToClientEvents, Record<string, never>, SocketData>(httpServer, {
-  cors: { origin: (origin, callback) => callback(null, allowedOrigin(origin)), methods: ['GET', 'POST'], credentials: true },
-  maxHttpBufferSize: 1_048_576,
-})
+
+let io: Server<ClientToServerEvents, ServerToClientEvents, Record<string, never>, SocketData>
 const rooms = new Map<string, RoomState>()
-function getRoom(code: string) {
-  let room = rooms.get(code)
-  if (!room) { room = new RoomState(code); rooms.set(code, room) }
-  if (room.cleanupTimer) clearTimeout(room.cleanupTimer)
-  room.cleanupTimer = undefined
-  return room
-}
+const carregando = new Map<string, Promise<RoomState>>()
+
 function broadcast(room: RoomState, message: ServerRoomMessage) { io.to(room.code).emit('room:event', message) }
 function deny(socket: TableSocket) { socket.emit('room:event', { type: 'permission:error' }) }
 function playerRoom(code: string, playerKey: string) { return `${code}:player:${playerKey}` }
@@ -187,14 +201,15 @@ function broadcastSnapshots(room: RoomState) {
     }
   }
 }
-function broadcastVisible(room: RoomState, message: ServerRoomMessage, token: Token) {
+function broadcastVisible(room: RoomState, message: Extract<ServerRoomMessage, { token: Token }>, token: Token) {
   for (const player of room.players.values()) {
     if (player.status === 'connected' && (!token.hidden || player.role === 'gm')) {
-      io.to(playerRoom(room.code, player.id)).emit('room:event', message)
+      io.to(playerRoom(room.code, player.id)).emit('room:event', { ...message, token: visaoDoToken(room, message.token, player) })
     }
   }
 }
 function addPublicMessage(room: RoomState, message: ChatMessage) {
+  if (room.messages.some((item) => item.id === message.id)) return
   room.messages = [...room.messages, message].slice(-200)
   broadcast(room, { type: 'chat:message', message })
 }
@@ -208,19 +223,97 @@ function validChanges(changes: Record<string, unknown>) {
     (key !== 'hidden' || typeof changes[key] === 'boolean'))
 }
 
-function handleCommand(socket: TableSocket, room: RoomState, player: RoomPlayer, message: RoomCommand) {
+function marcarSuja(room: RoomState) {
+  room.suja = true
+  if (room.timerSalvar) return
+  room.timerSalvar = setTimeout(() => {
+    room.timerSalvar = undefined
+    void enfileirar(room, () => salvarSala(room))
+  }, INTERVALO_SALVAR_MS)
+  room.timerSalvar.unref?.()
+}
+function estadoDaSala(room: RoomState) {
+  const imagens = new Map<string, string>()
+  for (const lista of room.sprites.values()) for (const s of lista) imagens.set(s.id, s.imageUrl)
+  for (const c of room.scenes) imagens.set(c.id, c.imageUrl)
+  const estado: EstadoMesa = {
+    tokens: [...room.tokens.values()],
+    sprites: Object.fromEntries([...room.sprites].map(([id, lista]) => [id, lista.map(({ id: sid, label }) => ({ id: sid, label }))])),
+    grid: room.grid,
+    scenes: room.scenes.map(({ id, x, y, width, height }) => ({ id, x, y, width, height })),
+    fogCells: [...room.fogCells],
+    espectadores: [...room.espectadores],
+  }
+  return { estado, imagens }
+}
+async function salvarSala(room: RoomState) {
+  if (!room.suja || room.apagada) return
+  room.suja = false
+  const { estado, imagens } = estadoDaSala(room)
+  try {
+    room.imagensSalvas = await salvarMesa(room.code, estado, imagens, room.imagensSalvas)
+  } catch (error) {
+    room.suja = true
+    console.error('Não consegui salvar a mesa', room.code, error)
+  }
+}
+function enfileirar<T>(room: RoomState, tarefa: () => Promise<T> | T) {
+  const proxima = room.fila.then(tarefa).catch((error) => { console.error('Erro na mesa', room.code, error) })
+  room.fila = proxima
+  return proxima
+}
+
+function valoresDaFicha(dados: R.DadosFicha) {
+  return { hpCurrent: dados.vidaAtual, hpMax: R.vidaMax(dados), manaCurrent: dados.manaAtual, manaMax: R.manaMax(dados) }
+}
+function desvincular(room: RoomState, token: Token) {
+  const atualizado = { ...token }
+  delete atualizado.characterId; delete atualizado.hpCurrent; delete atualizado.hpMax; delete atualizado.manaCurrent; delete atualizado.manaMax
+  room.tokens.set(token.id, atualizado)
+  broadcastVisible(room, { type: 'token:updated', token: atualizado, sprites: room.sprites.get(token.id) ?? [] }, atualizado)
+  marcarSuja(room)
+}
+/* Único caminho da ficha para o token. Só lê a ficha e nunca a grava, então não existe laço. */
+async function sincronizarFicha(room: RoomState, fichaId: string) {
+  const tokens = [...room.tokens.values()].filter((token) => token.characterId === fichaId)
+  if (!tokens.length) return
+  const ficha = await lerFicha(fichaId)
+  if (!ficha || ficha.campanhaId !== room.code) {
+    room.donosFicha.delete(fichaId)
+    for (const token of tokens) desvincular(room, token)
+    return
+  }
+  room.donosFicha.set(fichaId, ficha.donoId)
+  const valores = valoresDaFicha(ficha.dados)
+  for (const token of tokens) {
+    if (token.hpCurrent === valores.hpCurrent && token.hpMax === valores.hpMax && token.manaCurrent === valores.manaCurrent && token.manaMax === valores.manaMax) continue
+    const atualizado = { ...token, ...valores }
+    room.tokens.set(token.id, atualizado)
+    broadcastVisible(room, { type: 'token:updated', token: atualizado, sprites: room.sprites.get(token.id) ?? [] }, atualizado)
+    marcarSuja(room)
+  }
+}
+async function revalidarVinculos(room: RoomState) {
+  const fichas = new Set([...room.tokens.values()].flatMap((token) => (token.characterId ? [token.characterId] : [])))
+  for (const fichaId of fichas) await sincronizarFicha(room, fichaId)
+}
+
+async function handleCommand(socket: TableSocket, room: RoomState, player: RoomPlayer, message: RoomCommand) {
   switch (message.type) {
     case 'token:create': {
       if (!can(player.role, 'token:create')) return deny(socket)
       const count = [...room.tokens.values()].filter((token) => token.createdByPlayerKey === player.id).length
       if (room.tokens.size >= MAX_TOKENS_PER_ROOM || room.tokens.has(message.token.id) ||
           (player.role !== 'gm' && count >= 5)) return
+      const ownerIds = Array.isArray(message.token.ownerIds) ? message.token.ownerIds : []
       const token: Token = {
         ...message.token,
-        ownerIds: player.role === 'gm' ? message.token.ownerIds.filter((id) => room.players.has(id)) : [player.id],
+        ownerIds: player.role === 'gm' ? ownerIds.filter((id) => room.players.has(id)) : [player.id],
         hidden: player.role === 'gm' && message.token.hidden,
         createdByPlayerKey: player.id,
       }
+      /* O vínculo com a ficha passa sempre pela checagem de token:update. */
+      delete token.characterId
       if (!validToken(token, message.sprites)) return
       room.tokens.set(token.id, token); room.sprites.set(token.id, message.sprites)
       broadcastVisible(room, { type: 'token:added', token, sprites: message.sprites, playerId: socket.id }, token); return
@@ -231,15 +324,51 @@ function handleCommand(socket: TableSocket, room: RoomState, player: RoomPlayer,
       if (!can(player.role, 'token:update', current, player.id)) return deny(socket)
       const allowed = new Set<string>(player.role === 'gm' ? GM_TOKEN_FIELDS : PLAYER_TOKEN_FIELDS)
       if (!validChanges(message.changes) || Object.keys(message.changes).some((key) => !allowed.has(key))) return deny(socket)
+      const changes: Record<string, unknown> = { ...message.changes }
+      const vinculoNovo = 'characterId' in changes ? (changes.characterId as string | null) : undefined
+      const fichaId = vinculoNovo === undefined ? current.characterId : vinculoNovo
+      const pedidoFicha: { vidaAtual?: number; manaAtual?: number } = {}
+
+      if (vinculoNovo) {
+        const ficha = await lerFicha(vinculoNovo)
+        if (!ficha || ficha.campanhaId !== room.code || (player.role !== 'gm' && ficha.donoId !== player.id)) return deny(socket)
+        room.donosFicha.set(ficha.id, ficha.donoId)
+        Object.assign(changes, valoresDaFicha(ficha.dados))
+        /* Quem é dono da ficha precisa poder mexer no token dela. */
+        const donos = (changes.ownerIds as string[] | undefined) ?? current.ownerIds
+        if (!donos.includes(ficha.donoId)) changes.ownerIds = [...donos, ficha.donoId]
+      } else if (vinculoNovo === null) {
+        changes.hpCurrent = null; changes.hpMax = null; changes.manaCurrent = null; changes.manaMax = null
+      } else if (fichaId) {
+        /* Token vinculado: a ficha manda. O máximo não muda por aqui, e o valor atual é gravado nela. */
+        if ('hpMax' in changes || 'manaMax' in changes) return deny(socket)
+        const mexeRecurso = 'hpCurrent' in changes || 'manaCurrent' in changes
+        if (mexeRecurso) {
+          if (player.role !== 'gm' && room.donosFicha.get(fichaId) !== player.id) return deny(socket)
+          for (const [campo, destino] of [['hpCurrent', 'vidaAtual'], ['manaCurrent', 'manaAtual']] as const) {
+            if (!(campo in changes)) continue
+            const valor = changes[campo]
+            delete changes[campo]
+            if (typeof valor !== 'number' || !Number.isFinite(valor) || valor < 0) return deny(socket)
+            pedidoFicha[destino] = Math.floor(Math.min(valor, 999_999))
+          }
+        }
+      }
+
       const updated = { ...current }
-      for (const [key, value] of Object.entries(message.changes)) {
+      for (const [key, value] of Object.entries(changes)) {
         if (value === null) delete (updated as unknown as Record<string, unknown>)[key]
         else (updated as unknown as Record<string, unknown>)[key] = value
       }
       if (!validToken(updated, sprites) || updated.ownerIds.some((id) => !room.players.has(id))) return
       room.tokens.set(message.id, updated)
       if (current.hidden !== updated.hidden || current.ownerIds.join() !== updated.ownerIds.join()) broadcastSnapshots(room)
-      else broadcastVisible(room, { type: 'token:updated', token: updated, sprites }, updated)
+      else if (Object.keys(changes).length) broadcastVisible(room, { type: 'token:updated', token: updated, sprites }, updated)
+      if (fichaId && (pedidoFicha.vidaAtual !== undefined || pedidoFicha.manaAtual !== undefined)) {
+        /* Grava como o site grava: normalizar() corta no máximo, e o aviso de ficha alterada atualiza todos os tokens. */
+        await alterarFicha(fichaId, (linha) => { linha.dados = R.normalizar({ ...linha.dados, ...pedidoFicha }) })
+        await sincronizarFicha(room, fichaId)
+      }
       return
     }
     case 'token:sprites': {
@@ -331,21 +460,22 @@ function handleCommand(socket: TableSocket, room: RoomState, player: RoomPlayer,
       const action = type === 'whisper' ? 'chat:whisper' : type === 'action' ? 'chat:action' : type === 'gm' ? 'chat:gm' : 'chat:send'
       if (!can(player.role, action)) return deny(socket)
       const chatMessage: ChatMessage = { id: crypto.randomUUID(), type: message.message.type, author: player.name,
-        recipient: message.message.recipient?.trim().slice(0, 24), text, timestamp: Date.now() }
-      if (message.message.type === 'whisper') {
-        const recipient = message.message.recipient!.trim().toLocaleLowerCase()
-        const targetIds = [...room.players.values()].filter((item) => item.status === 'connected' && item.name.toLocaleLowerCase() === recipient).map((item) => item.id)
-        for (const id of new Set([player.id, ...targetIds])) {
+        recipient: message.message.recipient?.trim().slice(0, 60), text, timestamp: Date.now() }
+      if (type === 'whisper' || type === 'gm') {
+        const destinatario = message.message.recipient?.trim().toLocaleLowerCase()
+        const targets = type === 'gm'
+          ? [...room.players.values()].filter((item) => item.role === 'gm').map((item) => item.id)
+          : [...room.players.values()].filter((item) => item.status === 'connected' && item.name.toLocaleLowerCase() === destinatario).map((item) => item.id)
+        const ids = [...new Set([player.id, ...targets])]
+        await gravarMensagem(room.code, player.id, chatMessage, ids)
+        for (const id of ids) {
           const history = room.privateMessages.get(id) ?? []; room.privateMessages.set(id, [...history, chatMessage].slice(-200))
           io.to(playerRoom(room.code, id)).emit('room:event', { type: 'chat:message', message: chatMessage })
         }
-      } else if (type === 'gm') {
-        const targets = [...room.players.values()].filter((item) => item.role === 'gm').map((item) => item.id)
-        for (const id of new Set([player.id, ...targets])) {
-          const history = room.privateMessages.get(id) ?? []; room.privateMessages.set(id, [...history, chatMessage].slice(-200))
-          io.to(playerRoom(room.code, id)).emit('room:event', { type: 'chat:message', message: chatMessage })
-        }
-      } else addPublicMessage(room, chatMessage)
+      } else {
+        await gravarMensagem(room.code, player.id, chatMessage, null)
+        addPublicMessage(room, chatMessage)
+      }
       return
     }
     case 'chat:roll': {
@@ -354,18 +484,38 @@ function handleCommand(socket: TableSocket, room: RoomState, player: RoomPlayer,
       if (!expression || (expression.match(/[dD]/g)?.length ?? 0) > 10) { socket.emit('room:event', { type: 'chat:error', text: 'A rolagem excede o limite da mesa.' }); return }
       try {
         const roll = rollDice(expression)
-        addPublicMessage(room, { id: crypto.randomUUID(), type: 'roll', author: player.name, text: expression, label: message.label?.trim(), roll, timestamp: Date.now() })
+        await gravarRolagem({
+          campanhaId: room.code, fichaId: null, usuarioId: player.id, autor: player.name,
+          rotulo: message.label?.trim() ?? '', det: textoDaRolagem(roll), total: roll.total, expressao: expression, detalhe: roll,
+        })
       } catch (error) {
+        if (!(error instanceof DiceExpressionError)) console.error(error)
         socket.emit('room:event', { type: 'chat:error', text: error instanceof DiceExpressionError ? error.message : 'Não foi possível rolar esses dados.' })
       }
+      return
+    }
+    case 'ficha:rolar': {
+      if (!can(player.role, 'chat:roll')) return deny(socket)
+      const ficha = await lerFicha(message.fichaId)
+      if (!ficha || ficha.campanhaId !== room.code || (player.role !== 'gm' && ficha.donoId !== player.id)) return deny(socket)
+      const item = itemDaAcao(message.acao)
+      if (!item) return deny(socket)
+      /* O bônus vem da ficha guardada: o navegador só diz qual atributo rolar. */
+      const expression = expressaoAtributo(ficha.dados[item.grupo][item.chave])
+      const roll = rollDice(expression)
+      await gravarRolagem({
+        campanhaId: room.code, fichaId: ficha.id, usuarioId: player.id, autor: ficha.dados.nome || 'Sem nome',
+        rotulo: item.rotulo, det: textoDaRolagem(roll), total: roll.total, expressao: expression, detalhe: roll,
+      })
       return
     }
     case 'player:role': {
       if (!can(player.role, 'player:manage')) return deny(socket)
       const target = room.players.get(message.playerKey)
-      if (!target) return
-      const gmCount = [...room.players.values()].filter((item) => item.role === 'gm').length
-      if (target.role === 'gm' && message.role !== 'gm' && gmCount <= 1) return deny(socket)
+      /* O mestre da campanha é sempre GM, e ninguém mais vira GM: o papel vem do banco. */
+      if (!target || target.id === room.mestreId) return deny(socket)
+      if (message.role === 'spectator') room.espectadores.add(target.id)
+      else room.espectadores.delete(target.id)
       room.players.set(target.id, { ...target, role: message.role })
       broadcastPlayers(room)
       broadcastSnapshots(room)
@@ -373,14 +523,11 @@ function handleCommand(socket: TableSocket, room: RoomState, player: RoomPlayer,
     }
     case 'player:remove': {
       if (!can(player.role, 'player:manage')) return deny(socket)
-      if (message.playerKey === player.id) return deny(socket)
+      if (message.playerKey === player.id || message.playerKey === room.mestreId) return deny(socket)
       const target = room.players.get(message.playerKey)
       if (!target) return
-      const gmCount = [...room.players.values()].filter((item) => item.role === 'gm').length
-      if (target.role === 'gm' && gmCount <= 1) return deny(socket)
-      room.players.delete(target.id); room.removedPlayers.add(target.id)
-      room.privateMessages.delete(target.id)
-      for (const owner of room.tokens.values()) owner.ownerIds = owner.ownerIds.filter((id) => id !== target.id)
+      room.removedPlayers.add(target.id)
+      room.players.set(target.id, { ...target, status: 'offline' })
       for (const socketId of room.connections.get(target.id) ?? []) {
         io.to(socketId).emit('room:event', { type: 'player:kicked' })
         io.sockets.sockets.get(socketId)?.disconnect(true)
@@ -398,60 +545,252 @@ function updateSprites(room: RoomState, id: string, current: Token, sprites: Tok
   broadcastVisible(room, { type: 'token:updated', token: updated, sprites }, updated)
 }
 
-io.on('connection', (socket) => {
-  const client = socket as TableSocket
-  client.on('room:join', ({ roomCode, displayName, playerKey }) => {
-    if (typeof roomCode !== 'string' || !/^[a-hjkmnp-z2-9]{6}$/i.test(roomCode) ||
-        typeof displayName !== 'string' || !displayName.trim() || displayName.trim().length > 24 ||
-        typeof playerKey !== 'string' || !/^[0-9a-f-]{36}$/i.test(playerKey)) return
-    if (client.data.roomCode) client.leave(client.data.roomCode)
-    const room = getRoom(roomCode)
-    if (room.removedPlayers.has(playerKey)) {
-      client.emit('room:event', { type: 'player:kicked' })
-      return
+async function carregarSala(campanhaId: string) {
+  const room = new RoomState(campanhaId)
+  const [salva, historico, lista, campanha] = await Promise.all([carregarMesa(campanhaId), carregarHistorico(campanhaId), lerMembros(campanhaId), campanhaExiste(campanhaId)])
+  room.mestreId = campanha?.mestreId ?? ''
+  room.messages = historico.publicas
+  room.privateMessages = historico.privadas
+  if (salva) {
+    const e = salva.estado
+    room.grid = e.grid
+    room.fogCells = new Set(e.fogCells)
+    room.espectadores = new Set(e.espectadores)
+    room.scenes = e.scenes.flatMap((c) => {
+      const imageUrl = salva.imagens.get(c.id)
+      return imageUrl ? [{ ...c, imageUrl }] : []
+    })
+    for (const token of e.tokens) {
+      room.tokens.set(token.id, token)
+      room.sprites.set(token.id, (e.sprites[token.id] ?? []).flatMap((s) => {
+        const imageUrl = salva.imagens.get(s.id)
+        return imageUrl ? [{ ...s, imageUrl }] : []
+      }))
     }
-    client.data.roomCode = roomCode
-    client.data.displayName = displayName.trim()
-    client.data.playerKey = playerKey
-    void client.join(roomCode)
-    void client.join(playerRoom(roomCode, playerKey))
-    const previous = room.players.get(playerKey)
-    const player: RoomPlayer = previous
-      ? { ...previous, status: 'connected' }
-      : { id: playerKey, name: displayName.trim(), status: 'connected', role: room.players.size === 0 ? 'gm' : 'player' }
-    room.players.set(playerKey, player)
-    const connections = room.connections.get(playerKey) ?? new Set<string>()
-    connections.add(client.id)
-    room.connections.set(playerKey, connections)
-    client.emit('room:snapshot', room.snapshot(player), client.id)
-    broadcastPlayers(room)
+    room.imagensSalvas = new Set(salva.imagens.keys())
+  }
+  for (const m of lista) {
+    room.players.set(m.id, { id: m.id, name: m.nome, status: 'offline', role: papelDaSala(room, m.id) })
+  }
+  /* A ficha pode ter mudado com o servidor desligado. */
+  await revalidarVinculos(room)
+  return room
+}
+function papelDaSala(room: RoomState, usuarioId: string): RoomPlayer['role'] {
+  if (usuarioId === room.mestreId) return 'gm'
+  return room.espectadores.has(usuarioId) ? 'spectator' : 'player'
+}
+async function obterSala(campanhaId: string) {
+  const existente = rooms.get(campanhaId)
+  if (existente) {
+    if (existente.cleanupTimer) clearTimeout(existente.cleanupTimer)
+    existente.cleanupTimer = undefined
+    return existente
+  }
+  let promessa = carregando.get(campanhaId)
+  if (!promessa) {
+    promessa = carregarSala(campanhaId).then((room) => {
+      rooms.set(campanhaId, room)
+      carregando.delete(campanhaId)
+      return room
+    }, (error) => {
+      carregando.delete(campanhaId)
+      throw error
+    })
+    carregando.set(campanhaId, promessa)
+  }
+  return promessa
+}
+
+/* Quem saiu da campanha sai da mesa na hora, e quem entrou já pode receber tokens. */
+async function sincronizarMembros(room: RoomState) {
+  const lista = await lerMembros(room.code)
+  const ids = new Set(lista.map((m) => m.id))
+  for (const player of [...room.players.values()]) {
+    if (ids.has(player.id)) continue
+    for (const socketId of room.connections.get(player.id) ?? []) {
+      io.to(socketId).emit('room:event', { type: 'player:kicked' })
+      io.sockets.sockets.get(socketId)?.disconnect(true)
+    }
+    room.connections.delete(player.id)
+    room.players.delete(player.id)
+    room.espectadores.delete(player.id)
+    room.privateMessages.delete(player.id)
+    for (const [id, token] of room.tokens) {
+      if (token.ownerIds.includes(player.id)) room.tokens.set(id, { ...token, ownerIds: token.ownerIds.filter((dono) => dono !== player.id) })
+    }
+    marcarSuja(room)
+  }
+  for (const m of lista) {
+    const atual = room.players.get(m.id)
+    room.players.set(m.id, atual ? { ...atual, name: m.nome } : { id: m.id, name: m.nome, status: 'offline', role: papelDaSala(room, m.id) })
+  }
+  await revalidarVinculos(room)
+  broadcastPlayers(room)
+  broadcastSnapshots(room)
+}
+
+function encerrarSalaApagada(campanhaId: string) {
+  const room = rooms.get(campanhaId)
+  if (!room) return
+  room.apagada = true
+  if (room.timerSalvar) clearTimeout(room.timerSalvar)
+  if (room.cleanupTimer) clearTimeout(room.cleanupTimer)
+  rooms.delete(campanhaId)
+  io.to(campanhaId).emit('room:event', { type: 'room:denied' })
+  io.in(campanhaId).disconnectSockets(true)
+}
+
+function aoEvento(evento: EventoMesa) {
+  if (evento.tipo === 'ficha') {
+    io.to(`ficha:${evento.fichaId}`).emit('ficha:mudou', evento.fichaId)
+    const room = evento.campanhaId ? rooms.get(evento.campanhaId) : undefined
+    if (room) void enfileirar(room, async () => {
+      await sincronizarFicha(room, evento.fichaId)
+      broadcast(room, { type: 'ficha:atualizada', fichaId: evento.fichaId })
+    })
+    return
+  }
+  if (evento.tipo === 'campanha-apagada') { encerrarSalaApagada(evento.campanhaId); return }
+  const room = rooms.get(evento.campanhaId)
+  if (!room) return
+  if (evento.tipo === 'campanha') { void enfileirar(room, () => sincronizarMembros(room)); return }
+  addPublicMessage(room, rolagemParaChat(evento.linha))
+}
+
+function lerCookie(cabecalho: string | undefined) {
+  for (const parte of (cabecalho ?? '').split(';')) {
+    const [nome, valor] = parte.trim().split('=')
+    if (nome === COOKIE) return valor
+  }
+  return undefined
+}
+
+/* O cookie é SameSite=Lax, mas conferir a origem protege também navegadores antigos: só o próprio site abre o socket. */
+function mesmaOrigem(origem: string | undefined, host: string | string[] | undefined, hostEncaminhado: string | string[] | undefined) {
+  if (!origem) return true
+  try { return new URL(origem).host === (hostEncaminhado ?? host) }
+  catch { return false }
+}
+
+export function anexarMesa(httpServer: HttpServer) {
+  io = new Server(httpServer, {
+    maxHttpBufferSize: 1_048_576,
+    /* Deixa o recarregamento do Next em desenvolvimento usar as outras conexões. */
+    destroyUpgrade: false,
+    allowRequest: (req, callback) => callback(null, mesmaOrigem(req.headers.origin, req.headers.host, req.headers['x-forwarded-host'])),
   })
-  client.on('room:command', (value) => {
-    const roomCode = client.data.roomCode; if (!roomCode || !validCommand(value)) return
-    const room = rooms.get(roomCode); const player = room?.players.get(client.data.playerKey ?? '')
-    if (room && player?.status === 'connected') handleCommand(client, room, player, value)
+
+  io.use(async (socket, next) => {
+    try {
+      const token = lerCookie(socket.handshake.headers.cookie)
+      const usuario = await usuarioDoToken(token)
+      if (!usuario || !token) { next(new Error('nao-autenticado')); return }
+      socket.data.usuario = { id: usuario.id, nome: usuario.nome }
+      socket.data.token = token
+      next()
+    } catch (error) {
+      console.error(error)
+      next(new Error('erro-interno'))
+    }
   })
-  client.on('disconnect', () => {
-    const code = client.data.roomCode; if (!code) return
-    const room = rooms.get(code); if (!room) return
-    const playerKey = client.data.playerKey
-    if (playerKey) {
-      const connections = room.connections.get(playerKey)
+
+  const pararOuvir = ouvirMesa(aoEvento)
+
+  /* Sair da conta ou trocar a senha apaga a sessão: a conexão aberta não pode continuar valendo. */
+  const conferirSessoes = setInterval(() => {
+    void (async () => {
+      for (const socket of await io.fetchSockets()) {
+        const local = io.sockets.sockets.get(socket.id)
+        if (local && !(await usuarioDoToken(local.data.token))) local.disconnect(true)
+      }
+    })().catch((error) => console.error(error))
+  }, INTERVALO_SESSAO_MS)
+  conferirSessoes.unref?.()
+
+  io.on('connection', (socket) => {
+    const client = socket as TableSocket
+    const usuario = client.data.usuario
+
+    client.on('room:join', async (dados) => {
+      try {
+        const entrada = esquemaEntrada.safeParse(dados)
+        const acesso = entrada.success ? await lerAcesso(entrada.data.campanhaId, usuario.id) : null
+        if (!entrada.success || !acesso) { client.emit('room:event', { type: 'room:denied' }); return }
+        const campanhaId = entrada.data.campanhaId
+        const room = await obterSala(campanhaId)
+        if (room.removedPlayers.has(usuario.id)) { client.emit('room:event', { type: 'player:kicked' }); return }
+        if (client.data.campanhaId) void client.leave(client.data.campanhaId)
+        client.data.campanhaId = campanhaId
+        void client.join(campanhaId)
+        void client.join(playerRoom(campanhaId, usuario.id))
+        room.mestreId = acesso.mestreId
+        const player: RoomPlayer = { id: usuario.id, name: usuario.nome, status: 'connected', role: papelDaSala(room, usuario.id) }
+        room.players.set(usuario.id, player)
+        const connections = room.connections.get(usuario.id) ?? new Set<string>()
+        connections.add(client.id)
+        room.connections.set(usuario.id, connections)
+        client.emit('room:snapshot', room.snapshot(player), client.id)
+        broadcastPlayers(room)
+      } catch (error) {
+        console.error(error)
+        client.emit('room:event', { type: 'chat:error', text: 'Não consegui abrir a mesa. Recarregue a página.' })
+      }
+    })
+
+    client.on('room:command', (value) => {
+      const campanhaId = client.data.campanhaId
+      if (!campanhaId) return
+      const comando = esquemaComando.safeParse(value)
+      if (!comando.success) return
+      const room = rooms.get(campanhaId)
+      if (!room) return
+      void enfileirar(room, async () => {
+        const player = room.players.get(usuario.id)
+        if (player?.status !== 'connected') return
+        const mensagem = comando.data as RoomCommand
+        await handleCommand(client, room, player, mensagem)
+        if (mensagem.type !== 'chat:send' && mensagem.type !== 'chat:roll' && mensagem.type !== 'ficha:rolar') marcarSuja(room)
+      })
+    })
+
+    /* A página da ficha também acompanha pelo socket, com a mesma regra de quem pode editar. */
+    client.on('ficha:observar', async (fichaId) => {
+      try {
+        if (typeof fichaId !== 'string' || fichaId.length > 80) return
+        const ficha = await lerFicha(fichaId)
+        if (!ficha) return
+        const pode = ficha.donoId === usuario.id || (ficha.campanhaId && (await campanhaExiste(ficha.campanhaId))?.mestreId === usuario.id)
+        if (pode) void client.join(`ficha:${fichaId}`)
+      } catch (error) { console.error(error) }
+    })
+
+    client.on('disconnect', () => {
+      const code = client.data.campanhaId; if (!code) return
+      const room = rooms.get(code); if (!room) return
+      const connections = room.connections.get(usuario.id)
       connections?.delete(client.id)
       if (!connections?.size) {
-        room.connections.delete(playerKey)
-        const previous = room.players.get(playerKey)
-        if (previous) room.players.set(playerKey, { ...previous, status: 'offline' })
-        room.lastMoveAt.delete(playerKey)
+        room.connections.delete(usuario.id)
+        const previous = room.players.get(usuario.id)
+        if (previous) room.players.set(usuario.id, { ...previous, status: 'offline' })
+        room.lastMoveAt.delete(usuario.id)
         broadcastPlayers(room)
       }
-    }
-    void io.in(code).fetchSockets().then((sockets) => {
-      if (sockets.length !== 0) return
-      room.cleanupTimer = setTimeout(() => { if (rooms.get(code) === room) rooms.delete(code) }, ROOM_TTL_MS)
-      room.cleanupTimer.unref?.()
+      void io.in(code).fetchSockets().then((sockets) => {
+        if (sockets.length !== 0) return
+        room.cleanupTimer = setTimeout(() => {
+          void enfileirar(room, () => salvarSala(room)).then(() => { if (rooms.get(code) === room && !room.connections.size) rooms.delete(code) })
+        }, ROOM_TTL_MS)
+        room.cleanupTimer.unref?.()
+      })
     })
   })
-})
 
-httpServer.listen(PORT, '0.0.0.0', () => console.log(`Tablebola Socket.IO server listening on ${PORT}`))
+  return async function encerrarMesa() {
+    pararOuvir()
+    clearInterval(conferirSessoes)
+    await Promise.all([...rooms.values()].map((room) => enfileirar(room, () => salvarSala(room))))
+    await io.close()
+  }
+}

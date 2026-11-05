@@ -1,5 +1,5 @@
-/* A política de segurança das páginas. Só a rota embutida troca `ancestrais`: todo o resto continua sem poder entrar em iframe. */
-export function montarCsp(dev: boolean, ancestrais: readonly string[] = []) {
+/* A política de segurança das páginas. O socket da mesa usa a mesma origem, coberta por connect-src 'self'. */
+export function montarCsp(dev: boolean) {
   return [
     "default-src 'self'",
     `script-src 'self' 'unsafe-inline'${dev ? " 'unsafe-eval'" : ''}`,
@@ -10,6 +10,6 @@ export function montarCsp(dev: boolean, ancestrais: readonly string[] = []) {
     "object-src 'none'",
     "base-uri 'none'",
     "form-action 'self'",
-    `frame-ancestors ${ancestrais.length ? ancestrais.join(' ') : "'none'"}`,
+    "frame-ancestors 'none'",
   ].join('; ');
 }

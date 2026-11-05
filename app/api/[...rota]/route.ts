@@ -6,4 +6,3 @@ export const GET = atender;
 export const POST = atender;
 export const PATCH = atender;
 export const DELETE = atender;
-export const OPTIONS = atender;

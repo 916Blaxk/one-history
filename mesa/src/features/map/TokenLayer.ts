@@ -1,5 +1,5 @@
 import { Container, Graphics, Sprite, Text, Texture } from 'pixi.js'
-import type { Token, TokenSprite } from '@/features/tokens/token-types'
+import type { Token, TokenSprite } from '@mesa/features/tokens/token-types'
 
 type AlphaMask = { data: Uint8ClampedArray; width: number; height: number }
 

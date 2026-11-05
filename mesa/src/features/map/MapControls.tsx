@@ -8,13 +8,13 @@ import {
   UserRoundPlus,
   X,
 } from 'lucide-react'
-import { Card, CardContent } from '@/components/ui/card'
-import { useUiStore } from '@/stores/ui-store'
-import { useTokenStore } from '@/features/tokens/token-store'
-import { useBottomSheetDismiss } from '@/hooks/use-bottom-sheet-dismiss'
-import { isRoomMode } from '@/features/rooms/room-commands'
-import { fileToRoomScene } from '@/features/rooms/scene-serializer'
-import { useRoomStore } from '@/features/rooms/room-store'
+import { Card, CardContent } from '@mesa/components/ui/card'
+import { useUiStore } from '@mesa/stores/ui-store'
+import { useTokenStore } from '@mesa/features/tokens/token-store'
+import { useBottomSheetDismiss } from '@mesa/hooks/use-bottom-sheet-dismiss'
+import { isRoomMode } from '@mesa/features/rooms/room-commands'
+import { fileToRoomScene } from '@mesa/features/rooms/scene-serializer'
+import { useRoomStore } from '@mesa/features/rooms/room-store'
 
 export function MapControls({
   mobileOpen,
@@ -89,7 +89,7 @@ export function MapControls({
       <div className="map-panel-heading mobile-sheet-heading" {...dragHandlers}>
         <span className="mobile-sheet-handle" />
         <div>
-          <span className="map-panel-kicker">MESA DE TESTES</span>
+          <span className="map-panel-kicker">MESA DA CAMPANHA</span>
           <h1>Controles do mapa</h1>
         </div>
         <button

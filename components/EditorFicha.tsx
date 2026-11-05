@@ -4,12 +4,10 @@ import { useRouter } from 'next/navigation';
 import { useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { ChatFlutuante } from '@/components/Chat';
-import ChavesIntegracao from '@/components/ChavesIntegracao';
 import { BotaoConfirmar, CampoNumero, Capitular } from '@/components/comuns';
 import Magias from '@/components/Magias';
 import Pentagrama from '@/components/Pentagrama';
 import { api, dataCurta, mensagem, pct, virgula } from '@/lib/cliente';
-import { expressaoAtributo } from '@/lib/integracao';
 import * as R from '@/lib/regras';
 import type { Ficha, Mensagem } from '@/lib/tipos';
 import type { useChat } from '@/lib/useChat';
@@ -35,22 +33,14 @@ function reduzirFoto(arquivo: File): Promise<string> {
   });
 }
 
-/* No modo embutido, a sala do Tablebola é quem rola: a ficha só entrega a expressão. */
-export interface ModoEmbutido {
-  aoRolar: (acao: { id: string; rotulo: string; expressao: string }) => void;
-  urlRetrato?: string;
-}
-
-export default function EditorFicha({ f, ed, chat, embutido }: {
-  f: Ficha; ed: ReturnType<typeof useFichaEditavel>; chat?: ReturnType<typeof useChat>; embutido?: ModoEmbutido;
+export default function EditorFicha({ f, ed, chat }: {
+  f: Ficha; ed: ReturnType<typeof useFichaEditavel>; chat: ReturnType<typeof useChat>;
 }) {
   const router = useRouter();
   const entradaFoto = useRef<HTMLInputElement>(null);
   const [editandoLimites, setEditandoLimites] = useState(false);
   const [aba, setAba] = useState<'atributos' | 'magias'>('atributos');
   const souMestre = f.contexto.souMestre;
-  /* Com a chave de integração, só vida e mana mudam. O servidor também recusa o resto. */
-  const leitura = !!embutido;
   const url = `/api/fichas/${f.id}`;
   const vm = R.vidaMax(f), mm = R.manaMax(f), e = R.estagio(f.fadiga), perdido = e.min === 100, perda = R.perdaDeCena(f);
   const campanha = f.contexto.campanha;
@@ -94,12 +84,12 @@ export default function EditorFicha({ f, ed, chat, embutido }: {
 
   async function rolar(corpo: Record<string, unknown>) {
     /* Abre antes da resposta: o chat já está na tela quando o resultado chega e gira. */
-    chat?.setAberto(true);
+    chat.setAberto(true);
     try {
       /* A rolagem de atributo usa o valor guardado no servidor: salva antes o que ainda está pendente. */
       await ed.salvarAgora();
       const r = await api<{ rolagem: Mensagem }>('POST', `${url}/rolar`, corpo);
-      chat?.receber(r.rolagem);
+      chat.receber(r.rolagem);
     } catch (err) { toast.error(mensagem(err)); }
   }
   async function encerrarCena() {
@@ -139,19 +129,16 @@ export default function EditorFicha({ f, ed, chat, embutido }: {
     const [k, rotulo, desc] = item;
     const idCampo = `a-${g}-${k}`;
     const chave = R.chaveLimite(g, k), limite = f.limites[chave];
-    const travado = leitura || (!souMestre && ((limite !== undefined && f[g][k] >= limite) || (g === 'pericias' && R.spGastos(f) >= R.spTotal(f))));
-    const aoRolar = () => (embutido
-      ? embutido.aoRolar({ id: `${g}.${k}`, rotulo, expressao: expressaoAtributo(f[g][k]) })
-      : rolar({ atributo: `${g}.${k}` }));
+    const travado = !souMestre && ((limite !== undefined && f[g][k] >= limite) || (g === 'pericias' && R.spGastos(f) >= R.spTotal(f)));
     return (
       <div className={`attr${cor ? ` c-${k}` : ''}`} key={k}>
         <label htmlFor={idCampo}>{cor && <span className="ponto" />}{rotulo}{desc && <small>{desc}</small>}{limite !== undefined && !editandoLimites && <small>Máx. {limite}</small>}</label>
         <div className="passo">
-          <button type="button" disabled={leitura} aria-label={`Diminuir ${rotulo}`} onClick={() => mudarAttr(g, k, f[g][k] - 1)}>−</button>
-          <CampoNumero id={idCampo} min={0} disabled={leitura} valor={f[g][k]} aoMudar={v => mudarAttr(g, k, v)} />
+          <button type="button" aria-label={`Diminuir ${rotulo}`} onClick={() => mudarAttr(g, k, f[g][k] - 1)}>−</button>
+          <CampoNumero id={idCampo} min={0} valor={f[g][k]} aoMudar={v => mudarAttr(g, k, v)} />
           <button type="button" disabled={travado} aria-label={`Aumentar ${rotulo}`} onClick={() => mudarAttr(g, k, f[g][k] + 1)}>+</button>
         </div>
-        <button type="button" className="rolar" title={`Rolar d20 + ${rotulo}`} aria-label={`Rolar d20 mais ${rotulo}`} onClick={aoRolar}>d20</button>
+        <button type="button" className="rolar" title={`Rolar d20 + ${rotulo}`} aria-label={`Rolar d20 mais ${rotulo}`} onClick={() => rolar({ atributo: `${g}.${k}` })}>d20</button>
         {souMestre && editandoLimites && (
           <label className="campo-limite">
             Limite de {rotulo}
@@ -191,7 +178,7 @@ export default function EditorFicha({ f, ed, chat, embutido }: {
     <article className="ficha" data-estagio={e.min}>
       <div className="veu" data-estagio={e.min} aria-hidden="true" />
       <div className="ficha-barra">
-        {!embutido && <Link className="btn" href={voltar.href}>← {voltar.txt}</Link>}
+        <Link className="btn" href={voltar.href}>← {voltar.txt}</Link>
         <span className="salvo" role="status">{ed.status}</span>
         {campanha && !f.contexto.souMestre && <Link className="btn" href={`/campanhas/${campanha.id}`}>Campanha: {campanha.nome}</Link>}
         {f.contexto.souMestre && !f.contexto.souDono && <span className="selo">Ficha de {f.contexto.donoNome}</span>}
@@ -213,13 +200,11 @@ export default function EditorFicha({ f, ed, chat, embutido }: {
       <div className="ficha-grade">
         <section className="col-id" aria-label="Identidade">
           <div className="bloco-foto">
-            {perdido ? <span className="capitular retrato">???</span> : <Capitular className="retrato" nome={f.nome} fichaId={embutido ? undefined : f.id} fotoV={f.fotoV} src={embutido?.urlRetrato} />}
-            {!embutido && (
-              <div className="foto-botoes">
-                <button type="button" className="btn" onClick={() => entradaFoto.current?.click()}>Trocar foto</button>
-                {f.fotoV > 0 && <button type="button" className="btn" onClick={() => enviarFoto('')}>Remover</button>}
-              </div>
-            )}
+            {perdido ? <span className="capitular retrato">???</span> : <Capitular className="retrato" nome={f.nome} fichaId={f.id} fotoV={f.fotoV} />}
+            <div className="foto-botoes">
+              <button type="button" className="btn" onClick={() => entradaFoto.current?.click()}>Trocar foto</button>
+              {f.fotoV > 0 && <button type="button" className="btn" onClick={() => enviarFoto('')}>Remover</button>}
+            </div>
             <input ref={entradaFoto} id="foto-arquivo" type="file" accept="image/*" hidden onChange={async ev => {
               const a = ev.target.files?.[0];
               ev.target.value = '';
@@ -232,10 +217,10 @@ export default function EditorFicha({ f, ed, chat, embutido }: {
             {CAMPOS_TEXTO.map(([k, rotulo, largo]) => (
               <div className={`campo${largo ? ' campo-largo' : ''}`} key={k}>
                 <label className="rotulo" htmlFor={`c-${k}`}>{rotulo}</label>
-                <input id={`c-${k}`} type="text" readOnly={leitura} value={f[k]} onChange={ev => ed.definir({ ...f, [k]: ev.target.value }, { [k]: ev.target.value })} />
+                <input id={`c-${k}`} type="text" value={f[k]} onChange={ev => ed.definir({ ...f, [k]: ev.target.value }, { [k]: ev.target.value })} />
               </div>
             ))}
-            <fieldset className="tiers" aria-label="Tier" disabled={leitura}>
+            <fieldset className="tiers" aria-label="Tier">
               {[1, 2, 3].map(t => (
                 <label className="tier" key={t}>
                   <input type="radio" name="tier" id={`c-tier-${t}`} checked={f.tier === t} onChange={() => mudarComMaximos(c => { c.tier = t; }, () => ({ tier: t }))} />
@@ -244,7 +229,6 @@ export default function EditorFicha({ f, ed, chat, embutido }: {
               ))}
             </fieldset>
           </div>
-          {f.contexto.souDono && !embutido && <ChavesIntegracao fichaId={f.id} />}
         </section>
 
         <section className="col-attr" aria-label="Atributos e magias">
@@ -304,14 +288,14 @@ export default function EditorFicha({ f, ed, chat, embutido }: {
               {([['inventario', 'Inventário'], ['notas', 'Anotações']] as const).map(([k, rotulo]) => (
                 <div className="campo" key={k}>
                   <label className="rotulo" htmlFor={`c-${k}`}>{rotulo}</label>
-                  <textarea id={`c-${k}`} readOnly={leitura} value={f[k]} onChange={ev => ed.definir({ ...f, [k]: ev.target.value }, { [k]: ev.target.value })} />
+                  <textarea id={`c-${k}`} value={f[k]} onChange={ev => ed.definir({ ...f, [k]: ev.target.value }, { [k]: ev.target.value })} />
                 </div>
               ))}
             </div>
           </div>
           <div className="painel-aba" id="painel-magias" role="tabpanel" aria-labelledby="aba-magias" hidden={aba !== 'magias'}>
             <Magias
-              magias={f.magias} gastoUniversal={bonus.gasto} somenteLeitura={leitura}
+              magias={f.magias} gastoUniversal={bonus.gasto}
               aoMudar={magias => ed.definir({ ...f, magias }, { magias })} aoConjurar={conjurar}
             />
           </div>
@@ -325,20 +309,20 @@ export default function EditorFicha({ f, ed, chat, embutido }: {
               {campoBonus('mana', 'mana')}
               <label className="perda-perm" htmlFor="c-mana-perdida">
                 Mana total perdida para sempre
-                <CampoNumero id="c-mana-perdida" min={0} disabled={leitura} valor={f.manaPerdida} aoMudar={v => mudarComMaximos(c => { c.manaPerdida = R.inteiro(v, 0, 99999); }, c => ({ manaPerdida: c.manaPerdida }))} />
+                <CampoNumero id="c-mana-perdida" min={0} valor={f.manaPerdida} aoMudar={v => mudarComMaximos(c => { c.manaPerdida = R.inteiro(v, 0, 99999); }, c => ({ manaPerdida: c.manaPerdida }))} />
               </label>
             </>)}
 
           <div className="fadiga">
             <div className="vital-topo">
               <label className="vital-rot" htmlFor="v-fadiga">Fadiga mental</label>
-              <span className="vital-num"><CampoNumero id="v-fadiga" min={0} max={100} aoVivo disabled={leitura} valor={f.fadiga} aoMudar={mudarFadiga} /><span>%</span></span>
+              <span className="vital-num"><CampoNumero id="v-fadiga" min={0} max={100} aoVivo valor={f.fadiga} aoMudar={mudarFadiga} /><span>%</span></span>
             </div>
-            <input id="r-fadiga" type="range" min={0} max={100} step={1} disabled={leitura} value={f.fadiga} aria-label="Fadiga mental em porcentagem" onChange={ev => mudarFadiga(ev.target.value)} />
+            <input id="r-fadiga" type="range" min={0} max={100} step={1} value={f.fadiga} aria-label="Fadiga mental em porcentagem" onChange={ev => mudarFadiga(ev.target.value)} />
             <ol className="escada">
               {R.ESTAGIOS.map(s => (
                 <li key={s.min}>
-                  <button type="button" disabled={leitura} className={`degrau est-${s.min}${s.min <= f.fadiga ? ' passou' : ''}`} aria-current={s.min === e.min ? 'true' : undefined} onClick={() => mudarFadiga(s.min)}>
+                  <button type="button" className={`degrau est-${s.min}${s.min <= f.fadiga ? ' passou' : ''}`} aria-current={s.min === e.min ? 'true' : undefined} onClick={() => mudarFadiga(s.min)}>
                     <b>{String(s.min).padStart(2, '0')}%</b>
                     <span className="degrau-nome">{s.nome}</span>
                     {s.txt && <span className="degrau-txt">{s.txt}</span>}
@@ -347,7 +331,7 @@ export default function EditorFicha({ f, ed, chat, embutido }: {
                 </li>
               ))}
             </ol>
-            {!embutido && <button type="button" className="btn btn-forte" onClick={encerrarCena}>{perda ? `Encerrar cena: −${perda} de mana total` : 'Encerrar cena'}</button>}
+            <button type="button" className="btn btn-forte" onClick={encerrarCena}>{perda ? `Encerrar cena: −${perda} de mana total` : 'Encerrar cena'}</button>
             <ul className="registro">
               {f.registro.slice(0, 3).map(r => <li key={r.em}>{dataCurta(r.em)}: {r.txt}</li>)}
             </ul>
@@ -355,13 +339,11 @@ export default function EditorFicha({ f, ed, chat, embutido }: {
 
         </aside>
       </div>
-      {chat && (
-        <ChatFlutuante
-          chat={chat}
-          escopo={campanha ? `${campanha.nome}: todos da mesa veem` : 'Só você vê: esta ficha não está em campanha'}
-          aoRolar={(lados, bonusDado) => rolar({ lados, bonus: bonusDado })}
-        />
-      )}
+      <ChatFlutuante
+        chat={chat}
+        escopo={campanha ? `${campanha.nome}: todos da mesa veem` : 'Só você vê: esta ficha não está em campanha'}
+        aoRolar={(lados, bonusDado) => rolar({ lados, bonus: bonusDado })}
+      />
     </article>
   );
 }

@@ -73,7 +73,12 @@ export default function PaginaCampanha() {
           </p>
           {c.descricao && <p className="pag-sub">{c.descricao}</p>}
         </div>
-        <Link className="btn" href="/campanhas">← Todas as campanhas</Link>
+        <div className="acoes">
+          {/* Um link comum, não o do Next: a página da mesa troca a folha de estilos inteira. */}
+          {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+          <a className="btn btn-forte" href={`/campanhas/${id}/mesa`}>Mesa</a>
+          <Link className="btn" href="/campanhas">← Todas as campanhas</Link>
+        </div>
       </header>
 
       <div className="camp-grade">

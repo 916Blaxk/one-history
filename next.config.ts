@@ -11,8 +11,7 @@ const config: NextConfig = {
   serverExternalPackages: ['@libsql/client', 'libsql'],
   async headers() {
     return [{
-      /* A rota embutida recebe estes cabeçalhos em proxy.ts, onde a lista de origens é lida ao vivo. */
-      source: '/((?!embutido/).*)',
+      source: '/:caminho*',
       headers: [
         { key: 'Content-Security-Policy', value: csp },
         { key: 'X-Content-Type-Options', value: 'nosniff' },

@@ -1,23 +1,9 @@
-import * as React from 'react'
-import { cn } from '@/lib/utils'
+import type { ComponentProps } from 'react'
 
-export function Card({ className, ...props }: React.ComponentProps<'div'>) {
-  return (
-    <div
-      data-slot="card"
-      className={cn(
-        'rounded-xl border bg-card text-card-foreground shadow-sm',
-        className,
-      )}
-      {...props}
-    />
-  )
+export function Card({ className = '', ...props }: ComponentProps<'div'>) {
+  return <div className={`mesa-cartao ${className}`} {...props} />
 }
-export function CardContent({
-  className,
-  ...props
-}: React.ComponentProps<'div'>) {
-  return (
-    <div data-slot="card-content" className={cn('p-6', className)} {...props} />
-  )
+
+export function CardContent({ className = '', ...props }: ComponentProps<'div'>) {
+  return <div className={`mesa-cartao-corpo ${className}`} {...props} />
 }

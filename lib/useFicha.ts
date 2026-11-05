@@ -18,18 +18,11 @@ function mesclar(a: Patch | null, b: Patch | null): Patch | null {
   return r;
 }
 
-/* De onde a ficha vem e para onde vai. A tela embutida usa as rotas de integração, com a chave em vez do cookie. */
-export interface TransporteFicha {
-  urlLer: string;
-  ler: (url: string) => Promise<{ ficha: Ficha }>;
-  salvar: (patch: Patch) => Promise<{ ficha: Ficha }>;
-}
-
 /* Mantém uma cópia local editável da ficha. Só envia o que mudou, para o mestre e o dono
    poderem editar campos diferentes ao mesmo tempo, e só aceita dados do servidor quando não há edição pendente. */
-export function useFichaEditavel(id: string, transporte?: TransporteFicha) {
-  const url = transporte?.urlLer ?? `/api/fichas/${id}`;
-  const { data, error } = useSWR<{ ficha: Ficha }>(url, transporte?.ler ?? buscar, { refreshInterval: 3000, shouldRetryOnError: false });
+export function useFichaEditavel(id: string) {
+  const url = `/api/fichas/${id}`;
+  const { data, error, mutate } = useSWR<{ ficha: Ficha }>(url, buscar, { refreshInterval: 3000, shouldRetryOnError: false });
   const [ficha, setFicha] = useState<Ficha | null>(null);
   const [status, setStatus] = useState('Salvo');
   const pendente = useRef<Patch | null>(null);
@@ -51,7 +44,7 @@ export function useFichaEditavel(id: string, transporte?: TransporteFicha) {
     pendente.current = null;
     const p = (async () => {
       try {
-        const r = transporte ? await transporte.salvar(envio) : await api<{ ficha: Ficha }>('PATCH', url, envio);
+        const r = await api<{ ficha: Ficha }>('PATCH', url, envio);
         /* Sem edição nova, vale o que o servidor gravou: ele pode ter cortado um valor acima do limite. */
         setFicha(a => a && (pendente.current ? { ...a, atualizado: r.ficha.atualizado, fotoV: r.ficha.fotoV } : r.ficha));
         setStatus('Salvo');
@@ -66,7 +59,7 @@ export function useFichaEditavel(id: string, transporte?: TransporteFicha) {
     })();
     voo.current = p;
     return p;
-  }, [url, transporte]);
+  }, [url]);
 
   const salvarAgora = useCallback(async () => {
     if (voo.current) await voo.current;
@@ -83,6 +76,20 @@ export function useFichaEditavel(id: string, transporte?: TransporteFicha) {
       salvarAgora().then(() => { if (pendente.current && !tempo.current) salvarAgora(); });
     }, 500);
   }, [salvarAgora]);
+
+  /* A mesa também grava vida e mana: o socket avisa na hora, e a consulta de 3 s fica como reserva. */
+  useEffect(() => {
+    let encerrado = false;
+    let desligar = () => {};
+    void import('socket.io-client').then(({ io }) => {
+      if (encerrado) return;
+      const socket = io({ reconnectionAttempts: 5 });
+      socket.on('connect', () => socket.emit('ficha:observar', id));
+      socket.on('ficha:mudou', () => { void mutate(); });
+      desligar = () => socket.disconnect();
+    });
+    return () => { encerrado = true; desligar(); };
+  }, [id, mutate]);
 
   useEffect(() => {
     const aoSair = () => { void enviar(); };

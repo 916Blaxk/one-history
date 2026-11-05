@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
+import '@/app/globals.css';
 import FormularioEntrar from '@/components/FormularioEntrar';
 import { usuarioDaSessao } from '@/lib/servidor/sessao';
 
