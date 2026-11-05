@@ -1,6 +1,17 @@
 /* Regras do sistema ONE HISTORY. Roda no navegador e no servidor. */
 
+export const PERICIAS: readonly { categoria: string; itens: readonly (readonly [string, string])[] }[] = [
+  { categoria: 'Combate', itens: [['lutaDesarmada', 'Luta desarmada'], ['esquiva', 'Esquiva'], ['aparar', 'Aparar'], ['arremesso', 'Arremesso']] },
+  { categoria: 'Físicas e movimentação', itens: [['acrobacia', 'Acrobacia'], ['escalada', 'Escalada'], ['natacao', 'Natação'], ['corrida', 'Corrida'], ['equilibrio', 'Equilíbrio'], ['furtividade', 'Furtividade'], ['sobrevivencia', 'Sobrevivência']] },
+  { categoria: 'Conhecimento', itens: [['historia', 'História'], ['geografia', 'Geografia'], ['religiao', 'Religião'], ['mitologia', 'Mitologia'], ['investigacao', 'Investigação'], ['medicina', 'Medicina'], ['alquimia', 'Alquimia'], ['engenharia', 'Engenharia'], ['arquitetura', 'Arquitetura'], ['matematica', 'Matemática'], ['linguistica', 'Linguística'], ['estrategiaMilitar', 'Estratégia militar']] },
+  { categoria: 'Sociais', itens: [['intimidacao', 'Intimidação'], ['enganacao', 'Enganação'], ['atuacao', 'Atuação'], ['etiqueta', 'Etiqueta'], ['lideranca', 'Liderança'], ['interrogatorio', 'Interrogatório'], ['seducao', 'Sedução'], ['negociacao', 'Negociação'], ['disfarce', 'Disfarce'], ['domesticacao', 'Domesticação']] },
+  { categoria: 'Exploração e utilidade', itens: [['rastreamento', 'Rastreamento'], ['caca', 'Caça'], ['arrombamento', 'Arrombamento'], ['truques', 'Truques'], ['pilotagem', 'Pilotagem']] },
+  { categoria: 'Profissões e ofícios', itens: [['profissao', 'Profissão'], ['musica', 'Música'], ['danca', 'Dança'], ['escultura', 'Escultura'], ['criptografia', 'Criptografia'], ['conhecimentoCriaturas', 'Conhecimento de criaturas'], ['conhecimentoArtefatos', 'Conhecimento de artefatos'], ['canalizacaoMagica', 'Canalização mágica'], ['controleMana', 'Controle de mana'], ['ritualistica', 'Ritualística'], ['identificacaoMagica', 'Identificação mágica'], ['resistenciaEspiritual', 'Resistência espiritual']] },
+  { categoria: 'Perícias adicionais', itens: [['encantar', 'Encantar'], ['tecnologia', 'Tecnologia'], ['extracaoNucleo', 'Extração de núcleo'], ['metalurgica', 'Metalúrgica']] },
+];
+
 export const GRUPOS = {
+  pericias: PERICIAS.flatMap(c => c.itens),
   elementos: [['fogo', 'Fogo'], ['agua', 'Água'], ['vento', 'Vento'], ['terra', 'Terra'], ['cura', 'Cura']],
   armas: [['espada', 'Espada'], ['arco', 'Arco'], ['rapieira', 'Rapieira'], ['machado', 'Machado'], ['adaga', 'Adaga'], ['escudo', 'Escudo']],
   corpo: [
@@ -32,20 +43,47 @@ export const ESTAGIOS: Estagio[] = [
   { min: 100, nome: '???', txt: '' },
 ];
 
+export interface EstagioNucleo { nome: string; mana: number; gasto: number; sp: number; txt?: string }
+export const NUCLEOS: EstagioNucleo[] = [
+  { nome: 'Vermelho escuro', mana: 0, gasto: 0, sp: 0, txt: 'Seu núcleo acabou de se formar em seu corpo, cheio de impurezas do sangue. Ele fica entre os pulmões e acima do estômago. Você pode sentir as veias de mana passarem por seu corpo, o fortalecendo e tomando uma forma…' },
+  { nome: 'Vermelho sólido', mana: 2, gasto: 0, sp: 5 },
+  { nome: 'Vermelho claro', mana: 2, gasto: 0, sp: 5 },
+  { nome: 'Laranja escuro', mana: 3, gasto: 2, sp: 7 },
+  { nome: 'Laranja sólido', mana: 3, gasto: 0, sp: 7 },
+  { nome: 'Laranja claro', mana: 3, gasto: 0, sp: 7 },
+  { nome: 'Amarelo escuro', mana: 5, gasto: 3, sp: 10 },
+  { nome: 'Amarelo sólido', mana: 5, gasto: 0, sp: 10 },
+  { nome: 'Amarelo claro', mana: 5, gasto: 0, sp: 10 },
+  { nome: 'Prata escuro', mana: 10, gasto: 5, sp: 15 },
+  { nome: 'Prata fosco', mana: 10, gasto: 0, sp: 15 },
+  { nome: 'Prata brilhante', mana: 10, gasto: 0, sp: 15 },
+  { nome: 'Branco', mana: 50, gasto: 10, sp: 40 },
+];
+
 export interface DadosFicha {
   player: string; nome: string; idade: string; raca: string; estilo: string;
   tier: number; inventario: string; notas: string;
-  manaPerdida: number; fadiga: number; vidaAtual: number; manaAtual: number;
+  manaPerdida: number; fadiga: number; vidaAtual: number; manaAtual: number; nucleo: number;
   elementos: Record<string, number>; armas: Record<string, number>;
-  corpo: Record<string, number>; mente: Record<string, number>;
+  corpo: Record<string, number>; mente: Record<string, number>; pericias: Record<string, number>;
 }
 
 type BaseVida = Pick<DadosFicha, 'corpo'>;
-type BaseMana = Pick<DadosFicha, 'mente' | 'tier' | 'manaPerdida'>;
+type BaseMana = Pick<DadosFicha, 'mente' | 'tier' | 'manaPerdida' | 'nucleo'>;
+
+/* Cada estágio soma ao que os anteriores já deram. Fichas gravadas antes do núcleo não têm o campo e ficam no primeiro estágio, que não dá nada. */
+export function bonusNucleo(estagioNucleo: number | undefined) {
+  const total = { mana: 0, gasto: 0, sp: 0 };
+  for (const n of NUCLEOS.slice(0, (estagioNucleo ?? 0) + 1)) {
+    total.mana += n.mana; total.gasto += n.gasto; total.sp += n.sp;
+  }
+  return total;
+}
+export const spGastos = (f: Pick<DadosFicha, 'pericias'>) => Object.values(f.pericias).reduce((soma, v) => soma + v, 0);
 
 export const vidaMax = (f: BaseVida) => 15 + f.corpo.vitalidade * 2;
 /* Todo arredondamento do sistema é para baixo. O 1e-9 evita que 10 × 2,3 vire 22,999… e perca um ponto. */
-export const manaBase = (f: Omit<BaseMana, 'manaPerdida'>) => Math.floor(30 + f.mente.onipotencia * TIERS[f.tier] + 1e-9);
+export const manaBase = (f: Omit<BaseMana, 'manaPerdida'>) => Math.floor(30 + f.mente.onipotencia * TIERS[f.tier] + 1e-9) + bonusNucleo(f.nucleo).mana;
 export const manaMax = (f: BaseMana) => Math.max(0, manaBase(f) - f.manaPerdida);
 
 export function estagio(pct: number): Estagio {
@@ -86,8 +124,9 @@ export function normalizar(entrada: unknown): DadosFicha {
     inventario: texto(o.inventario, 8000), notas: texto(o.notas, 12000),
     manaPerdida: inteiro(o.manaPerdida, 0, 99999),
     fadiga: inteiro(o.fadiga, 0, 100),
+    nucleo: inteiro(o.nucleo, 0, NUCLEOS.length - 1),
     vidaAtual: 0, manaAtual: 0,
-    elementos: {}, armas: {}, corpo: {}, mente: {},
+    elementos: {}, armas: {}, corpo: {}, mente: {}, pericias: {},
   };
   for (const g of NOMES_GRUPOS) for (const [k] of GRUPOS[g]) f[g][k] = inteiro(o[g]?.[k], 0, 999);
   f.vidaAtual = inteiro(o.vidaAtual ?? vidaMax(f), 0, vidaMax(f));

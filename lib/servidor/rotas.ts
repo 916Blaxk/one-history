@@ -13,7 +13,7 @@ const LIMITE_FICHAS = 200, LIMITE_CAMPANHAS = 50, LIMITE_MEMBROS = 60, LIMITE_FO
 const LIMITE_ROLAGENS = 500, PAGINA_CHAT = 50;
 const ALFABETO_CODIGO = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 const FOTO_VALIDA = /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/;
-const CAMPOS_FICHA = new Set(['player', 'nome', 'idade', 'raca', 'estilo', 'tier', 'inventario', 'notas', 'manaPerdida', 'fadiga', 'vidaAtual', 'manaAtual']);
+const CAMPOS_FICHA = new Set(['player', 'nome', 'idade', 'raca', 'estilo', 'tier', 'inventario', 'notas', 'manaPerdida', 'fadiga', 'vidaAtual', 'manaAtual', 'nucleo']);
 const JANELA_MS = 15 * 60 * 1000;
 
 class Erro extends Error {
@@ -128,7 +128,8 @@ async function fichaDoDono(id: string, usuario: UsuarioSessao) {
 async function comContexto(f: LinhaFicha, usuario: UsuarioSessao): Promise<Ficha> {
   const [c] = f.campanhaId ? await db.select().from(campanhas).where(eq(campanhas.id, f.campanhaId)) : [];
   return {
-    ...f.dados, id: f.id, donoId: f.donoId, campanhaId: f.campanhaId, registro: f.registro, fotoV: f.fotoV, atualizado: f.atualizado,
+    /* Fichas antigas no banco não têm os campos novos: a tela sempre recebe a ficha completa. */
+    ...R.normalizar(f.dados), id: f.id, donoId: f.donoId, campanhaId: f.campanhaId, registro: f.registro, fotoV: f.fotoV, atualizado: f.atualizado,
     contexto: {
       souDono: f.donoId === usuario.id,
       souMestre: !!c && c.mestreId === usuario.id,
@@ -418,7 +419,7 @@ rota('POST', '/api/fichas/:id/rolar', async ctx => {
     const item = (Object.prototype.hasOwnProperty.call(R.GRUPOS, g) ? (R.GRUPOS[g] as readonly (readonly string[])[]) : []).find(i => i[0] === k);
     if (!item) throw new Erro(400, 'Esse atributo não existe na ficha.');
     rotulo = item[1];
-    r = rolar(20, f.dados[g][k]);
+    r = rolar(20, R.normalizar(f.dados)[g][k]);
   } else {
     r = rolar(Number(ctx.corpo.lados), R.inteiro(ctx.corpo.bonus, -999, 999));
   }

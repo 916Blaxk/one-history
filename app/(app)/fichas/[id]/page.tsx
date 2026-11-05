@@ -150,6 +150,7 @@ function Editor({ f, ed }: { f: Ficha; ed: ReturnType<typeof useFichaEditavel> }
 
   const sub = [f.raca, f.estilo, `Tier ${f.tier}`, f.idade && `${f.idade} anos`].filter(Boolean).join(' · ');
   const base = R.manaBase(f);
+  const bonus = R.bonusNucleo(f.nucleo), spUsados = R.spGastos(f);
 
   return (
     <article className="ficha" data-estagio={e.min}>
@@ -229,6 +230,29 @@ function Editor({ f, ed }: { f: Ficha; ed: ReturnType<typeof useFichaEditavel> }
             <div className="cab-grupo"><h2 className="titulo-grupo">Armas</h2></div>
             <div className="lista-armas">{R.GRUPOS.armas.map(i => linhaAttr('armas', i))}</div>
           </div>
+          <div className="bloco-nucleo">
+            <div className="cab-grupo"><h2 className="titulo-grupo">Núcleo</h2></div>
+            <div className="campo">
+              <label className="rotulo" htmlFor="c-nucleo">Estágio do núcleo</label>
+              <select id="c-nucleo" value={f.nucleo} onChange={ev => mudarComMaximos(c => { c.nucleo = R.inteiro(ev.target.value, 0, R.NUCLEOS.length - 1); }, c => ({ nucleo: c.nucleo }))}>
+                {R.NUCLEOS.map((n, i) => <option key={n.nome} value={i}>{n.nome}</option>)}
+              </select>
+            </div>
+            {R.NUCLEOS[f.nucleo].txt && <p className="formula">{R.NUCLEOS[f.nucleo].txt}</p>}
+            <p className="formula">Total até aqui: +{bonus.mana} de mana, −{bonus.gasto} de gasto universal de mana, {bonus.sp} SP</p>
+          </div>
+          <div>
+            <div className="cab-grupo cab-pericias">
+              <h2 className="titulo-grupo">Perícias</h2>
+              <span className={`sp-saldo${spUsados > bonus.sp ? ' sp-acima' : ''}`}>{spUsados} de {bonus.sp} SP usados</span>
+            </div>
+            {R.PERICIAS.map(c => (
+              <details className="categoria-pericia" key={c.categoria}>
+                <summary>{c.categoria}</summary>
+                <div className="lista-armas">{c.itens.map(i => linhaAttr('pericias', i))}</div>
+              </details>
+            ))}
+          </div>
           <div className="duas-col">
             {([['inventario', 'Inventário'], ['notas', 'Anotações']] as const).map(([k, rotulo]) => (
               <div className="campo" key={k}>
@@ -242,7 +266,7 @@ function Editor({ f, ed }: { f: Ficha; ed: ReturnType<typeof useFichaEditavel> }
         <aside className="col-cena" aria-label="Em cena">
           {blocoVital('vidaAtual', 'Vida', 'cor-vida', f.vidaAtual, vm, `15 + vitalidade ${f.corpo.vitalidade} × 2 = ${vm}`)}
           {blocoVital('manaAtual', 'Mana', 'cor-mana', f.manaAtual, mm,
-            `30 + onipotência ${f.mente.onipotencia} × ${virgula(R.TIERS[f.tier])} (tier ${f.tier}) = ${base}${f.manaPerdida ? `, menos ${f.manaPerdida} perdida = ${mm}` : ''}`,
+            `30 + onipotência ${f.mente.onipotencia} × ${virgula(R.TIERS[f.tier])} (tier ${f.tier})${bonus.mana ? ` + núcleo ${bonus.mana}` : ''} = ${base}${f.manaPerdida ? `, menos ${f.manaPerdida} perdida = ${mm}` : ''}`,
             <label className="perda-perm" htmlFor="c-mana-perdida">
               Mana total perdida para sempre
               <CampoNumero id="c-mana-perdida" min={0} valor={f.manaPerdida} aoMudar={v => mudarComMaximos(c => { c.manaPerdida = R.inteiro(v, 0, 99999); }, c => ({ manaPerdida: c.manaPerdida }))} />

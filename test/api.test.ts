@@ -296,6 +296,21 @@ describe('campanhas', () => {
     expect((await jog.c('POST', `/api/fichas/${f.id}/rolar`, { lados: 7 })).status).toBe(400);
     expect((await jog.c('POST', `/api/fichas/${f.id}/rolar`, { atributo: 'constructor.x' })).status).toBe(400);
   });
+
+  it('núcleo e perícias são salvos pelo PATCH, e a perícia entra na rolagem', async () => {
+    const { c } = await novaConta('Nara');
+    const f = await novaFicha(c, { nome: 'Núcleo', mente: { onipotencia: 7 } });
+    expect(f.nucleo).toBe(0);
+    expect(f.pericias.esquiva).toBe(0);
+    const salva = (await c('PATCH', `/api/fichas/${f.id}`, { nucleo: 3, manaAtual: 51, pericias: { esquiva: 4 } })).corpo.ficha;
+    expect(salva.nucleo).toBe(3);
+    expect(salva.manaAtual).toBe(51);
+    expect(salva.pericias.esquiva).toBe(4);
+    expect(salva.pericias.medicina).toBe(0);
+    const r = (await c('POST', `/api/fichas/${f.id}/rolar`, { atributo: 'pericias.esquiva' })).corpo.rolagem;
+    expect(r.rotulo).toBe('Esquiva');
+    expect(r.det).toMatch(/^d20 \(\d+\) \+ 4$/);
+  });
 });
 
 describe('chat de dados', () => {

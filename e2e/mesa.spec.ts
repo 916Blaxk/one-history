@@ -113,6 +113,24 @@ test('rolar atributo mostra d20 + valor', async ({ browser }) => {
   await expect(p.locator('.msg').first().locator('.msg-det')).toHaveText(/^d20 \(\d+\) \+ 7$/);
 });
 
+test('núcleo soma na mana e perícia conta SP, continua depois de recarregar', async ({ browser }) => {
+  const p = await novaPessoa(browser, 'Nia');
+  await criarFicha(p, 'Nucleada');
+  await p.getByLabel('Estágio do núcleo').selectOption({ label: 'Laranja escuro' });
+  await expect(p.getByText('Total até aqui: +7 de mana, −2 de gasto universal de mana, 17 SP')).toBeVisible();
+  await expect(p.getByText(/\+ núcleo 7 = 37$/)).toBeVisible();
+
+  await p.getByText('Combate', { exact: true }).click();
+  await p.locator('#a-pericias-esquiva').fill('4');
+  await p.locator('#a-pericias-esquiva').press('Enter');
+  await expect(p.getByText('4 de 17 SP usados')).toBeVisible();
+  await expect(p.getByRole('status').filter({ hasText: 'Salvo' })).toBeVisible();
+
+  await p.reload();
+  await expect(p.getByLabel('Estágio do núcleo')).toHaveValue('3');
+  await expect(p.getByText('4 de 17 SP usados')).toBeVisible();
+});
+
 test('chat de dados: abre ao rolar, guarda o histórico e continua depois de recarregar', async ({ browser }) => {
   const p = await novaPessoa(browser, 'Ivo');
   await criarFicha(p, 'Solo');

@@ -52,6 +52,26 @@ describe('regras do sistema', () => {
     expect(ferido.vidaAtual).toBe(10);
   });
 
+  it('núcleo acumula mana, gasto universal e SP dos estágios alcançados', () => {
+    expect(R.bonusNucleo(0)).toEqual({ mana: 0, gasto: 0, sp: 0 });
+    expect(R.bonusNucleo(3)).toEqual({ mana: 7, gasto: 2, sp: 17 });
+    expect(R.bonusNucleo(12)).toEqual({ mana: 108, gasto: 20, sp: 146 });
+    expect(R.manaMax(R.normalizar({ mente: { onipotencia: 7 }, tier: 1, nucleo: 3 }))).toBe(51);
+  });
+
+  it('ficha antiga, sem núcleo nem perícias, continua com a mesma mana', () => {
+    expect(R.manaMax({ mente: { onipotencia: 7 }, tier: 1, manaPerdida: 0 } as unknown as R.DadosFicha)).toBe(44);
+    const f = R.normalizar({ mente: { onipotencia: 7 }, tier: 1, manaAtual: 44 });
+    expect(f.nucleo).toBe(0);
+    expect(Object.keys(f.pericias)).toHaveLength(54);
+    expect(f.manaAtual).toBe(44);
+  });
+
+  it('perícias somam os SP usados e o estágio do núcleo respeita o limite', () => {
+    expect(R.spGastos(R.normalizar({ pericias: { esquiva: 3, medicina: 2, inventada: 50 } }))).toBe(5);
+    expect(R.normalizar({ nucleo: 99 }).nucleo).toBe(12);
+  });
+
   it('normalizar descarta campos desconhecidos e trava os limites', () => {
     const f = R.normalizar({ hack: 1, fadiga: 500, tier: 9, corpo: { tracao: -3 }, nome: 5 }) as unknown as Record<string, any>;
     expect(f.hack).toBeUndefined();
