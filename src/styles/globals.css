@@ -2091,3 +2091,12 @@ button {
   opacity: 0.55;
   cursor: not-allowed;
 }
+@media (min-width: 769px) {
+  /* A mini-ficha deixa o painel alto: ele não pode subir por baixo do link de voltar nem do quadro da sala. */
+  .token-properties {
+    max-height: calc(100dvh - 90px);
+  }
+  .map-page:has(+ .room-presence) .token-properties {
+    max-height: calc(100dvh - 190px);
+  }
+}
