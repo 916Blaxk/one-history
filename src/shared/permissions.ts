@@ -19,6 +19,47 @@ export type RoomAction =
   | 'chat:action'
   | 'player:manage'
 
+export const PLAYER_TOKEN_FIELDS = [
+  'name',
+  'rotation',
+  'activeSpriteId',
+  'flipX',
+  'hpCurrent',
+  'hpMax',
+  'manaCurrent',
+  'manaMax',
+  'characterId',
+] as const
+export const GM_TOKEN_FIELDS = [
+  ...PLAYER_TOKEN_FIELDS,
+  'x',
+  'y',
+  'size',
+  'color',
+  'ownerIds',
+  'hidden',
+] as const
+export const NULLABLE_TOKEN_FIELDS = [
+  'hpCurrent',
+  'hpMax',
+  'manaCurrent',
+  'manaMax',
+  'characterId',
+] as const
+
+export function validCharacterId(value: unknown): value is string {
+  return typeof value === 'string' && /^[A-Za-z0-9_-]{1,80}$/.test(value)
+}
+
+export function validRollLabel(value: unknown) {
+  return (
+    value === undefined ||
+    (typeof value === 'string' &&
+      value.trim().length >= 1 &&
+      value.length <= 60)
+  )
+}
+
 export function can(
   role: RoomRole,
   action: RoomAction,

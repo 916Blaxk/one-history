@@ -4,6 +4,8 @@ import type { ChatMessage, NewChatMessage } from '@/features/chat/chat-types'
 type ChatState = {
   messages: ChatMessage[]
   commandHistory: string[]
+  openRequests: number
+  requestOpen: () => void
   addMessage: (message: NewChatMessage) => void
   addToCommandHistory: (command: string) => void
   clearMessages: () => void
@@ -14,6 +16,9 @@ type ChatState = {
 export const useChatStore = create<ChatState>((set) => ({
   messages: [],
   commandHistory: [],
+  openRequests: 0,
+  requestOpen: () =>
+    set((state) => ({ openRequests: state.openRequests + 1 })),
   addMessage: (message) =>
     set((state) => ({
       messages: [

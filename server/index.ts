@@ -8,7 +8,9 @@ import type {
   ClientToServerEvents, RoomCommand, RoomGrid, RoomPlayer, RoomScene, RoomSnapshot,
   ServerRoomMessage, ServerToClientEvents,
 } from '../src/shared/room-protocol.js'
-import { can } from '../src/shared/permissions.js'
+import {
+  GM_TOKEN_FIELDS, NULLABLE_TOKEN_FIELDS, PLAYER_TOKEN_FIELDS, can, validCharacterId, validRollLabel,
+} from '../src/shared/permissions.js'
 
 const PORT = Number(process.env.PORT) || 3001
 const MAX_IMAGE_DATA_URL_LENGTH = 700_000
@@ -99,7 +101,7 @@ function validCommand(value: unknown): value is RoomCommand {
       typeof value.message.text === 'string' && value.message.text.length <= MAX_MESSAGE_LENGTH &&
       (value.message.type !== 'whisper' || (typeof value.message.recipient === 'string' && value.message.recipient.trim().length > 0 && value.message.recipient.length <= 24)) &&
       (value.message.recipient === undefined || typeof value.message.recipient === 'string')
-    case 'chat:roll': return typeof value.expression === 'string' && value.expression.length <= 120
+    case 'chat:roll': return typeof value.expression === 'string' && value.expression.length <= 120 && validRollLabel(value.label)
     default: return false
   }
 }
@@ -197,9 +199,11 @@ function addPublicMessage(room: RoomState, message: ChatMessage) {
   broadcast(room, { type: 'chat:message', message })
 }
 function validChanges(changes: Record<string, unknown>) {
-  const allowed = new Set(['name','x','y','size','rotation','activeSpriteId','flipX','color','hpCurrent','hpMax','manaCurrent','manaMax','ownerIds','hidden'])
+  const allowed = new Set<string>(GM_TOKEN_FIELDS)
+  const nullable = new Set<string>(NULLABLE_TOKEN_FIELDS)
   return Object.keys(changes).length > 0 && Object.keys(changes).every((key) => allowed.has(key) &&
-    (changes[key] !== null || ['hpCurrent','hpMax','manaCurrent','manaMax'].includes(key)) &&
+    (changes[key] !== null || nullable.has(key)) &&
+    (key !== 'characterId' || changes[key] === null || validCharacterId(changes[key])) &&
     (key !== 'ownerIds' || (Array.isArray(changes[key]) && changes[key].every((id) => typeof id === 'string'))) &&
     (key !== 'hidden' || typeof changes[key] === 'boolean'))
 }
@@ -225,10 +229,7 @@ function handleCommand(socket: TableSocket, room: RoomState, player: RoomPlayer,
       const current = room.tokens.get(message.id); const sprites = room.sprites.get(message.id) ?? []
       if (!current) return
       if (!can(player.role, 'token:update', current, player.id)) return deny(socket)
-      const playerFields = new Set(['name','rotation','activeSpriteId','flipX','hpCurrent','hpMax','manaCurrent','manaMax'])
-      const allowed = player.role === 'gm'
-        ? new Set([...playerFields, 'x','y','size','color','ownerIds','hidden'])
-        : playerFields
+      const allowed = new Set<string>(player.role === 'gm' ? GM_TOKEN_FIELDS : PLAYER_TOKEN_FIELDS)
       if (!validChanges(message.changes) || Object.keys(message.changes).some((key) => !allowed.has(key))) return deny(socket)
       const updated = { ...current }
       for (const [key, value] of Object.entries(message.changes)) {
@@ -353,7 +354,7 @@ function handleCommand(socket: TableSocket, room: RoomState, player: RoomPlayer,
       if (!expression || (expression.match(/[dD]/g)?.length ?? 0) > 10) { socket.emit('room:event', { type: 'chat:error', text: 'A rolagem excede o limite da mesa.' }); return }
       try {
         const roll = rollDice(expression)
-        addPublicMessage(room, { id: crypto.randomUUID(), type: 'roll', author: player.name, text: expression, roll, timestamp: Date.now() })
+        addPublicMessage(room, { id: crypto.randomUUID(), type: 'roll', author: player.name, text: expression, label: message.label?.trim(), roll, timestamp: Date.now() })
       } catch (error) {
         socket.emit('room:event', { type: 'chat:error', text: error instanceof DiceExpressionError ? error.message : 'Não foi possível rolar esses dados.' })
       }

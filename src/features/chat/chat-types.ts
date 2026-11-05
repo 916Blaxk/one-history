@@ -9,6 +9,7 @@ export type ChatMessage = {
   author: string
   timestamp: number
   text: string
+  label?: string
   recipient?: string
   roll?: DiceRollResult
 }

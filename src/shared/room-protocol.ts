@@ -54,7 +54,7 @@ export type ClientRoomMessage =
         recipient?: string
       }
     }
-  | { type: 'chat:roll'; expression: string }
+  | { type: 'chat:roll'; expression: string; label?: string }
 
 export type ServerRoomMessage =
   | { type: 'snapshot'; snapshot: RoomSnapshot; playerId: string }

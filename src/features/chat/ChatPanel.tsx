@@ -14,7 +14,7 @@ import type {
   DiceRollResult,
   DieResult,
 } from '@/features/chat/dice-types'
-import { DiceExpressionError, rollDice } from '@/features/chat/dice-parser'
+import { postRoll } from '@/features/chat/post-roll'
 import { useTokenStore } from '@/features/tokens/token-store'
 import { useBottomSheetDismiss } from '@/hooks/use-bottom-sheet-dismiss'
 import { isRoomMode, sendRoomCommand } from '@/features/rooms/room-commands'
@@ -107,27 +107,17 @@ export function ChatPanel({
     return () => window.removeEventListener('keydown', onShortcut)
   }, [mobileMode])
 
-  function postRoll(expression: string) {
-    if (isRoomMode()) {
-      sendRoomCommand({ type: 'chat:roll', expression })
-      setIsOpen(true)
-      return
-    }
-    try {
-      const roll = rollDice(expression)
-      addMessage({ type: 'roll', author, text: expression, roll })
-      setIsOpen(true)
-    } catch (error) {
-      addMessage({
-        type: 'system',
-        author: 'Sistema',
-        text:
-          error instanceof DiceExpressionError
-            ? error.message
-            : 'Não foi possível rolar esses dados.',
-      })
-      setIsOpen(true)
-    }
+  useEffect(
+    () =>
+      useChatStore.subscribe((state, previous) => {
+        if (state.openRequests !== previous.openRequests) setIsOpen(true)
+      }),
+    [],
+  )
+
+  function roll(expression: string) {
+    postRoll(expression, author)
+    setIsOpen(true)
   }
 
   function submit(event: FormEvent<HTMLFormElement>) {
@@ -152,7 +142,7 @@ export function ChatPanel({
     const command = match?.[1]?.toLowerCase() ?? ''
     const argument = match?.[2] ?? ''
     if (command === 'r' || command === 'roll') {
-      postRoll(argument)
+      roll(argument)
     } else if (command === 'w') {
       const whisper = argument.match(/^(\S+)(?:\s+([\s\S]+))$/)
       if (!whisper)
@@ -235,7 +225,7 @@ export function ChatPanel({
 
   function quickRoll(sides: number, shifted: boolean) {
     const count = shifted && quantity === 1 ? 2 : quantity
-    postRoll(`${count}d${sides}`)
+    roll(`${count}d${sides}`)
   }
 
   return (
@@ -424,6 +414,7 @@ function ChatMessageView({ message }: { message: ChatMessage }) {
       {message.type !== 'action' && message.type !== 'roll' && (
         <p>{message.text}</p>
       )}
+      {message.label && <p className="chat-roll-label">{message.label}</p>}
       {message.roll && <DiceRollCard result={message.roll} />}
     </article>
   )

@@ -8,6 +8,8 @@ import type { TokenSprite } from '@/features/tokens/token-types'
 import { useBottomSheetDismiss } from '@/hooks/use-bottom-sheet-dismiss'
 import { isRoomMode } from '@/features/rooms/room-commands'
 import { useRoomStore } from '@/features/rooms/room-store'
+import { MiniSheet } from '@/features/sheets/MiniSheet'
+import { useSheetKeyStore } from '@/features/sheets/sheet-keys'
 
 const EMPTY_SPRITES: TokenSprite[] = []
 
@@ -37,6 +39,10 @@ export function TokenProperties({
   const players = useRoomStore((state) => state.players)
   const playerKey = useRoomStore((state) => state.playerKey)
   const role = useRoomStore((state) => state.role)
+  /* Com a ficha ligada, o máximo vem dela. */
+  const maxFromSheet = useSheetKeyStore((state) =>
+    Boolean(token?.characterId && state.keys[token.characterId]),
+  )
   const mobileMode = mobileOpen !== undefined
   const contentVisible = mobileMode ? mobileOpen : !collapsed
   const dragHandlers = useBottomSheetDismiss(Boolean(mobileOpen), onMobileClose)
@@ -235,6 +241,7 @@ export function TokenProperties({
               <input
                 type="number"
                 min="0"
+                disabled={maxFromSheet}
                 value={selectedToken.hpMax ?? ''}
                 placeholder="—"
                 onChange={(event) =>
@@ -271,6 +278,7 @@ export function TokenProperties({
               <input
                 type="number"
                 min="0"
+                disabled={maxFromSheet}
                 value={selectedToken.manaMax ?? ''}
                 placeholder="—"
                 onChange={(event) =>
@@ -284,6 +292,7 @@ export function TokenProperties({
               />
             </label>
           </div>
+          <MiniSheet token={selectedToken} />
           <section
             className={`token-sprites-section ${spritesExpanded ? 'is-expanded' : ''}`}
             aria-label="Sprites do token"

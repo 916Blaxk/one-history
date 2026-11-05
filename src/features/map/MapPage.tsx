@@ -11,6 +11,7 @@ import { MapControls } from '@/features/map/MapControls'
 import { TokenProperties } from '@/features/tokens/TokenProperties'
 import { ChatPanel } from '@/features/chat/ChatPanel'
 import { useTokenStore } from '@/features/tokens/token-store'
+import { useSheetSync } from '@/features/sheets/use-sheet-sync'
 
 type MobilePanel = 'map' | 'token' | 'chat'
 
@@ -20,6 +21,7 @@ export function MapPage() {
   )
   const [activePanel, setActivePanel] = useState<MobilePanel | null>(null)
   const selectedTokenId = useTokenStore((state) => state.selectedTokenId)
+  useSheetSync()
 
   useEffect(() => {
     const query = window.matchMedia('(max-width: 768px)')

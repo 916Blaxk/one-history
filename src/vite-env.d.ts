@@ -1,5 +1,6 @@
 interface ImportMetaEnv {
   readonly VITE_SERVER_URL?: string
+  readonly VITE_FICHAS_URL?: string
 }
 
 interface ImportMeta {
