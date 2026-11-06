@@ -27,7 +27,7 @@
 ## Pendências
 
 - **Turso:** opcional, para ver e editar os dados com mais facilidade. O caminho está em [publicar.md](publicar.md).
-- **Backup externo:** as cópias diárias ficam no mesmo volume do banco. Baixar uma de vez em quando.
+- **Backup externo:** o PC do usuário baixa a cópia mais recente a cada 2 dias, pelo Agendador de Tarefas. Veja [publicar.md](publicar.md). Conferir de vez em quando `Documentos\one-history-backups\baixar-backup.log`.
 - **Plano do Railway:** conferir preço e limite no painel.
 - **Verificação de saúde:** definir o caminho `/entrar` nas configurações do serviço no Railway.
 - **Google Doc do sistema:** renumerar as perícias e incluir Sorte.

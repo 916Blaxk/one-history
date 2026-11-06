@@ -1,16 +1,18 @@
 /* Baixa para este PC a cópia mais recente do banco que o servidor guarda em /data/backups.
    Uso: node scripts/baixar-backup.mjs [pasta]
    A conexão vem do apelido `one-history-backup` em ~/.ssh/config. O arquivo tem as contas de todos: nunca coloque no repositório, que é público. */
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { createClient } from '@libsql/client';
 
 const SERVIDOR = 'one-history-backup';
 const MANTER = 5;
-const pasta = process.argv[2] || path.join(os.homedir(), 'Documents', 'one-history-backups');
+const CONFERIR = '--conferir';
+const pasta = (process.argv[2] !== CONFERIR && process.argv[2]) || path.join(os.homedir(), 'Documents', 'one-history-backups');
 const registro = path.join(pasta, 'baixar-backup.log');
 
 function anotar(texto) {
@@ -49,18 +51,28 @@ async function baixar() {
     const esperado = (await ssh(`sha256sum '${remoto}'`)).split(/\s+/)[0];
     const obtido = createHash('sha256').update(fs.readFileSync(parcial)).digest('hex');
     if (esperado !== obtido) throw new Error('O arquivo chegou diferente do servidor.');
-    const banco = createClient({ url: 'file:' + parcial.replaceAll('\\', '/') });
-    const { rows } = await banco.execute('PRAGMA integrity_check');
-    banco.close();
-    if (rows[0]?.integrity_check !== 'ok') throw new Error('A cópia baixada está corrompida.');
+    /* Em outro processo: no Windows, a biblioteca do banco segura o arquivo mesmo depois de fechar, e ele não poderia ser renomeado. */
+    const conferencia = spawnSync(process.execPath, [fileURLToPath(import.meta.url), CONFERIR, parcial], { encoding: 'utf8' });
+    if (conferencia.status !== 0) throw new Error(`A cópia baixada não passou na conferência: ${conferencia.stderr.trim()}`);
     fs.renameSync(parcial, destino);
   } finally {
-    fs.rmSync(parcial, { force: true });
+    /* A limpeza não pode esconder o erro que importa. */
+    try { fs.rmSync(parcial, { force: true }); } catch (e) { console.error(`Não consegui apagar ${parcial}: ${e.message}`); }
   }
 
   const copias = fs.readdirSync(pasta).filter(n => /^one-history-[\d-]+\.db$/.test(n)).sort();
   for (const antiga of copias.slice(0, Math.max(0, copias.length - MANTER))) fs.rmSync(path.join(pasta, antiga));
   anotar(`${nome} baixado, ${fs.statSync(destino).size} bytes, conferido`);
+}
+
+if (process.argv[2] === CONFERIR) {
+  const banco = createClient({ url: 'file:' + process.argv[3].replaceAll('\\', '/') });
+  const { rows } = await banco.execute('PRAGMA integrity_check');
+  if (rows[0]?.integrity_check !== 'ok') {
+    console.error(String(rows[0]?.integrity_check));
+    process.exit(1);
+  }
+  process.exit(0);
 }
 
 fs.mkdirSync(pasta, { recursive: true });
