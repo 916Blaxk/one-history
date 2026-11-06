@@ -4,6 +4,7 @@ import type {
   TokenPosition,
   TokenSprite,
   VagaImagem,
+  AjusteImagem,
 } from '@mesa/features/tokens/token-types'
 import { alturaDoToken } from '@mesa/features/tokens/token-types'
 import {
@@ -15,16 +16,19 @@ import { fileToRoomImage } from '@mesa/features/rooms/image-serializer'
 import type { RoomTokenChanges } from '@mesa/shared/room-protocol'
 
 const tokenColors = [
-  '#806247',
-  '#77565c',
-  '#586b63',
-  '#655b7c',
-  '#8a7045',
-  '#4f6874',
-  '#7b684f',
-  '#6d5847',
+  '#5a54b8',
+  '#7a4fc0',
+  '#3f6fc4',
+  '#6a4fb0',
+  '#4f7fd0',
+  '#3f5fae',
+  '#8058c8',
+  '#4a4aa8',
 ]
 let nextTokenNumber = 1
+type OriginalDaImagem = { imagem: string | null; ajuste: AjusteImagem | null }
+/* O original não vem com o token, para não pesar a mesa de todos: é pedido só na hora de reajustar. */
+const esperandoOriginal = new Map<string, (dados: OriginalDaImagem | null) => void>()
 
 type TokenState = {
   tokens: Token[]
@@ -32,7 +36,9 @@ type TokenState = {
   selectedTokenId: string | null
   addToken: (position: TokenPosition) => Token
   updateToken: (id: string, changes: Partial<Omit<Token, 'id'>>) => void
-  definirImagem: (tokenId: string, vaga: VagaImagem, rotulo: string, file: File) => void
+  definirImagem: (tokenId: string, vaga: VagaImagem, rotulo: string, file: File, reajuste: { imagem: string | null; ajuste: AjusteImagem }) => void
+  pedirOriginal: (tokenId: string, spriteId: string) => Promise<OriginalDaImagem | null>
+  receberOriginal: (spriteId: string, dados: OriginalDaImagem) => void
   removeTokenSprite: (tokenId: string, spriteId: string) => void
   updateTokenPosition: (id: string, position: TokenPosition) => void
   snapTokenToGrid: (id: string, cellSize: number) => void
@@ -96,11 +102,19 @@ export const useTokenStore = create<TokenState>((set) => ({
       ),
     }))
   },
-  definirImagem: (tokenId, vaga, rotulo, file) => {
+  pedirOriginal: (tokenId, spriteId) => new Promise((resolver) => {
+    const fim = setTimeout(() => { esperandoOriginal.delete(spriteId); resolver(null) }, 10_000)
+    esperandoOriginal.set(spriteId, (dados) => { clearTimeout(fim); esperandoOriginal.delete(spriteId); resolver(dados) })
+    if (!sendRoomCommand({ type: 'token:sprite:pedir-original', id: tokenId, spriteId })) esperandoOriginal.get(spriteId)?.(null)
+  }),
+  receberOriginal: (spriteId, dados) => esperandoOriginal.get(spriteId)?.(dados),
+  definirImagem: (tokenId, vaga, rotulo, file, reajuste) => {
     void (async () => {
       try {
         const sprite: TokenSprite = { id: crypto.randomUUID(), label: rotulo, imageUrl: await fileToRoomImage(file) }
         sendRoomCommand({ type: 'token:sprite:add', id: tokenId, sprite, vaga })
+        /* Em outro comando: os dois juntos poderiam passar do limite de uma mensagem. */
+        if (reajuste.imagem) sendRoomCommand({ type: 'token:sprite:original', id: tokenId, spriteId: sprite.id, imagem: reajuste.imagem, ajuste: reajuste.ajuste })
       } catch (error) {
         window.alert(error instanceof Error ? error.message : 'Não foi possível preparar a imagem.')
       }

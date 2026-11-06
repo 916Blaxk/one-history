@@ -16,11 +16,14 @@
 
 ## Decisões tomadas
 
-- **Brecha da fadiga (6 de novembro de 2026):** quando a ficha sai de uma campanha, o servidor guarda a fadiga dela. Se a ficha voltar para a mesma campanha, a fadiga volta a esse valor, e o registro da ficha mostra a mudança. Em outra campanha, a ficha entra com a fadiga atual.
+- **Brecha da fadiga (6 de novembro de 2026):** quando a ficha sai de uma campanha, o servidor guarda a fadiga dela. Se a ficha voltar para a mesma campanha, a fadiga volta a esse valor, e o registro da ficha mostra a mudança. Em outra campanha, a ficha entra com o maior valor entre a fadiga atual e a da última saída, e o mestre de lá pode corrigir.
 - **Quem cria elemento (6 de novembro de 2026):** o dono da ficha e o mestre.
 - **Fusão e variação de elementos (6 de novembro de 2026):** partem de elementos base ou de elementos já criados na ficha. Um elemento usado em outro não pode ser removido antes dele.
 - **Encerrar cena (6 de novembro de 2026):** em campanha, só o mestre. Fora de campanha, o dono da ficha, como na fadiga.
 - **Imagens do token (6 de novembro de 2026):** o token não usa a foto da ficha. Tem três vagas: Normal, Machucado (abaixo da metade da vida) e Armado (por botão, do dono e do mestre). O machucado vem na frente do armado.
+- **Armas (6 de novembro de 2026):** a ficha tem Armas leves, Armas médias e Armas pesadas, sem as específicas. Valores das armas antigas não foram convertidos.
+- **Atributos e vida (6 de novembro de 2026):** Tenacidade saiu da ficha. O jogador pode mudar a vida máxima, e a diferença para a fórmula vira um ajuste, então vitalidade e núcleo continuam somando. Os limites que o mestre definir continuam valendo.
+- **Visual (6 de novembro de 2026):** azul e roxo, com clima de grimório. Vida, mana, elementos, fadiga e núcleo mantêm as próprias cores, porque elas têm significado no jogo.
 - **Fichas antigas (6 de novembro de 2026):** não serão levadas. O site começa com o banco atual.
 - **Retirada de fundo (6 de novembro de 2026):** feita por cor, no navegador, nas imagens do token, com uma barra de força. Funciona melhor em fundo liso; foto com fundo complexo pediria um modelo de IA, cerca de 55 MB na primeira vez.
 

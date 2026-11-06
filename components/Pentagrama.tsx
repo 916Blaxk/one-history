@@ -20,7 +20,7 @@ export default function Pentagrama({ valores }: { valores: Record<string, number
         const [x, y] = ponto(i, R);
         return <line key={k} x1={cx} y1={cy} x2={x.toFixed(1)} y2={y.toFixed(1)} stroke="var(--linha)" />;
       })}
-      <polygon points={lista(i => R * nums[i] / teto)} fill="var(--ouro)" fillOpacity=".22" stroke="var(--ouro)" strokeWidth="1.5" />
+      <polygon points={lista(i => R * nums[i] / teto)} fill="var(--acento)" fillOpacity=".22" stroke="var(--acento)" strokeWidth="1.5" />
       {itens.map(([k, rotulo], i) => {
         const [x, y] = ponto(i, R * nums[i] / teto);
         const [lx, ly] = ponto(i, R + 12);

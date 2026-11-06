@@ -3,6 +3,7 @@ import { and, count, desc, eq, inArray, isNull, lt, notInArray, or, sql, type SQ
 import { z } from 'zod';
 import { rollDice } from '../../mesa/src/features/chat/dice-parser';
 import type { DiceRollResult } from '../../mesa/src/features/chat/dice-types';
+import { normalizarEnquadramento } from '../enquadramento';
 import * as R from '../regras';
 import { lerAcao, resumoDaFicha } from '../resumoFicha';
 import type { Ficha, Mensagem, PaginaChat, Papel, ResumoFicha } from '../tipos';
@@ -177,10 +178,11 @@ function resumoFicha(f: LinhaFicha, usuarioId: string, mestreId: string, nomes: 
   };
 }
 /* A fadiga é do mestre enquanto a ficha está na campanha. Fica guardada na saída para que tirar a ficha, mudar o valor e voltar não mude nada. É SQL para valer no mesmo batch, com a fadiga do momento da gravação. */
+const ULTIMA_FADIGA = '__ultima';
 const soltarFichas = (campanhaId: string, condicao?: ReturnType<typeof and>) =>
   db.update(fichas).set({
     campanhaId: null,
-    fadigasCampanha: sql`json_set(${fichas.fadigasCampanha}, ${`$."${campanhaId}"`}, coalesce(json_extract(${fichas.dados}, '$.fadiga'), 0))`,
+    fadigasCampanha: sql`json_set(${fichas.fadigasCampanha}, ${`$."${campanhaId}"`}, coalesce(json_extract(${fichas.dados}, '$.fadiga'), 0), ${`$."${ULTIMA_FADIGA}"`}, coalesce(json_extract(${fichas.dados}, '$.fadiga'), 0))`,
     atualizado: sql`${fichas.atualizado} + 1`,
   }).where(and(eq(fichas.campanhaId, campanhaId), condicao));
 
@@ -420,6 +422,13 @@ async function fotoLiberada(f: { donoId: string; dados: R.DadosFicha }, campanha
   const [c] = await db.select({ mestreId: campanhas.mestreId }).from(campanhas).where(eq(campanhas.id, campanhaId));
   return c?.mestreId === usuarioId || !R.fichaPrivada(f, c?.mestreId ?? '');
 }
+/* Só quem pode editar a ficha: o original pode mostrar o que o ajuste deixou de fora. */
+rota('GET', '/api/fichas/:id/foto-original', async ctx => {
+  await fichaEditavel(ctx.params.id, ctx.usuario);
+  const [f] = await db.select({ foto: fichas.foto, original: fichas.fotoOriginal, ajuste: fichas.fotoAjuste }).from(fichas).where(eq(fichas.id, ctx.params.id));
+  if (!f?.foto) throw new Erro(404, 'Esta ficha não tem foto.');
+  return { foto: f.original ?? f.foto, ajuste: f.original ? f.ajuste : null };
+});
 rota('GET', '/api/fichas/:id/foto', async ctx => {
   const [f] = await db.select({ foto: fichas.foto, donoId: fichas.donoId, campanhaId: fichas.campanhaId, dados: fichas.dados }).from(fichas).where(eq(fichas.id, ctx.params.id));
   const pode = f && (f.donoId === ctx.usuario.id || (f.campanhaId && await papelEm(f.campanhaId, ctx.usuario.id) && await fotoLiberada(f, f.campanhaId, ctx.usuario.id)));
@@ -433,6 +442,10 @@ rota('PATCH', '/api/fichas/:id', async ctx => {
   if ('foto' in ctx.corpo) {
     extras.foto = fotoDaEntrada(ctx.corpo.foto);
     extras.fotoV = extras.foto ? Date.now() : 0;
+    /* Sem original válido, a foto ainda é salva: só o reajuste parte da própria foto. */
+    const original = ctx.corpo.fotoOriginal;
+    extras.fotoOriginal = extras.foto && typeof original === 'string' && original.length <= R.LIMITE_ORIGINAL && FOTO_VALIDA.test(original) ? original : null;
+    extras.fotoAjuste = extras.fotoOriginal ? normalizarEnquadramento(ctx.corpo.fotoAjuste) : null;
   }
   const f = await alterarFicha(ctx.params.id, l => {
     const base: Record<string, any> = { ...l.dados };
@@ -441,7 +454,11 @@ rota('PATCH', '/api/fichas/:id', async ctx => {
       if (k === 'fadiga' && l.campanhaId && !souMestre) continue;
       const ehObjeto = v && typeof v === 'object';
       if (k in R.GRUPOS && ehObjeto) base[k] = { ...base[k], ...v };
-      else if (CAMPOS_MESTRE.has(k)) { if (souMestre) base[k] = ehObjeto ? { ...base[k], ...v } : v; }
+      else if (CAMPOS_MESTRE.has(k)) {
+        if (souMestre) base[k] = ehObjeto ? { ...base[k], ...v } : v;
+        /* A vida máxima é livre para o jogador: dos ajustes, ele só muda a parte da vida. */
+        else if (k === 'ajustes' && ehObjeto && 'vida' in v) base.ajustes = { ...base.ajustes, vida: v.vida };
+      }
       else if (CAMPOS_FICHA.has(k)) base[k] = v;
     }
     const nova = R.normalizar(base);
@@ -591,12 +608,15 @@ rota('POST', '/api/campanhas/:id/fichas', async ctx => {
   /* Com a ficha já aqui, o valor guardado está velho: restaurá-lo desfaria o que o mestre mudou depois. */
   if (f.campanhaId === c.id) return { ok: true };
   const [{ guardadas }] = await db.select({ guardadas: fichas.fadigasCampanha }).from(fichas).where(eq(fichas.id, f.id));
-  const guardada = guardadas[c.id];
+  const guardada = guardadas[c.id], ultima = guardadas[ULTIMA_FADIGA];
   await alterarFicha(f.id, l => {
-    if (guardada !== undefined && guardada !== l.dados.fadiga) {
-      l.registro = [{ em: Date.now(), txt: `De volta à campanha: fadiga restaurada para ${guardada}%` }, ...l.registro].slice(0, 12);
+    /* Em campanha nova, baixar a fadiga antes de entrar não adianta: vale o maior entre o valor atual e o da última saída. O mestre daqui pode corrigir. */
+    const fadiga = guardada ?? Math.max(l.dados.fadiga ?? 0, ultima ?? 0);
+    if (fadiga !== l.dados.fadiga) {
+      const motivo = guardada !== undefined ? 'De volta à campanha: fadiga restaurada para' : 'Entrou na campanha com a fadiga de quando saiu da anterior:';
+      l.registro = [{ em: Date.now(), txt: `${motivo} ${fadiga}%` }, ...l.registro].slice(0, 12);
     }
-    l.dados = R.normalizar({ ...l.dados, fadiga: guardada ?? l.dados.fadiga });
+    l.dados = R.normalizar({ ...l.dados, fadiga });
     l.campanhaId = c.id;
   }, { campanhaId: c.id });
   avisarMesa({ tipo: 'campanha', campanhaId: c.id });

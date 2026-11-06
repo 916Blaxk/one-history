@@ -121,7 +121,7 @@ test('mesa: mestre é GM, jogador usa a ficha, rola e a vida sincroniza nos dois
 
   /* A mesa usa só o próprio estilo, e o caminho de volta recarrega o do site. */
   const fundo = await mestre.evaluate(() => getComputedStyle(document.body).backgroundColor);
-  expect(fundo).toBe('rgb(21, 16, 28)');
+  expect(fundo).toBe('rgb(13, 14, 36)');
   await mestre.getByRole('link', { name: /Voltar para A Queda de Vael/ }).click();
   await expect(mestre.getByRole('heading', { name: 'A Queda de Vael' })).toBeVisible();
   const fundoSite = await mestre.evaluate(() => getComputedStyle(document.body).backgroundColor);
@@ -407,6 +407,15 @@ test('mesa: o token tem três imagens, sem a foto da ficha e sem o fundo', async
   expect((await pixel(1, 1))[3]).toBe(0);
   expect((await pixel(32, 32))[3]).toBe(255);
 
+  /* Reajustar abre o original, sem pedir o arquivo, e guarda a força usada. */
+  await jogador.getByRole('button', { name: 'Ajustar imagem Normal' }).click();
+  await expect(jogador.getByRole('dialog', { name: 'Ajustar a imagem Normal' })).toBeVisible();
+  await expect(jogador.getByLabel('Retirar fundo')).toHaveValue('25');
+  await jogador.getByRole('button', { name: 'Salvar', exact: true }).click();
+  await expect(jogador.getByRole('dialog')).toHaveCount(0);
+  await expect(jogador.getByAltText('Imagem Normal atual')).toBeVisible();
+  await expect.poll(async () => (await corNaTela(jogador, PONTO.x, PONTO.y)).b).toBeGreaterThan(180);
+
   /* Em cheio, continua a normal. Abaixo da metade, troca, e volta ao curar. */
   await colocar('Machucado', '#e02020');
   expect((await corNaTela(jogador, PONTO.x, PONTO.y)).b).toBeGreaterThan(180);
@@ -420,6 +429,13 @@ test('mesa: o token tem três imagens, sem a foto da ficha e sem o fundo', async
   expect((await corNaTela(jogador, PONTO.x, PONTO.y)).b).toBeGreaterThan(180);
   await jogador.getByRole('button', { name: 'Armado', exact: true }).click();
   await expect.poll(async () => (await corNaTela(jogador, PONTO.x, PONTO.y)).g).toBeGreaterThan(150);
+  /* O atalho no próprio token, ao lado do botão de espelhar, faz o mesmo que o botão do painel. */
+  const BOTAO_NO_TOKEN = { x: 549, y: 839 };
+  await jogador.mouse.click(BOTAO_NO_TOKEN.x, BOTAO_NO_TOKEN.y);
+  await expect(jogador.getByRole('button', { name: 'Armado', exact: true })).toHaveAttribute('aria-pressed', 'false');
+  await expect.poll(async () => (await corNaTela(jogador, PONTO.x, PONTO.y)).b).toBeGreaterThan(180);
+  await jogador.mouse.click(BOTAO_NO_TOKEN.x, BOTAO_NO_TOKEN.y);
+  await expect(jogador.getByRole('button', { name: 'Armado', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await jogador.getByLabel('PV atual').fill('12');
   await expect.poll(async () => (await corNaTela(jogador, PONTO.x, PONTO.y)).r).toBeGreaterThan(180);
   await jogador.getByLabel('PV atual').fill('25');

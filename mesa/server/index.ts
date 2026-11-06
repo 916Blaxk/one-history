@@ -3,7 +3,7 @@ import { Server, type Socket } from 'socket.io'
 import { z } from 'zod'
 import { DiceExpressionError, rollDice } from '../src/features/chat/dice-parser.js'
 import type { ChatMessage } from '../src/features/chat/chat-types.js'
-import { TAMANHO_MAXIMO, TAMANHO_MINIMO, alturaDoToken, estaSangrando, type Token, type TokenPosition, type TokenSprite, type VagaImagem } from '../src/features/tokens/token-types.js'
+import { TAMANHO_MAXIMO, TAMANHO_MINIMO, alturaDoToken, estaSangrando, type Token, type TokenPosition, type TokenSprite, type VagaImagem, type AjusteImagem } from '../src/features/tokens/token-types.js'
 import type {
   ClientToServerEvents, Combate, NevoaDaMesa, RoomCommand, RoomGrid, RoomPlayer, RoomScene, RoomSnapshot,
   ServerRoomMessage, ServerToClientEvents,
@@ -32,7 +32,7 @@ const INTERVALO_SALVAR_MS = 1000
 const INTERVALO_SESSAO_MS = 60 * 1000
 const defaultGrid: RoomGrid = { enabled: true, cellSize: 70, opacity: 0.24 }
 const NOME_FICHA_PRIVADA = '???'
-const CORES_TOKEN_AUTOMATICO = ['#80624a', '#4a6f80', '#5f8050', '#7a4f7c', '#8a5a44', '#4f5f8a']
+const CORES_TOKEN_AUTOMATICO = ['#5a54b8', '#3f6fc4', '#7a4fc0', '#4f7fd0', '#6a4fb0', '#3f5fae']
 /* Fora do centro do cenário: o token novo não pode cair em cima do que o mestre está mostrando. */
 const CELULAS_ATE_TOKEN_NOVO = 3
 const INTERVALO_PING_MS = 300
@@ -122,6 +122,8 @@ const esquemaComando = z.discriminatedUnion('type', [
   z.object({ type: z.literal('token:update'), id: idCurto, changes: z.record(z.string(), z.unknown()) }),
   z.object({ type: z.literal('token:sprites'), id: idCurto, sprites: z.unknown().refine(validSprites) }),
   z.object({ type: z.literal('token:sprite:add'), id: idCurto, sprite: z.unknown().refine(validSprite), vaga: z.enum(['normal', 'machucado', 'armado']) }),
+  z.object({ type: z.literal('token:sprite:original'), id: idCurto, spriteId: idCurto, imagem: z.string().max(R.LIMITE_ORIGINAL).regex(/^data:image\/(webp|png);base64,[A-Za-z0-9+/]+={0,2}$/), ajuste: z.object({ zoom: z.number().min(1).max(1000), x: numero, y: numero, forca: z.number().min(0).max(100) }) }),
+  z.object({ type: z.literal('token:sprite:pedir-original'), id: idCurto, spriteId: idCurto }),
   z.object({ type: z.literal('token:sprite:rename'), id: idCurto, spriteId: idCurto, label: z.string().max(40) }),
   z.object({ type: z.literal('token:sprite:remove'), id: idCurto, spriteId: idCurto }),
   z.object({ type: z.literal('token:remove'), id: idCurto }),
@@ -192,6 +194,8 @@ class RoomState {
   espectadores = new Set<string>()
   mestreId = ''
   imagensSalvas = new Set<string>()
+  /* A imagem antes do ajuste, para reajustar. Não vai com os sprites: pesaria a mesa de todos. */
+  originais = new Map<string, { imagem: string; ajuste: AjusteImagem }>()
   suja = false
   timerSalvar?: ReturnType<typeof setTimeout>
   /* Os comandos de uma sala rodam em ordem: o vínculo com a ficha consulta o banco no meio do caminho. */
@@ -321,9 +325,16 @@ function marcarSuja(room: RoomState) {
   }, INTERVALO_SALVAR_MS)
   room.timerSalvar.unref?.()
 }
+const idDoOriginal = (spriteId: string) => `original-${spriteId}`
 function estadoDaSala(room: RoomState) {
   const imagens = new Map<string, string>()
-  for (const lista of room.sprites.values()) for (const s of lista) imagens.set(s.id, s.imageUrl)
+  const ajustes: Record<string, AjusteImagem> = {}
+  for (const lista of room.sprites.values()) for (const s of lista) {
+    imagens.set(s.id, s.imageUrl)
+    /* Só das imagens que ainda existem: é assim que o original de uma imagem trocada sai do banco. */
+    const original = room.originais.get(s.id)
+    if (original) { imagens.set(idDoOriginal(s.id), original.imagem); ajustes[s.id] = original.ajuste }
+  }
   for (const c of room.scenes) imagens.set(c.id, c.imageUrl)
   const estado: EstadoMesa = {
     tokens: [...room.tokens.values()],
@@ -334,6 +345,7 @@ function estadoDaSala(room: RoomState) {
     espectadores: [...room.espectadores],
     fichasComToken: [...room.fichasComToken],
     combate: room.combate,
+    ajustes,
   }
   return { estado, imagens }
 }
@@ -530,6 +542,20 @@ async function handleCommand(socket: TableSocket, room: RoomState, player: RoomP
       const current = room.tokens.get(message.id); if (!current || !validSprites(message.sprites)) return
       if (!can(player.role, 'token:sprites', current, player.id)) return deny(socket)
       updateSprites(room, message.id, current, message.sprites); return
+    }
+    case 'token:sprite:original': case 'token:sprite:pedir-original': {
+      const current = room.tokens.get(message.id)
+      if (!current) return
+      if (!can(player.role, 'token:sprites', current, player.id)) return deny(socket)
+      if (!(room.sprites.get(message.id) ?? []).some((item) => item.id === message.spriteId)) return
+      if (message.type === 'token:sprite:original') {
+        room.originais.set(message.spriteId, { imagem: message.imagem, ajuste: message.ajuste })
+        marcarSuja(room)
+        return
+      }
+      const original = room.originais.get(message.spriteId)
+      socket.emit('room:event', { type: 'token:sprite:original', spriteId: message.spriteId, imagem: original?.imagem ?? null, ajuste: original?.ajuste ?? null })
+      return
     }
     case 'token:sprite:add': case 'token:sprite:rename': case 'token:sprite:remove': {
       const current = room.tokens.get(message.id); const sprites = [...(room.sprites.get(message.id) ?? [])]
@@ -864,6 +890,8 @@ async function carregarSala(campanhaId: string) {
       room.tokens.set(token.id, token)
       room.sprites.set(token.id, (e.sprites[token.id] ?? []).flatMap((s) => {
         const imageUrl = salva.imagens.get(s.id)
+        const original = salva.imagens.get(idDoOriginal(s.id)), ajuste = e.ajustes?.[s.id]
+        if (original && ajuste) room.originais.set(s.id, { imagem: original, ajuste })
         return imageUrl ? [{ ...s, imageUrl }] : []
       }))
     }

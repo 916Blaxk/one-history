@@ -1,4 +1,5 @@
 import { index, integer, primaryKey, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import type { Enquadramento } from '../enquadramento';
 import type { DadosFicha } from '../regras';
 import type { EntradaRegistro, Papel } from '../tipos';
 
@@ -28,6 +29,9 @@ export const fichas = sqliteTable('fichas', {
   fadigasCampanha: text('fadigas_campanha', { mode: 'json' }).$type<Record<string, number>>().notNull().default({}),
   /* Foto fica fora de `dados`: a mesa é atualizada a cada poucos segundos e não pode trafegar imagens toda vez. */
   foto: text('foto'),
+  /* A imagem antes do ajuste e o enquadramento usado: é o que permite reajustar sem enviar de novo. Vazios em fotos antigas. */
+  fotoOriginal: text('foto_original'),
+  fotoAjuste: text('foto_ajuste', { mode: 'json' }).$type<Enquadramento>(),
   fotoV: integer('foto_v').notNull().default(0),
   criadoEm: integer('criado_em').notNull(),
   atualizado: integer('atualizado').notNull(),

@@ -13,10 +13,9 @@ export const PERICIAS: readonly { categoria: string; itens: readonly (readonly [
 export const GRUPOS = {
   pericias: PERICIAS.flatMap(c => c.itens),
   elementos: [['fogo', 'Fogo'], ['agua', 'Água'], ['vento', 'Vento'], ['terra', 'Terra'], ['cura', 'Cura']],
-  armas: [['espada', 'Espada'], ['arco', 'Arco'], ['rapieira', 'Rapieira'], ['machado', 'Machado'], ['adaga', 'Adaga'], ['escudo', 'Escudo']],
+  armas: [['leves', 'Armas leves'], ['medias', 'Armas médias'], ['pesadas', 'Armas pesadas']],
   corpo: [
     ['tracao', 'Tração', 'Força de empuxo: empurrar, puxar.'],
-    ['tenacidade', 'Tenacidade', 'Aguentar situações degradantes ao corpo.'],
     ['vitalidade', 'Vitalidade', 'Soma na vida.'],
     ['destreza', 'Destreza', 'Capacidade de se mexer rapidamente.'],
   ],
@@ -69,6 +68,8 @@ export const LIMITE_ELEMENTOS_CRIADOS = 20;
 export const TAMANHO_NOME_ELEMENTO = 40;
 /* Tamanho máximo do texto base64 da foto da ficha. */
 export const LIMITE_FOTO = 200_000;
+/* A imagem original guardada para reajustar. Somada à foto, precisa caber no limite de um envio. */
+export const LIMITE_ORIGINAL = 280_000;
 
 export interface DadosFicha {
   player: string; nome: string; idade: string; raca: string; estilo: string;

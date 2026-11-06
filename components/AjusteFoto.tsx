@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { inicial, molduraDaImagem, mudarZoom, prender, tamanhoNaMoldura, zoomMaximo, type Enquadramento, type Tamanho } from '@/lib/enquadramento';
-import { LIMITE_FOTO } from '@/lib/regras';
+import { LIMITE_FOTO, LIMITE_ORIGINAL } from '@/lib/regras';
 import { retirarFundo } from '@/lib/retirarFundo';
 
 /* A retirada de fundo roda a cada mudança da barra: acima disso, a tela do celular trava. */
@@ -15,7 +15,7 @@ export function fotoDaTela(tela: HTMLCanvasElement) {
   const copia = document.createElement('canvas');
   copia.width = tela.width; copia.height = tela.height;
   const ctx = copia.getContext('2d')!;
-  ctx.fillStyle = '#3a1d2a';
+  ctx.fillStyle = '#261a5c';
   ctx.fillRect(0, 0, copia.width, copia.height);
   ctx.drawImage(tela, 0, 0);
   return copia.toDataURL('image/jpeg', .82);
@@ -25,6 +25,27 @@ export function arquivoDaTela(tela: HTMLCanvasElement, nome: string) {
   return new Promise<File>((ok, falha) => {
     tela.toBlob(blob => { if (blob) ok(new File([blob], nome, { type: 'image/png' })); else falha(new Error('Este navegador não conseguiu processar a imagem.')); }, 'image/png');
   });
+}
+
+export function arquivoDeDataUrl(url: string, nome: string) {
+  const [cabeca, base64] = url.split(',');
+  const bytes = Uint8Array.from(atob(base64!), c => c.charCodeAt(0));
+  return new File([bytes], nome, { type: cabeca!.slice(5).split(';')[0] });
+}
+
+/* O original fica menor que a imagem enviada: só precisa dar para reajustar, e precisa caber no envio. */
+function originalDaImagem(img: HTMLImageElement) {
+  const c = document.createElement('canvas');
+  for (const lado of [1024, 768, 512, 384]) {
+    const { l, a } = molduraDaImagem({ l: img.naturalWidth, a: img.naturalHeight }, lado);
+    c.width = l; c.height = a;
+    c.getContext('2d')!.drawImage(img, 0, 0, l, a);
+    for (const qualidade of [.82, .6]) {
+      const url = c.toDataURL('image/webp', qualidade);
+      if (url.length <= LIMITE_ORIGINAL) return url;
+    }
+  }
+  return null;
 }
 
 function imagemSemFundo(img: HTMLImageElement, forca: number) {
@@ -42,13 +63,16 @@ function imagemSemFundo(img: HTMLImageElement, forca: number) {
 const SETAS: Record<string, [number, number]> = { ArrowLeft: [-8, 0], ArrowRight: [8, 0], ArrowUp: [0, -8], ArrowDown: [0, 8] };
 
 /* A mesma janela para foto, sprite e cenário. Com `moldura`, o formato é fixo; sem ela, é o da imagem, limitado a `maiorLado`. */
-export default function AjusteFoto({ arquivo, titulo, moldura: molduraFixa, maiorLado = 3072, comRetiradaDeFundo = false, aoSalvar, aoCancelar, aoFalhar }: {
-  arquivo: File; titulo: string; moldura?: Tamanho; maiorLado?: number; comRetiradaDeFundo?: boolean;
-  aoSalvar: (tela: HTMLCanvasElement, inteira: boolean) => void; aoCancelar: () => void; aoFalhar: () => void;
+export type ResultadoAjuste = { inteira: boolean; ajuste: Enquadramento; forca: number; original: string | null };
+export default function AjusteFoto({ arquivo, titulo, moldura: molduraFixa, maiorLado = 3072, comRetiradaDeFundo = false, comOriginal = false, salvo, forcaSalva, aoSalvar, aoCancelar, aoFalhar }: {
+  arquivo: File; titulo: string; moldura?: Tamanho; maiorLado?: number; comRetiradaDeFundo?: boolean; comOriginal?: boolean;
+  /* Ao reajustar: abre como a pessoa deixou da última vez. */
+  salvo?: Enquadramento | null; forcaSalva?: number;
+  aoSalvar: (tela: HTMLCanvasElement, resultado: ResultadoAjuste) => void; aoCancelar: () => void; aoFalhar: () => void;
 }) {
   const [img, setImg] = useState<HTMLImageElement | null>(null);
-  const [e, setE] = useState<Enquadramento | null>(null);
-  const [forca, setForca] = useState(FORCA_INICIAL);
+  const [e, setE] = useState<Enquadramento | null>(salvo ?? null);
+  const [forca, setForca] = useState(forcaSalva ?? FORCA_INICIAL);
   const tela = useRef<HTMLCanvasElement>(null);
   const dialogo = useRef<HTMLDialogElement>(null);
   const arraste = useRef<{ px: number; py: number; x: number; y: number } | null>(null);
@@ -71,7 +95,7 @@ export default function AjusteFoto({ arquivo, titulo, moldura: molduraFixa, maio
   useEffect(() => { if (carregada) dialogo.current?.showModal(); }, [carregada]);
 
   /* Sem ajuste guardado, vale a imagem inteira. */
-  const atual = useMemo(() => (imagem && moldura ? e ?? inicial(imagem, moldura) : null), [e, imagem, moldura]);
+  const atual = useMemo(() => (imagem && moldura ? (e ? prender(e, imagem, moldura) : inicial(imagem, moldura)) : null), [e, imagem, moldura]);
 
   /* A moldura é a própria imagem final: o que aparece aqui é exatamente o que será salvo. */
   useEffect(() => {
@@ -127,7 +151,7 @@ export default function AjusteFoto({ arquivo, titulo, moldura: molduraFixa, maio
         </>
       )}
       <div className="acoes">
-        <button type="button" className="btn btn-forte ajuste-foto-salvar" onClick={() => aoSalvar(tela.current!, atual.zoom === 1)}>Salvar</button>
+        <button type="button" className="btn btn-forte ajuste-foto-salvar" onClick={() => aoSalvar(tela.current!, { inteira: atual.zoom === 1, ajuste: atual, forca, original: comOriginal && img ? originalDaImagem(img) : null })}>Salvar</button>
         <button type="button" className="btn" onClick={() => setE(null)}>Ver inteira</button>
         <button type="button" className="btn" onClick={aoCancelar}>Cancelar</button>
       </div>

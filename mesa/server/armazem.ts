@@ -1,7 +1,7 @@
 import { and, desc, eq, inArray, notInArray, sql } from 'drizzle-orm'
 import type { DiceRollResult } from '../src/features/chat/dice-types.js'
 import type { ChatMessage, ChatMessageType } from '../src/features/chat/chat-types.js'
-import type { Token, TokenSprite } from '../src/features/tokens/token-types.js'
+import type { AjusteImagem, Token, TokenSprite } from '../src/features/tokens/token-types.js'
 import type { Combate, NevoaDaMesa, RoomGrid, RoomScene } from '../src/shared/room-protocol.js'
 import * as R from '../../lib/regras'
 import type { LinhaRolagem } from '../../lib/servidor/barramento'
@@ -91,6 +91,8 @@ export interface EstadoMesa {
   /* Fichas que já tiveram token: é o que impede um token apagado de voltar sozinho. */
   fichasComToken?: string[]
   combate?: Combate | null
+  /* Como cada imagem de token foi ajustada. O original fica nas imagens, com o id `original-<sprite>`. */
+  ajustes?: Record<string, AjusteImagem>
 }
 
 export async function carregarMesa(campanhaId: string) {

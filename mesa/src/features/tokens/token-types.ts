@@ -89,6 +89,8 @@ export const TAMANHO_MAXIMO = 10
 export const alturaDoToken = (token: Pick<Token, 'size' | 'altura'>) => token.altura ?? token.size
 
 export type VagaImagem = 'normal' | 'machucado' | 'armado'
+/* Como a imagem foi ajustada, para reabrir a janela do mesmo jeito. */
+export type AjusteImagem = { zoom: number; x: number; y: number; forca: number }
 export function idDaVaga(token: Pick<Token, 'activeSpriteId' | 'spriteSangrandoId' | 'spriteArmadoId'>, vaga: VagaImagem) {
   if (vaga === 'machucado') return token.spriteSangrandoId
   if (vaga === 'armado') return token.spriteArmadoId

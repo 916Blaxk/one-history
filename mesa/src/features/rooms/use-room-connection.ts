@@ -93,6 +93,9 @@ export function useRoomConnection(campanhaId: string) {
         case 'token:removed':
           useTokenStore.getState().removeRoomToken(message.id)
           break
+        case 'token:sprite:original':
+          useTokenStore.getState().receberOriginal(message.spriteId, { imagem: message.imagem, ajuste: message.ajuste })
+          break
         case 'token:moved':
           if (message.playerId !== useRoomStore.getState().playerId || message.final)
             useTokenStore.getState().applyRoomPosition(message.id, message.position)

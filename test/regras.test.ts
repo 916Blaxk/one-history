@@ -3,8 +3,8 @@ import { describe, expect, it } from 'vitest';
 import * as R from '../lib/regras';
 
 describe('regras do sistema', () => {
-  it('vida usa vitalidade, não tenacidade', () => {
-    const f = R.normalizar({ corpo: { vitalidade: 8, tenacidade: 3 } });
+  it('vida usa vitalidade, não tração', () => {
+    const f = R.normalizar({ corpo: { vitalidade: 8, tracao: 3 } });
     expect(R.vidaMax(f)).toBe(31);
   });
 

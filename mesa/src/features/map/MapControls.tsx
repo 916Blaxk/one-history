@@ -162,7 +162,7 @@ export function MapControls({
                   titulo={`Ajustar o cenário ${cenariosNaFila[0].name}`}
                   aoCancelar={proximoCenario}
                   aoFalhar={() => { window.alert('Não consegui ler essa imagem. Use um arquivo JPG, PNG ou WebP.'); proximoCenario() }}
-                  aoSalvar={(tela, inteira) => {
+                  aoSalvar={(tela, { inteira }) => {
                     const arquivo = cenariosNaFila[0]!
                     proximoCenario()
                     /* Inteiro, o cenário segue o arquivo original, sem perder qualidade em mais uma conversão. */

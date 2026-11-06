@@ -15,6 +15,7 @@ import {
   createTokenView,
   destroyTokenView,
   setTokenAlphaMask,
+  tokenArmadoButtonHitTest,
   tokenFlipButtonHitTest,
   tokenHitTest,
   updateTokenView,
@@ -120,7 +121,7 @@ export function PixiMap({
       const pixi = new Application()
       app = pixi
       await pixi.init({
-        backgroundColor: 0x15101c,
+        backgroundColor: 0x0d0e24,
         antialias: true,
         resolution: window.devicePixelRatio || 1,
         autoDensity: true,
@@ -156,7 +157,7 @@ export function PixiMap({
       const linhaRegua = new Graphics()
       const textoRegua = new Text({
         text: '',
-        style: { fontFamily: 'DM Sans, sans-serif', fontSize: 15, fontWeight: '600', fill: 0xffffff, stroke: { color: 0x101114, width: 4 } },
+        style: { fontFamily: 'DM Sans, sans-serif', fontSize: 15, fontWeight: '600', fill: 0xffffff, stroke: { color: 0x0a0b20, width: 4 } },
       })
       textoRegua.anchor.set(0.5, 1)
       const anelPing = new Graphics()
@@ -170,7 +171,7 @@ export function PixiMap({
           for (const atraso of [0, 0.35]) {
             const fase = Math.max(0, progresso - atraso) / (1 - atraso)
             if (fase <= 0) continue
-            anelPing.circle(ping.x, ping.y, (10 + fase * 70) / camera.zoom).stroke({ color: 0xffd166, alpha: 1 - fase, width: 4 / camera.zoom })
+            anelPing.circle(ping.x, ping.y, (10 + fase * 70) / camera.zoom).stroke({ color: 0xa78bfa, alpha: 1 - fase, width: 4 / camera.zoom })
           }
         }
       }
@@ -315,7 +316,7 @@ export function PixiMap({
             gridGraphics.moveTo(left, y).lineTo(right, y)
           }
           gridGraphics.stroke({
-            color: 0xc49a52,
+            color: 0x6a6fd8,
             alpha: grid.opacity,
             width: 1 / camera.zoom,
           })
@@ -546,6 +547,24 @@ export function PixiMap({
           tokenDrag = undefined
           return
         }
+        if (
+          canSelect &&
+          selectedToken &&
+          tokenArmadoButtonHitTest(
+            tokenViews.get(selectedToken.id),
+            selectedToken,
+            worldX,
+            worldY,
+            camera.zoom,
+          )
+        ) {
+          tokenState.updateToken(selectedToken.id, {
+            armado: !selectedToken.armado,
+          })
+          panStart = undefined
+          tokenDrag = undefined
+          return
+        }
         const hitToken =
           canSelect && !spaceDown
             ? [...tokenState.tokens].reverse().find((token) => {
@@ -714,7 +733,7 @@ export function PixiMap({
         const { camera } = state
         cursorNevoa
           .circle((telaX - camera.x) / camera.zoom, (telaY - camera.y) / camera.zoom, state.fogBrushRadius)
-          .stroke({ color: state.fogMode === 'reveal' ? 0xf2d18d : 0xffffff, alpha: 0.9, width: 1.5 / camera.zoom })
+          .stroke({ color: state.fogMode === 'reveal' ? 0xc9bcff : 0xffffff, alpha: 0.9, width: 1.5 / camera.zoom })
       }
 
       function iniciarTracoNevoa(x: number, y: number) {

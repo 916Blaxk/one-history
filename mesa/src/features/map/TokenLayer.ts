@@ -2,6 +2,8 @@ import { Container, Graphics, Sprite, Text, Texture } from 'pixi.js'
 import { alturaDoToken, type Token, type TokenSprite } from '@mesa/features/tokens/token-types'
 
 type AlphaMask = { data: Uint8ClampedArray; width: number; height: number }
+const LARGURA_BOTAO = 42
+const ALTURA_BOTAO = 28
 
 export type TokenView = {
   root: Container
@@ -17,6 +19,7 @@ export type TokenView = {
   condicoes: Text
   turno: Graphics
   flipButton: Graphics
+  armadoButton: Graphics
   flipButtonY: number
   texture: Texture | null
   alphaMask: AlphaMask | null
@@ -35,7 +38,7 @@ export function createTokenView() {
     .lineTo(0, 0)
     .lineTo(-5, 2)
     .closePath()
-    .fill({ color: 0xe0b35d, alpha: 0.8 })
+    .fill({ color: 0x8fb6ff, alpha: 0.8 })
   direction.addChild(directionMark)
   const circle = new Graphics()
   const sprite = new Sprite(Texture.EMPTY)
@@ -44,7 +47,7 @@ export function createTokenView() {
     style: {
       fontFamily: 'DM Sans, sans-serif',
       fontSize: 32,
-      fill: 0xfff5e7,
+      fill: 0xffffff,
       fontWeight: '600',
     },
   })
@@ -52,14 +55,15 @@ export function createTokenView() {
   const ownerMark = new Graphics()
   const health = new Graphics()
   const flipButton = new Graphics()
+  const armadoButton = new Graphics()
   const turno = new Graphics()
   const condicoes = new Text({
     text: '',
     style: {
       fontFamily: 'DM Sans, sans-serif',
       fontSize: 12,
-      fill: 0xf2b36b,
-      stroke: { color: 0x101114, width: 3 },
+      fill: 0xc9bcff,
+      stroke: { color: 0x0a0b20, width: 3 },
     },
   })
   condicoes.anchor.set(0.5, 0)
@@ -68,8 +72,8 @@ export function createTokenView() {
     style: {
       fontFamily: 'DM Sans, sans-serif',
       fontSize: 14,
-      fill: 0xeee8dc,
-      stroke: { color: 0x101114, width: 3 },
+      fill: 0xece9ff,
+      stroke: { color: 0x0a0b20, width: 3 },
     },
   })
 
@@ -91,6 +95,7 @@ export function createTokenView() {
     label,
     condicoes,
     flipButton,
+    armadoButton,
   )
 
   return {
@@ -107,6 +112,7 @@ export function createTokenView() {
     condicoes,
     turno,
     flipButton,
+    armadoButton,
     flipButtonY: 0,
     texture: null,
     alphaMask: null,
@@ -149,7 +155,7 @@ export function updateTokenView(
   if (hasImage)
     view.shadow
       .ellipse(0, 0, diameter * 0.34, cellSize * 0.12)
-      .fill({ color: 0x08090a, alpha: 0.46 })
+      .fill({ color: 0x070818, alpha: 0.46 })
 
   if (view.texture && hasImage) {
     view.sprite.width = diameter
@@ -173,20 +179,20 @@ export function updateTokenView(
     if (sprite)
       view.selection
         .ellipse(0, 0, diameter * 0.4, cellSize * 0.19)
-        .stroke({ color: 0xe0b35d, width: 2 / zoom })
+        .stroke({ color: 0x8fb6ff, width: 2 / zoom })
     else
       view.selection
         .ellipse(0, 0, radius, radiusY)
-        .stroke({ color: 0xe0b35d, width: 2 / zoom })
+        .stroke({ color: 0x8fb6ff, width: 2 / zoom })
   }
   view.ownerMark.clear()
   if (playerKey && token.ownerIds.includes(playerKey)) {
     view.ownerMark
       .circle(radius * 0.62, radiusY * 0.62, Math.max(3, 5 / zoom))
-      .fill({ color: 0x17181a, alpha: 0.9 })
+      .fill({ color: 0x14153a, alpha: 0.9 })
     view.ownerMark
       .circle(radius * 0.62, radiusY * 0.62, Math.max(2, 3.2 / zoom))
-      .fill(0xe0b35d)
+      .fill(0x8fb6ff)
   }
 
   const belowBase = radiusY + 5
@@ -198,7 +204,7 @@ export function updateTokenView(
   const drawResourceBar = (y: number, ratio: number, color: number) => {
     view.health
       .roundRect(-barWidth / 2, y, barWidth, barHeight, barHeight / 2)
-      .fill({ color: 0x17181a, alpha: 0.9 })
+      .fill({ color: 0x14153a, alpha: 0.9 })
     if (ratio > 0)
       view.health
         .roundRect(-barWidth / 2, y, barWidth * ratio, barHeight, barHeight / 2)
@@ -229,17 +235,23 @@ export function updateTokenView(
   view.condicoes.position.set(0, view.label.position.y + Math.max(view.label.height, 16 / zoom))
   const alturaCondicoes = token.condicoes?.length ? view.condicoes.height : 0
   view.flipButton.clear()
+  view.armadoButton.clear()
   view.flipButton.visible = canEdit && selectedId === token.id && hasImage
+  view.armadoButton.visible = canEdit && selectedId === token.id && Boolean(token.spriteArmadoId)
+  const width = LARGURA_BOTAO / zoom
+  const height = ALTURA_BOTAO / zoom
+  const y =
+    view.label.position.y + Math.max(view.label.height, 16 / zoom) + alturaCondicoes + 5 / zoom
+  view.flipButtonY = y
+  /* Um botão fica no meio; os dois ficam lado a lado. */
+  const doisBotoes = view.flipButton.visible && view.armadoButton.visible
+  view.flipButton.position.x = doisBotoes ? -(width / 2 + 3 / zoom) : 0
+  view.armadoButton.position.x = doisBotoes ? width / 2 + 3 / zoom : 0
   if (view.flipButton.visible) {
-    const width = 42 / zoom
-    const height = 28 / zoom
-    const y =
-      view.label.position.y + Math.max(view.label.height, 16 / zoom) + alturaCondicoes + 5 / zoom
-    view.flipButtonY = y
     view.flipButton
       .roundRect(-width / 2, y, width, height, 6 / zoom)
-      .fill({ color: 0x17181a, alpha: 0.94 })
-      .stroke({ color: 0xc49a52, alpha: 0.9, width: 1.5 / zoom })
+      .fill({ color: 0x14153a, alpha: 0.94 })
+      .stroke({ color: 0x6a6fd8, alpha: 0.9, width: 1.5 / zoom })
     const iconY = y + height / 2
     view.flipButton
       .moveTo(-9 / zoom, iconY - 4 / zoom)
@@ -250,7 +262,7 @@ export function updateTokenView(
       .lineTo(3 / zoom, iconY - 4 / zoom)
       .lineTo(3 / zoom, iconY + 4 / zoom)
       .lineTo(9 / zoom, iconY + 4 / zoom)
-      .stroke({ color: 0xe0b35d, width: 1.5 / zoom })
+      .stroke({ color: 0x8fb6ff, width: 1.5 / zoom })
     view.flipButton
       .moveTo(-12 / zoom, iconY)
       .lineTo(-7 / zoom, iconY - 3 / zoom)
@@ -260,8 +272,33 @@ export function updateTokenView(
       .lineTo(7 / zoom, iconY - 3 / zoom)
       .moveTo(12 / zoom, iconY)
       .lineTo(7 / zoom, iconY + 3 / zoom)
-      .stroke({ color: 0xe0b35d, width: 1.5 / zoom })
+      .stroke({ color: 0x8fb6ff, width: 1.5 / zoom })
   }
+  if (view.armadoButton.visible) {
+    /* Aceso quando o token está armado: dá para ver o estado sem abrir o painel. */
+    const iconY = y + height / 2
+    view.armadoButton
+      .roundRect(-width / 2, y, width, height, 6 / zoom)
+      .fill({ color: token.armado ? 0x8fb6ff : 0x14153a, alpha: 0.94 })
+      .stroke({ color: 0x6a6fd8, alpha: 0.9, width: 1.5 / zoom })
+    view.armadoButton
+      .moveTo(-7 / zoom, iconY - 7 / zoom)
+      .lineTo(7 / zoom, iconY + 7 / zoom)
+      .moveTo(7 / zoom, iconY - 7 / zoom)
+      .lineTo(-7 / zoom, iconY + 7 / zoom)
+      .moveTo(-7 / zoom, iconY + 2 / zoom)
+      .lineTo(-2 / zoom, iconY + 7 / zoom)
+      .moveTo(7 / zoom, iconY + 2 / zoom)
+      .lineTo(2 / zoom, iconY + 7 / zoom)
+      .stroke({ color: token.armado ? 0x14153a : 0x8fb6ff, width: 1.8 / zoom })
+  }
+}
+
+function acertouBotao(button: Graphics, buttonY: number, token: Token, x: number, y: number, zoom: number) {
+  if (!button.visible) return false
+  const localX = x - token.x - button.position.x
+  const localY = y - token.y
+  return Math.abs(localX) <= LARGURA_BOTAO / zoom / 2 && localY >= buttonY && localY <= buttonY + ALTURA_BOTAO / zoom
 }
 
 export function tokenFlipButtonHitTest(
@@ -271,16 +308,17 @@ export function tokenFlipButtonHitTest(
   y: number,
   zoom: number,
 ) {
-  if (!view?.flipButton.visible) return false
-  const width = 42 / zoom
-  const height = 28 / zoom
-  const localX = x - token.x
-  const localY = y - token.y
-  return (
-    Math.abs(localX) <= width / 2 &&
-    localY >= view.flipButtonY &&
-    localY <= view.flipButtonY + height
-  )
+  return Boolean(view) && acertouBotao(view!.flipButton, view!.flipButtonY, token, x, y, zoom)
+}
+
+export function tokenArmadoButtonHitTest(
+  view: TokenView | undefined,
+  token: Token,
+  x: number,
+  y: number,
+  zoom: number,
+) {
+  return Boolean(view) && acertouBotao(view!.armadoButton, view!.flipButtonY, token, x, y, zoom)
 }
 
 export function setTokenAlphaMask(view: TokenView, image: HTMLImageElement) {

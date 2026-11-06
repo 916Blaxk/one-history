@@ -4,7 +4,8 @@ let seq = 0;
 const unico = () => `${Date.now()}-${++seq}`;
 
 async function novaPessoa(browser: Browser, nome: string): Promise<Page> {
-  const contexto = await browser.newContext();
+  /* Cada pessoa com um endereço: o cadastro aceita 20 contas por IP. */
+  const contexto = await browser.newContext({ extraHTTPHeaders: { 'X-Forwarded-For': `10.1.0.${++seq}` } });
   const pagina = await contexto.newPage();
   await pagina.goto('/entrar');
   await pagina.getByRole('tab', { name: 'Criar conta' }).click();
@@ -62,9 +63,9 @@ test('ficha: vida e mana seguem as fórmulas, editar salva e sobrevive a recarre
   await expect(p.getByText('15 + vitalidade 2 × 2 = 19')).toBeVisible();
   await expect(p.locator('#v-vidaAtual')).toHaveValue('19');
 
-  /* Digitar em tenacidade não mexe na vida. */
-  await p.locator('#a-corpo-tenacidade').fill('9');
-  await p.locator('#a-corpo-tenacidade').press('Enter');
+  /* Digitar em tração não mexe na vida. */
+  await p.locator('#a-corpo-tracao').fill('9');
+  await p.locator('#a-corpo-tracao').press('Enter');
   await expect(p.getByText('15 + vitalidade 2 × 2 = 19')).toBeVisible();
 
   await p.locator('#a-mente-onipotencia').fill('7');
@@ -79,7 +80,7 @@ test('ficha: vida e mana seguem as fórmulas, editar salva e sobrevive a recarre
   await p.waitForTimeout(900);
   await p.reload();
   await expect(p.locator('#v-vidaAtual')).toHaveValue('14');
-  await expect(p.locator('#a-corpo-tenacidade')).toHaveValue('9');
+  await expect(p.locator('#a-corpo-tracao')).toHaveValue('9');
   await expect(p.getByRole('heading', { name: 'Mirela' })).toBeVisible();
 });
 
@@ -181,6 +182,51 @@ test('foto: entra inteira, sem corte, e o ajuste escolhe o trecho', async ({ bro
   await expect.poll(() => pixel(160, 200).then(vermelho)).toBe(true);
   expect(vermelho(await pixel(3, 5))).toBe(true);
   expect(vermelho(await pixel(316, 395))).toBe(true);
+
+  /* Reajustar não pede o arquivo de novo: abre como ficou, e a imagem inteira continua disponível. */
+  const srcCortada = await p.locator('.retrato img').getAttribute('src');
+  await p.getByRole('button', { name: 'Ajustar', exact: true }).click();
+  await expect(p.getByRole('dialog', { name: 'Ajustar a foto' })).toBeVisible();
+  await expect.poll(() => p.getByLabel('Zoom').inputValue().then(Number)).toBeGreaterThan(1);
+  await p.getByRole('button', { name: 'Ver inteira' }).click();
+  await p.getByRole('button', { name: 'Salvar', exact: true }).click();
+  await expect.poll(() => p.locator('.retrato img').getAttribute('src')).not.toBe(srcCortada);
+  await expect.poll(() => pixel(3, 200).then(vermelho)).toBe(true);
+  expect(azul(await pixel(316, 200))).toBe(true);
+  /* Duas vezes: reajustar de novo não pode perder o original. */
+  await p.reload();
+  await p.getByRole('button', { name: 'Ajustar', exact: true }).click();
+  await expect(p.getByRole('dialog', { name: 'Ajustar a foto' })).toBeVisible();
+  await expect(p.getByLabel('Zoom')).toHaveValue('1');
+  await p.getByRole('button', { name: 'Cancelar' }).click();
+});
+
+test('vida máxima: o jogador digita o total, e a vitalidade continua somando', async ({ browser }) => {
+  const p = await novaPessoa(browser, 'Tom');
+  await criarFicha(p, 'Vigoroso');
+  await expect(p.locator('#a-corpo-tenacidade')).toHaveCount(0);
+  await p.getByLabel('Vida máxima').fill('40');
+  await p.getByLabel('Vida máxima').press('Enter');
+  await expect(p.getByText('15 + vitalidade 0 × 2 + ajuste 25 = 40')).toBeVisible();
+  await p.locator('#a-corpo-vitalidade').fill('5');
+  await p.locator('#a-corpo-vitalidade').press('Enter');
+  await expect(p.getByText('15 + vitalidade 5 × 2 + ajuste 25 = 50')).toBeVisible();
+  await expect(p.getByLabel('Vida máxima')).toHaveValue('50');
+  await expect(p.getByRole('status').filter({ hasText: 'Salvo' })).toBeVisible();
+  await p.reload();
+  await expect(p.getByLabel('Vida máxima')).toHaveValue('50');
+});
+
+test('armas: a ficha traz as três categorias, sem as específicas', async ({ browser }) => {
+  const p = await novaPessoa(browser, 'Rui');
+  await criarFicha(p, 'Guerreiro');
+  for (const nome of ['Armas leves', 'Armas médias', 'Armas pesadas']) await expect(p.getByRole('button', { name: `Rolar d20 mais ${nome}` })).toBeVisible();
+  for (const nome of ['Espada', 'Arco', 'Rapieira', 'Machado', 'Adaga', 'Escudo']) await expect(p.getByRole('button', { name: `Rolar d20 mais ${nome}` })).toHaveCount(0);
+  await p.locator('#a-armas-pesadas').fill('4');
+  await p.locator('#a-armas-pesadas').press('Enter');
+  await p.getByRole('button', { name: 'Rolar d20 mais Armas pesadas' }).click();
+  await expect(p.locator('.chat-popup .msg-rotulo')).toHaveText('Armas pesadas');
+  await expect(p.locator('.chat-popup .msg-det')).toHaveText(/^d20 \(\d+\) \+ 4$/);
 });
 
 test('só o mestre muda o núcleo, que soma na mana; perícia conta SP e continua depois de recarregar', async ({ browser }) => {
@@ -230,7 +276,7 @@ test('mestre define bônus e limites; jogador para neles e nos SP', async ({ bro
   await mestre.goto(`/fichas/${fichaId}`);
   await mestre.getByLabel('Bônus do mestre em vida').fill('10');
   await mestre.getByLabel('Bônus do mestre em vida').press('Enter');
-  await expect(mestre.getByText('15 + vitalidade 0 × 2 + mestre 10 = 25')).toBeVisible();
+  await expect(mestre.getByText('15 + vitalidade 0 × 2 + ajuste 10 = 25')).toBeVisible();
   await mestre.getByLabel('Bônus do mestre em SP').fill('5');
   await mestre.getByLabel('Bônus do mestre em SP').press('Enter');
   await expect(mestre.getByText('15 de 20 SP usados')).toBeVisible();

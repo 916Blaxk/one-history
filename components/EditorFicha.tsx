@@ -3,14 +3,14 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useRef, useState } from 'react';
 import { toast } from 'sonner';
-import AjusteFoto, { fotoDaTela } from '@/components/AjusteFoto';
+import AjusteFoto, { arquivoDeDataUrl, fotoDaTela } from '@/components/AjusteFoto';
 import { ChatFlutuante } from '@/components/Chat';
 import { BotaoConfirmar, CampoNumero, Capitular } from '@/components/comuns';
 import ElementosCriados from '@/components/ElementosCriados';
 import Magias from '@/components/Magias';
 import Pentagrama from '@/components/Pentagrama';
 import { api, dataCurta, mensagem, pct, virgula } from '@/lib/cliente';
-import { MOLDURA_FOTO } from '@/lib/enquadramento';
+import { MOLDURA_FOTO, type Enquadramento } from '@/lib/enquadramento';
 import * as R from '@/lib/regras';
 import type { Ficha, Mensagem } from '@/lib/tipos';
 import type { useChat } from '@/lib/useChat';
@@ -28,7 +28,7 @@ export default function EditorFicha({ f, ed, chat }: {
 }) {
   const router = useRouter();
   const entradaFoto = useRef<HTMLInputElement>(null);
-  const [fotoEscolhida, setFotoEscolhida] = useState<File | null>(null);
+  const [fotoEscolhida, setFotoEscolhida] = useState<{ arquivo: File; original?: string; ajuste?: Enquadramento | null } | null>(null);
   const [editandoLimites, setEditandoLimites] = useState(false);
   const [aba, setAba] = useState<'atributos' | 'magias'>('atributos');
   /* Só o celular usa: no computador, as três colunas ficam sempre à vista. */
@@ -56,6 +56,8 @@ export default function EditorFicha({ f, ed, chat }: {
   }, c => ({ [g]: { [k]: c[g][k] } }));
   const mudarAjuste = (chave: keyof R.AjustesMestre, v: unknown) =>
     mudarComMaximos(c => { c.ajustes[chave] = R.inteiro(v, -9999, 9999); }, c => ({ ajustes: { [chave]: c.ajustes[chave] } }));
+  /* A pessoa digita o total, e a diferença para a fórmula vira o ajuste: subir vitalidade ou núcleo continua somando. */
+  const mudarVidaMaxima = (v: unknown) => mudarAjuste('vida', R.inteiro(v, 0, 99999) - (vm - f.ajustes.vida));
   const mudarLimite = (chave: string, v: string) => {
     const limites = { ...f.limites };
     if (v === '') delete limites[chave];
@@ -95,10 +97,17 @@ export default function EditorFicha({ f, ed, chat }: {
       toast(r.mensagem);
     } catch (err) { toast.error(mensagem(err)); }
   }
-  async function enviarFoto(foto: string) {
+  async function reajustarFoto() {
+    try {
+      const { foto, ajuste } = await api<{ foto: string; ajuste: Enquadramento | null }>('GET', `${url}/foto-original`);
+      /* Foto antiga não tem enquadramento guardado: a própria foto vira o ponto de partida. */
+      setFotoEscolhida({ arquivo: arquivoDeDataUrl(foto, 'foto'), original: foto, ajuste });
+    } catch (err) { toast.error(mensagem(err)); }
+  }
+  async function enviarFoto(foto: string, reajuste: { fotoOriginal: string | null; fotoAjuste: Enquadramento } | Record<string, never> = {}) {
     try {
       ed.setStatus('Salvando…');
-      const r = await api<{ ficha: Ficha }>('PATCH', url, { foto });
+      const r = await api<{ ficha: Ficha }>('PATCH', url, { foto, ...reajuste });
       ed.setFicha(a => a && { ...a, fotoV: r.ficha.fotoV, atualizado: r.ficha.atualizado });
       ed.setStatus('Salvo');
     } catch (err) { ed.setStatus('Não salvo'); toast.error(mensagem(err)); }
@@ -147,7 +156,7 @@ export default function EditorFicha({ f, ed, chat }: {
     <div className={`vital ${classe}`}>
       <div className="vital-topo">
         <label className="vital-rot" htmlFor={`v-${chave}`}>{rotulo}</label>
-        <span className="vital-num"><CampoNumero id={`v-${chave}`} min={0} aoVivo valor={atual} aoMudar={v => mudarVital(chave, v)} /><span>/ <b>{max}</b></span></span>
+        <span className="vital-num"><CampoNumero id={`v-${chave}`} min={0} aoVivo valor={atual} aoMudar={v => mudarVital(chave, v)} /><span>/ {chave === 'vidaAtual' ? <CampoNumero id="v-vidaMaxima" aria-label="Vida máxima" min={0} valor={max} aoMudar={mudarVidaMaxima} /> : <b>{max}</b>}</span></span>
       </div>
       <span className="barra"><i style={{ width: `${pct(atual, max)}%` }} /></span>
       <div className="vital-botoes">
@@ -161,7 +170,7 @@ export default function EditorFicha({ f, ed, chat }: {
   const sub = [f.raca, f.estilo, `Tier ${f.tier}`, f.idade && `${f.idade} anos`].filter(Boolean).join(' · ');
   const base = R.manaBase(f);
   const bonus = R.bonusNucleo(f.nucleo), spUsados = R.spGastos(f), spMax = R.spTotal(f);
-  const parcelaMestre = (v: number) => (v ? ` ${v > 0 ? '+' : '−'} mestre ${Math.abs(v)}` : '');
+  const parcelaAjuste = (v: number) => (v ? ` ${v > 0 ? '+' : '−'} ajuste ${Math.abs(v)}` : '');
   const campoBonus = (chave: keyof R.AjustesMestre, nome: string) => souMestre && (
     <label className="perda-perm" htmlFor={`c-ajuste-${chave}`}>
       Bônus do mestre em {nome}
@@ -204,22 +213,30 @@ export default function EditorFicha({ f, ed, chat }: {
             {perdido ? <span className="capitular retrato">???</span> : <Capitular className="retrato" nome={f.nome} fichaId={f.id} fotoV={f.fotoV} />}
             <div className="foto-botoes">
               <button type="button" className="btn" onClick={() => entradaFoto.current?.click()}>Trocar foto</button>
+              {f.fotoV > 0 && <button type="button" className="btn" onClick={reajustarFoto}>Ajustar</button>}
               {f.fotoV > 0 && <button type="button" className="btn" onClick={() => enviarFoto('')}>Remover</button>}
             </div>
             <input ref={entradaFoto} id="foto-arquivo" type="file" accept="image/*" hidden onChange={ev => {
               const a = ev.target.files?.[0];
               ev.target.value = '';
-              if (a) setFotoEscolhida(a);
+              if (a) setFotoEscolhida({ arquivo: a });
             }} />
             {fotoEscolhida && (
               <AjusteFoto
-                key={`${fotoEscolhida.name}-${fotoEscolhida.lastModified}`}
-                arquivo={fotoEscolhida}
+                key={`${fotoEscolhida.arquivo.name}-${fotoEscolhida.arquivo.lastModified}`}
+                arquivo={fotoEscolhida.arquivo}
                 titulo="Ajustar a foto"
                 moldura={MOLDURA_FOTO}
+                comOriginal={!fotoEscolhida.original}
+                salvo={fotoEscolhida.ajuste}
                 aoCancelar={() => setFotoEscolhida(null)}
                 aoFalhar={() => { setFotoEscolhida(null); toast.error('Não consegui ler essa imagem. Use um arquivo JPG, PNG ou WebP.'); }}
-                aoSalvar={tela => { const foto = fotoDaTela(tela); setFotoEscolhida(null); void enviarFoto(foto); }}
+                aoSalvar={(tela, { ajuste, original }) => {
+                  const foto = fotoDaTela(tela);
+                  /* Ao reajustar, mantém o original que já existe: recomprimir a cada ajuste iria piorando a imagem. */
+                  void enviarFoto(foto, { fotoOriginal: fotoEscolhida.original ?? original, fotoAjuste: ajuste });
+                  setFotoEscolhida(null);
+                }}
               />
             )}
           </div>
@@ -322,9 +339,9 @@ export default function EditorFicha({ f, ed, chat }: {
         </section>
 
         <aside className="col-cena" aria-label="Em cena">
-          {blocoVital('vidaAtual', 'Vida', 'cor-vida', f.vidaAtual, vm, `15 + vitalidade ${f.corpo.vitalidade} × 2${bonus.pv ? ` + núcleo ${bonus.pv}` : ''}${parcelaMestre(f.ajustes.vida)} = ${vm}`, campoBonus('vida', 'vida'))}
+          {blocoVital('vidaAtual', 'Vida', 'cor-vida', f.vidaAtual, vm, `15 + vitalidade ${f.corpo.vitalidade} × 2${bonus.pv ? ` + núcleo ${bonus.pv}` : ''}${parcelaAjuste(f.ajustes.vida)} = ${vm}`, campoBonus('vida', 'vida'))}
           {blocoVital('manaAtual', 'Mana', 'cor-mana', f.manaAtual, mm,
-            `30 + onipotência ${f.mente.onipotencia} × ${virgula(R.TIERS[f.tier])} (tier ${f.tier})${bonus.mana ? ` + núcleo ${bonus.mana}` : ''}${parcelaMestre(f.ajustes.mana)} = ${base}${f.manaPerdida ? `, menos ${f.manaPerdida} perdida = ${mm}` : ''}`,
+            `30 + onipotência ${f.mente.onipotencia} × ${virgula(R.TIERS[f.tier])} (tier ${f.tier})${bonus.mana ? ` + núcleo ${bonus.mana}` : ''}${parcelaAjuste(f.ajustes.mana)} = ${base}${f.manaPerdida ? `, menos ${f.manaPerdida} perdida = ${mm}` : ''}`,
             <>
               {campoBonus('mana', 'mana')}
               <label className="perda-perm" htmlFor="c-mana-perdida">

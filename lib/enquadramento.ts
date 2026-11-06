@@ -4,6 +4,15 @@ export interface Enquadramento { zoom: number; x: number; y: number }
 
 export const MOLDURA_FOTO: Tamanho = { l: 320, a: 400 };
 
+/* O enquadramento guardado para reajustar depois vem do navegador: só passa com números de verdade. */
+export function normalizarEnquadramento(v: unknown): Enquadramento | null {
+  const e = (v && typeof v === 'object' ? v : {}) as Record<string, unknown>;
+  const { zoom, x, y } = e;
+  if (typeof zoom !== 'number' || typeof x !== 'number' || typeof y !== 'number') return null;
+  if (![zoom, x, y].every(Number.isFinite) || zoom < 1 || zoom > 1000) return null;
+  return { zoom, x, y };
+}
+
 /* Sem moldura fixa, ela tem o formato da própria imagem: em zoom 1, não sobra nem falta nada. */
 export function molduraDaImagem(imagem: Tamanho, maiorLado: number): Tamanho {
   const escala = Math.min(1, maiorLado / Math.max(imagem.l, imagem.a));

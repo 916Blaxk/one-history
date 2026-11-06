@@ -324,12 +324,53 @@ describe('campanhas', () => {
     await entrar();
     expect(await fadiga()).toBe(90);
 
-    /* Outra campanha tem outro mestre: a ficha chega com o valor atual. */
+    /* Em outra campanha, baixar antes de entrar também não adianta: vale a fadiga da última saída. */
     await jog.c('DELETE', `/api/campanhas/${c.id}/fichas/${f.id}`);
     await jog.c('PATCH', url, { fadiga: 15 });
     const outra = (await jog.c('POST', '/api/campanhas', { nome: 'Outra', descricao: '' })).corpo.campanha;
     await jog.c('POST', `/api/campanhas/${outra.id}/fichas`, { fichaId: f.id });
-    expect(await fadiga()).toBe(15);
+    expect(await fadiga()).toBe(90);
+    expect((await jog.c('GET', url)).corpo.ficha.registro[0].txt).toContain('saiu da anterior: 90%');
+
+    /* O mestre de lá pode corrigir, e o valor corrigido é o que segue. Subir por conta própria também vale. */
+    await jog.c('PATCH', url, { fadiga: 10 });
+    await jog.c('DELETE', `/api/campanhas/${outra.id}/fichas/${f.id}`);
+    const terceira = (await jog.c('POST', '/api/campanhas', { nome: 'Terceira', descricao: '' })).corpo.campanha;
+    await jog.c('PATCH', url, { fadiga: 40 });
+    await jog.c('POST', `/api/campanhas/${terceira.id}/fichas`, { fichaId: f.id });
+    expect(await fadiga()).toBe(40);
+
+    /* Ficha nova, que nunca esteve em campanha, entra como está. */
+    const nova = await novaFicha(jog.c, { nome: 'Nova', fadiga: 5 });
+    const quarta = (await jog.c('POST', '/api/campanhas', { nome: 'Quarta', descricao: '' })).corpo.campanha;
+    await jog.c('POST', `/api/campanhas/${quarta.id}/fichas`, { fichaId: nova.id });
+    expect((await jog.c('GET', `/api/fichas/${nova.id}`)).corpo.ficha.fadiga).toBe(5);
+  });
+
+  it('o original da foto só vai para quem edita a ficha, e sai junto com ela', async () => {
+    const { mestre, jog, intruso, c, codigo, f } = await mesa();
+    const FOTO = 'data:image/webp;base64,AAAA', ORIGINAL = 'data:image/webp;base64,BBBB';
+    const url = `/api/fichas/${f.id}`, rota = `${url}/foto-original`;
+    await jog.c('POST', `/api/convites/${codigo}/entrar`);
+    await jog.c('POST', `/api/campanhas/${c.id}/fichas`, { fichaId: f.id });
+    expect((await jog.c('GET', rota)).status).toBe(404);
+
+    await jog.c('PATCH', url, { foto: FOTO, fotoOriginal: ORIGINAL, fotoAjuste: { zoom: 2, x: -10, y: -20 } });
+    expect((await jog.c('GET', rota)).corpo).toEqual({ foto: ORIGINAL, ajuste: { zoom: 2, x: -10, y: -20 } });
+    expect((await mestre.c('GET', rota)).corpo.foto).toBe(ORIGINAL);
+    expect((await intruso.c('GET', rota)).status).toBe(404);
+    /* Fora da rota própria, o original não pesa nas respostas da ficha. */
+    const ficha = (await jog.c('GET', url)).corpo.ficha;
+    expect(ficha.fotoOriginal).toBeUndefined();
+
+    /* Foto sem original parte dela mesma, e entrada ruim não passa. */
+    await jog.c('PATCH', url, { foto: FOTO });
+    expect((await jog.c('GET', rota)).corpo).toEqual({ foto: FOTO, ajuste: null });
+    await jog.c('PATCH', url, { foto: FOTO, fotoOriginal: 'javascript:alert(1)', fotoAjuste: { zoom: 'x' } });
+    expect((await jog.c('GET', rota)).corpo).toEqual({ foto: FOTO, ajuste: null });
+    await jog.c('PATCH', url, { foto: FOTO, fotoOriginal: ORIGINAL, fotoAjuste: { zoom: 2, x: 0, y: 0 } });
+    await jog.c('PATCH', url, { foto: '' });
+    expect((await jog.c('GET', rota)).status).toBe(404);
   });
 
   it('elemento criado: variação ou fusão, com rolagem, limite e magia própria', async () => {
@@ -493,11 +534,27 @@ describe('campanhas', () => {
     expect(f.pericias.esquiva).toBe(15);
   });
 
-  it('fora de campanha o dono não muda bônus nem limites', async () => {
+  it('fora de campanha o dono não muda bônus de mana e SP nem limites', async () => {
     const { c } = await novaConta('Solo');
     const f = await novaFicha(c);
-    const r = (await c('PATCH', `/api/fichas/${f.id}`, { ajustes: { vida: 50 } })).corpo.ficha;
-    expect(r.ajustes.vida).toBe(0);
+    const r = (await c('PATCH', `/api/fichas/${f.id}`, { ajustes: { mana: 50, sp: 50 }, limites: { 'corpo.tracao': 1 } })).corpo.ficha;
+    expect(r.ajustes).toEqual({ vida: 0, mana: 0, sp: 0 });
+    expect(r.limites).toEqual({});
+  });
+
+  it('o jogador muda a vida máxima, e o cálculo continua somando', async () => {
+    const { jog, c, codigo, f } = await mesa();
+    await jog.c('POST', `/api/convites/${codigo}/entrar`);
+    await jog.c('POST', `/api/campanhas/${c.id}/fichas`, { fichaId: f.id });
+    const url = `/api/fichas/${f.id}`;
+    /* 15 + vitalidade 0 × 2, e mais 25 de ajuste. Junto, o jogador não leva os outros bônus. */
+    const ajustada = (await jog.c('PATCH', url, { ajustes: { vida: 25, mana: 500, sp: 500 } })).corpo.ficha;
+    expect(ajustada.ajustes).toEqual({ vida: 25, mana: 0, sp: 0 });
+    const comVitalidade = (await jog.c('PATCH', url, { corpo: { vitalidade: 5 } })).corpo.ficha;
+    expect(comVitalidade.ajustes.vida).toBe(25);
+    expect(comVitalidade.corpo.vitalidade).toBe(5);
+    /* A vida atual para no novo máximo: 15 + 5 × 2 + 25 = 50. */
+    expect((await jog.c('PATCH', url, { vidaAtual: 9999 })).corpo.ficha.vidaAtual).toBe(50);
   });
 });
 
@@ -528,7 +585,7 @@ describe('resumo da ficha', () => {
     expect(r.status).toBe(200);
     expect(r.corpo.nome).toBe('Rael');
     expect(r.corpo.recursos[0]).toEqual({ id: 'vida', rotulo: 'Vida', atual: 25, max: 25 });
-    expect(r.corpo.acoes).toHaveLength(73);
+    expect(r.corpo.acoes).toHaveLength(69);
     expect(r.corpo.acoes.find((a: { id: string }) => a.id === 'corpo.destreza').expressao).toBe('1d20+7');
     expect((await mestre.c('GET', `/api/fichas/${f.id}/resumo`)).status).toBe(200);
     expect((await colega.c('GET', `/api/fichas/${f.id}/resumo`)).status).toBe(404);

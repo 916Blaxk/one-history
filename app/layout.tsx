@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 };
 
 /* `cover` libera a área do entalhe do celular: os estilos já respeitam as margens seguras. */
-export const viewport: Viewport = { themeColor: '#15101c', viewportFit: 'cover' };
+export const viewport: Viewport = { themeColor: '#0d0e24', viewportFit: 'cover' };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

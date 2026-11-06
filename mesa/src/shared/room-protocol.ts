@@ -4,6 +4,7 @@ import type {
   TokenPosition,
   TokenSprite,
   VagaImagem,
+  AjusteImagem,
 } from '../features/tokens/token-types.js'
 
 export type RoomGrid = { enabled: boolean; cellSize: number; opacity: number }
@@ -44,6 +45,8 @@ export type RoomCommand =
   | { type: 'token:update'; id: string; changes: RoomTokenChanges }
   | { type: 'token:sprites'; id: string; sprites: TokenSprite[] }
   | { type: 'token:sprite:add'; id: string; sprite: TokenSprite; vaga: VagaImagem }
+  | { type: 'token:sprite:original'; id: string; spriteId: string; imagem: string; ajuste: AjusteImagem }
+  | { type: 'token:sprite:pedir-original'; id: string; spriteId: string }
   | { type: 'token:sprite:rename'; id: string; spriteId: string; label: string }
   | { type: 'token:sprite:remove'; id: string; spriteId: string }
   | { type: 'token:remove'; id: string }
@@ -89,6 +92,7 @@ export type ServerRoomMessage =
     }
   | { type: 'token:updated'; token: Token; sprites: TokenSprite[] }
   | { type: 'token:removed'; id: string }
+  | { type: 'token:sprite:original'; spriteId: string; imagem: string | null; ajuste: AjusteImagem | null }
   | {
       type: 'token:moved'
       id: string

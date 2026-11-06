@@ -470,6 +470,21 @@ describe('papéis vêm do banco', () => {
     j.comando({ type: 'token:update', id: heroi.id, changes: { armado: true } });
     await ate(() => j.ultimoToken(heroi.id).armado === true);
 
+    /* O original fica no servidor: só vem quando pedido, e só para quem edita o token. */
+    const ORIGINAL = PIXEL, ajuste = { zoom: 2, x: -4, y: -8, forca: 30 };
+    j.comando({ type: 'token:sprite:original', id: heroi.id, spriteId: 'n2', imagem: ORIGINAL, ajuste });
+    j.comando({ type: 'token:sprite:pedir-original', id: heroi.id, spriteId: 'n2' });
+    const resposta = await ate(() => j.eventos.find(e => e.type === 'token:sprite:original'));
+    expect(resposta).toMatchObject({ spriteId: 'n2', imagem: ORIGINAL, ajuste });
+    expect(JSON.stringify(col.eventos)).not.toContain('forca');
+    const negados = col.eventos.filter(e => e.type === 'permission:error').length;
+    col.comando({ type: 'token:sprite:pedir-original', id: heroi.id, spriteId: 'n2' });
+    await ate(() => col.eventos.filter(e => e.type === 'permission:error').length > negados);
+    /* Imagem sem original responde vazio, e o cliente parte dela mesma. */
+    j.eventos.length = 0;
+    j.comando({ type: 'token:sprite:pedir-original', id: heroi.id, spriteId: 'a2' });
+    expect(await ate(() => j.eventos.find(e => e.type === 'token:sprite:original'))).toMatchObject({ spriteId: 'a2', imagem: null, ajuste: null });
+
     /* Sem a imagem, o token deixa de estar armado. */
     j.comando({ type: 'token:sprite:remove', id: heroi.id, spriteId: 'a2' });
     await ate(() => j.ultimoToken(heroi.id).spriteArmadoId === undefined);
@@ -730,6 +745,7 @@ describe('persistência', () => {
     const t = await criarToken(m, { name: 'Salvo', hidden: true });
     m.comando({ type: 'token:sprite:add', id: t, sprite: { id: 's1', label: 'Rosto', imageUrl: PIXEL }, vaga: 'normal' });
     await ate(() => m.ultimoToken(t).spriteIds.length === 1);
+    m.comando({ type: 'token:sprite:original', id: t, spriteId: 's1', imagem: PIXEL, ajuste: { zoom: 3, x: 0, y: 0, forca: 10 } });
     m.comando({ type: 'token:update', id: t, changes: { characterId: ficha.id } });
     await ate(() => m.ultimoToken(t).characterId === ficha.id);
     m.comando({ type: 'grid:update', grid: { enabled: true, cellSize: 50, opacity: 0.3 } });
@@ -757,6 +773,8 @@ describe('persistência', () => {
     const token = s.tokens.find((x: any) => x.id === t);
     expect(token).toMatchObject({ name: 'Salvo', hidden: true, characterId: ficha.id, hpCurrent: 25, activeSpriteId: 's1' });
     expect(s.spritesByTokenId[t]).toEqual([{ id: 's1', label: 'Rosto', imageUrl: PIXEL }]);
+    volta.comando({ type: 'token:sprite:pedir-original', id: t, spriteId: 's1' });
+    expect(await ate(() => volta.eventos.find(e => e.type === 'token:sprite:original'))).toMatchObject({ imagem: PIXEL, ajuste: { zoom: 3, forca: 10 } });
     const textos = s.messages.map((x: any) => x.text);
     expect(textos).toContain('antes de cair');
     expect(s.messages.some((x: any) => x.type === 'roll' && x.roll?.expression === '1d6')).toBe(true);
