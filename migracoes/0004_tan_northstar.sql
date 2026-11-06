@@ -1,0 +1,1 @@
+ALTER TABLE `fichas` ADD `fadigas_campanha` text DEFAULT '{}' NOT NULL;

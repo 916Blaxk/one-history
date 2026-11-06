@@ -24,6 +24,8 @@ export const fichas = sqliteTable('fichas', {
   /* Atributos e estado da ficha, sempre passados por normalizar() antes de gravar. */
   dados: text('dados', { mode: 'json' }).$type<DadosFicha>().notNull(),
   registro: text('registro', { mode: 'json' }).$type<EntradaRegistro[]>().notNull(),
+  /* Fadiga com que a ficha saiu de cada campanha. Fora de `dados` porque não pode vir do cliente nem chegar a ele. */
+  fadigasCampanha: text('fadigas_campanha', { mode: 'json' }).$type<Record<string, number>>().notNull().default({}),
   /* Foto fica fora de `dados`: a mesa é atualizada a cada poucos segundos e não pode trafegar imagens toda vez. */
   foto: text('foto'),
   fotoV: integer('foto_v').notNull().default(0),

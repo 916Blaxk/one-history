@@ -1,6 +1,6 @@
 # Próximos passos
 
-Última atualização: 5 de novembro de 2026.
+Última atualização: 6 de novembro de 2026.
 
 ## Situação
 
@@ -12,11 +12,14 @@
 
 ## Decisões em aberto
 
-1. **Brecha da fadiga:** o jogador pode tirar a ficha da campanha, mudar a fadiga e colocá-la de volta. A sugestão é travar isso.
-2. **Quem cria elemento:** hoje, o dono da ficha e o mestre.
-3. **Fusão de elementos:** hoje, só combina os cinco elementos base.
-4. **Encerrar cena:** hoje, o jogador também pode encerrar a cena da própria ficha.
-5. **Perícia acima de 25:** hoje, o dado adicional fica em 1d10.
+1. **Quem cria elemento:** hoje, o dono da ficha e o mestre.
+2. **Fusão de elementos:** hoje, só combina os cinco elementos base.
+3. **Encerrar cena:** hoje, o jogador também pode encerrar a cena da própria ficha.
+4. **Perícia acima de 25:** hoje, o dado adicional fica em 1d10.
+
+## Decisões tomadas
+
+- **Brecha da fadiga (6 de novembro de 2026):** quando a ficha sai de uma campanha, o servidor guarda a fadiga dela. Se a ficha voltar para a mesma campanha, a fadiga volta a esse valor, e o registro da ficha mostra a mudança. Em outra campanha, a ficha entra com a fadiga atual.
 
 ## Pendências
 

@@ -279,6 +279,47 @@ describe('campanhas', () => {
     expect((await mestre.c('PATCH', `/api/fichas/${f.id}`, { fadiga: 80 })).corpo.ficha.fadiga).toBe(80);
   });
 
+  it('a fadiga volta ao valor da campanha quando a ficha retorna', async () => {
+    const { mestre, jog, c, codigo, f } = await mesa();
+    const url = `/api/fichas/${f.id}`;
+    const entrar = () => jog.c('POST', `/api/campanhas/${c.id}/fichas`, { fichaId: f.id });
+    const fadiga = async () => (await jog.c('GET', url)).corpo.ficha.fadiga;
+
+    /* Primeira entrada: não há valor guardado, a ficha chega como está. */
+    await jog.c('POST', `/api/convites/${codigo}/entrar`);
+    await entrar();
+    expect(await fadiga()).toBe(62);
+    await mestre.c('PATCH', url, { fadiga: 80 });
+
+    /* Retirar: fora da campanha o dono muda à vontade, mas o valor não volta com ele. */
+    await jog.c('DELETE', `/api/campanhas/${c.id}/fichas/${f.id}`);
+    expect((await jog.c('PATCH', url, { fadiga: 0 })).corpo.ficha.fadiga).toBe(0);
+    await entrar();
+    const voltou = (await jog.c('GET', url)).corpo.ficha;
+    expect(voltou.fadiga).toBe(80);
+    expect(voltou.registro[0].txt).toContain('fadiga restaurada para 80%');
+    expect(voltou.fadigasCampanha).toBeUndefined();
+
+    /* Repetir o pedido com a ficha já na campanha não desfaz o que o mestre mudou depois. */
+    await mestre.c('PATCH', url, { fadiga: 90 });
+    await entrar();
+    expect(await fadiga()).toBe(90);
+
+    /* Sair da campanha leva as fichas, e a regra é a mesma. */
+    await jog.c('DELETE', `/api/campanhas/${c.id}/membros/${jog.id}`);
+    await jog.c('PATCH', url, { fadiga: 5 });
+    await jog.c('POST', `/api/convites/${codigo}/entrar`);
+    await entrar();
+    expect(await fadiga()).toBe(90);
+
+    /* Outra campanha tem outro mestre: a ficha chega com o valor atual. */
+    await jog.c('DELETE', `/api/campanhas/${c.id}/fichas/${f.id}`);
+    await jog.c('PATCH', url, { fadiga: 15 });
+    const outra = (await jog.c('POST', '/api/campanhas', { nome: 'Outra', descricao: '' })).corpo.campanha;
+    await jog.c('POST', `/api/campanhas/${outra.id}/fichas`, { fichaId: f.id });
+    expect(await fadiga()).toBe(15);
+  });
+
   it('elemento criado: variação ou fusão, com rolagem, limite e magia própria', async () => {
     const { mestre, jog, c, codigo, f } = await mesa();
     await jog.c('POST', `/api/convites/${codigo}/entrar`);

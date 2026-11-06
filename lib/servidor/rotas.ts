@@ -176,12 +176,17 @@ function resumoFicha(f: LinhaFicha, usuarioId: string, mestreId: string, nomes: 
     vidaAtual: f.dados.vidaAtual, vidaMax: R.vidaMax(f.dados), manaAtual: f.dados.manaAtual, manaMax: R.manaMax(f.dados),
   };
 }
-const soltarFichas = (condicao: ReturnType<typeof and>) =>
-  db.update(fichas).set({ campanhaId: null, atualizado: sql`${fichas.atualizado} + 1` }).where(condicao);
+/* A fadiga é do mestre enquanto a ficha está na campanha. Fica guardada na saída para que tirar a ficha, mudar o valor e voltar não mude nada. É SQL para valer no mesmo batch, com a fadiga do momento da gravação. */
+const soltarFichas = (campanhaId: string, condicao?: ReturnType<typeof and>) =>
+  db.update(fichas).set({
+    campanhaId: null,
+    fadigasCampanha: sql`json_set(${fichas.fadigasCampanha}, ${`$."${campanhaId}"`}, coalesce(json_extract(${fichas.dados}, '$.fadiga'), 0))`,
+    atualizado: sql`${fichas.atualizado} + 1`,
+  }).where(and(eq(fichas.campanhaId, campanhaId), condicao));
 
 async function apagarCampanha(id: string) {
   await db.batch([
-    soltarFichas(eq(fichas.campanhaId, id)),
+    soltarFichas(id),
     db.delete(membros).where(eq(membros.campanhaId, id)),
     db.delete(rolagens).where(eq(rolagens.campanhaId, id)),
     db.delete(mensagensMesa).where(eq(mensagensMesa.campanhaId, id)),
@@ -194,7 +199,7 @@ async function apagarCampanha(id: string) {
 async function removerMembro(campanhaId: string, usuarioId: string) {
   await db.batch([
     db.delete(membros).where(and(eq(membros.campanhaId, campanhaId), eq(membros.usuarioId, usuarioId))),
-    soltarFichas(and(eq(fichas.campanhaId, campanhaId), eq(fichas.donoId, usuarioId))),
+    soltarFichas(campanhaId, eq(fichas.donoId, usuarioId)),
   ]);
   avisarMesa({ tipo: 'campanha', campanhaId });
 }
@@ -581,7 +586,17 @@ rota('POST', '/api/campanhas/:id/fichas', async ctx => {
     const [outra] = await db.select({ nome: campanhas.nome }).from(campanhas).where(eq(campanhas.id, f.campanhaId));
     throw new Erro(409, `Essa ficha já está em “${outra?.nome}”. Retire-a de lá primeiro.`);
   }
-  await db.update(fichas).set({ campanhaId: c.id, atualizado: Math.max(Date.now(), f.atualizado + 1) }).where(eq(fichas.id, f.id));
+  /* Com a ficha já aqui, o valor guardado está velho: restaurá-lo desfaria o que o mestre mudou depois. */
+  if (f.campanhaId === c.id) return { ok: true };
+  const [{ guardadas }] = await db.select({ guardadas: fichas.fadigasCampanha }).from(fichas).where(eq(fichas.id, f.id));
+  const guardada = guardadas[c.id];
+  await alterarFicha(f.id, l => {
+    if (guardada !== undefined && guardada !== l.dados.fadiga) {
+      l.registro = [{ em: Date.now(), txt: `De volta à campanha: fadiga restaurada para ${guardada}%` }, ...l.registro].slice(0, 12);
+    }
+    l.dados = R.normalizar({ ...l.dados, fadiga: guardada ?? l.dados.fadiga });
+    l.campanhaId = c.id;
+  }, { campanhaId: c.id });
   avisarMesa({ tipo: 'campanha', campanhaId: c.id });
   return { ok: true };
 });
@@ -591,7 +606,7 @@ rota('DELETE', '/api/campanhas/:id/fichas/:fichaId', async ctx => {
   const [f] = await db.select(colunasFicha).from(fichas).where(eq(fichas.id, ctx.params.fichaId));
   if (!f || f.campanhaId !== c.id) throw new Erro(404, 'Essa ficha não está nesta campanha.');
   if (f.donoId !== ctx.usuario.id && c.mestreId !== ctx.usuario.id) throw new Erro(403, 'Só o dono da ficha ou o mestre pode retirá-la da campanha.');
-  await soltarFichas(eq(fichas.id, f.id));
+  await soltarFichas(c.id, eq(fichas.id, f.id));
   avisarMesa({ tipo: 'campanha', campanhaId: c.id });
   return { ok: true };
 });
