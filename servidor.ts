@@ -3,21 +3,27 @@
 import { createServer } from 'node:http';
 import { loadEnvConfig } from '@next/env';
 
-const UM_DIA_MS = 24 * 60 * 60 * 1000;
+const UMA_HORA_MS = 60 * 60 * 1000;
 
 /* Só com banco em arquivo e fora do desenvolvimento. O site continua no ar se a cópia falhar. */
 async function agendarBackup() {
-  const { pastaDeBackup, fazerBackup } = await import('./lib/servidor/backup');
+  const { backupVencido, pastaDeBackup, fazerBackup } = await import('./lib/servidor/backup');
   const url = process.env.DATABASE_URL || 'file:dados/one-history.db';
   const pasta = pastaDeBackup(url, process.env.BACKUP_DIR);
   if (!pasta) return;
   const { createClient } = await import('@libsql/client');
   const client = createClient({ url });
-  setInterval(() => {
-    fazerBackup(client, pasta)
-      .then(destino => console.log(destino ? `Backup em ${destino}` : 'Backup não feito: pouco espaço no disco. Baixe as cópias e aumente o volume.'))
+  const copiarSeVencido = () => {
+    Promise.resolve()
+      .then(() => (backupVencido(pasta) ? fazerBackup(client, pasta) : undefined))
+      .then(destino => {
+        if (destino === undefined) return;
+        console.log(destino ? `Backup em ${destino}` : 'Backup não feito: pouco espaço no disco. Baixe as cópias e aumente o volume.');
+      })
       .catch(e => console.error('Backup falhou', e));
-  }, UM_DIA_MS).unref();
+  };
+  copiarSeVencido();
+  setInterval(copiarSeVencido, UMA_HORA_MS).unref();
 }
 
 async function principal() {

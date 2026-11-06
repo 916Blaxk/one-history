@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { createClient } from '@libsql/client';
 import { afterAll, describe, expect, it } from 'vitest';
-import { fazerBackup, pastaDeBackup } from '../lib/servidor/backup';
+import { backupVencido, fazerBackup, pastaDeBackup } from '../lib/servidor/backup';
 
 const pasta = fs.mkdtempSync(path.join(os.tmpdir(), 'one-history-banco-'));
 const url = (nome: string) => `file:${path.join(pasta, nome).replaceAll('\\', '/')}`;
@@ -74,6 +74,18 @@ describe('backup automático', () => {
     expect(await fazerBackup(c, destino, new Date(), 3, () => 1000)).toBeNull();
     expect(fs.readdirSync(destino)).toEqual([]);
     c.close();
+  });
+
+  it('a cópia vence pela idade da última, não pelo tempo do servidor no ar', async () => {
+    const destino = path.join(pasta, 'vencimento');
+    /* Pasta que ainda não existe: é o primeiro início do site. */
+    expect(backupVencido(destino)).toBe(true);
+    const c = await bancoComDados('vence.db');
+    await fazerBackup(c, destino);
+    c.close();
+    const agora = Date.now(), umaHora = 60 * 60 * 1000;
+    expect(backupVencido(destino, agora + umaHora)).toBe(false);
+    expect(backupVencido(destino, agora + 25 * umaHora)).toBe(true);
   });
 
   it('só vale para banco em arquivo', () => {

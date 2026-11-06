@@ -25,6 +25,14 @@ export async function fazerBackup(client: Client, pasta: string, agora = new Dat
   return destino;
 }
 
+/* Conta pela última cópia, não pelo tempo no ar: cada publicação reinicia o servidor, e um relógio de 24 horas nunca chegaria ao fim. */
+export function backupVencido(pasta: string, agora = Date.now(), idadeMaxima = 24 * 60 * 60 * 1000) {
+  if (!fs.existsSync(pasta)) return true;
+  const copias = fs.readdirSync(pasta).filter(n => n.startsWith(PREFIXO) && n.endsWith('.db'));
+  const maisNova = Math.max(0, ...copias.map(n => fs.statSync(path.join(pasta, n)).mtimeMs));
+  return agora - maisNova >= idadeMaxima;
+}
+
 /* Com Turso, as cópias ficam a cargo do próprio serviço: veja docs/publicar.md. */
 export function pastaDeBackup(url: string, configurada?: string) {
   if (!url.startsWith('file:')) return null;

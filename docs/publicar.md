@@ -78,9 +78,21 @@ Para restaurar, copie o arquivo para um banco novo e vazio com o mesmo comando, 
 
 Sem Turso, crie um volume permanente no Railway e use `DATABASE_URL=file:/caminho/do/volume/one-history.db`. Cada gravação fica mais rápida, porque não passa pela rede, mas ver e editar os dados fica mais difícil.
 
-Nesse caso, o servidor faz uma cópia por dia em `backups/`, na mesma pasta do banco, e guarda as 3 mais recentes. Defina `BACKUP_DIR` para usar outra pasta. Se faltar espaço, a cópia não é feita e o log avisa, porque encher o volume travaria o site.
+Nesse caso, o servidor faz uma cópia em `backups/`, na mesma pasta do banco, ao iniciar se a última tiver mais de um dia, e confere isso a cada hora. Guarda as 3 mais recentes. Defina `BACKUP_DIR` para usar outra pasta. Se faltar espaço, a cópia não é feita e o log avisa, porque encher o volume travaria o site.
 
 Essas cópias ficam no mesmo volume, então não protegem contra a perda dele. Baixe uma de vez em quando e acompanhe o espaço usado.
+
+### Download automático
+
+`node scripts/baixar-backup.mjs [pasta]` baixa a cópia mais recente por SSH, confere o arquivo e guarda as 5 últimas. Sem `pasta`, usa `Documentos\one-history-backups`, que também guarda o registro `baixar-backup.log`.
+
+Para configurar em um PC:
+
+1. Crie uma chave só para isso e cadastre: `railway ssh keys add --key <arquivo.pub> --name one-history-backup`.
+2. Crie o apelido usado pelo script: `railway ssh config --alias one-history-backup -i <arquivo-da-chave>`.
+3. Agende o script. Neste PC, a tarefa `One History - baixar backup` do Agendador de Tarefas roda a cada 2 dias.
+
+Para desfazer, apague a tarefa, rode `railway ssh keys remove` e apague a chave. A chave dá acesso completo ao servidor, não só ao download: remova-a se o PC deixar de ser usado por você.
 
 ## Passar do volume para o Turso
 
