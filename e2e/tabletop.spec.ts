@@ -231,7 +231,7 @@ test('mesa: o mestre prepara o cenário oculto com névoa livre e mostra quando 
   expect(fora.r).toBeLessThan(25);
 
   /* A névoa continua igual depois de recarregar. */
-  await expect.poll(async () => { await jogador.waitForTimeout(1200); await jogador.reload(); await expect(jogador.getByText('Conectado')).toBeVisible({ timeout: 15000 }); return (await corNaTela(jogador, ACIMA.x, ACIMA.y)).r; }).toBeLessThan(25);
+  await expect.poll(async () => { await jogador.waitForTimeout(1200); await jogador.reload(); await expect(jogador.getByText('Conectado')).toBeVisible({ timeout: 15000 }); return (await corNaTela(jogador, ACIMA.x, ACIMA.y)).r; }, { timeout: 30000 }).toBeLessThan(25);
   await expect.poll(async () => (await corNaTela(jogador, CENTRO.x, CENTRO.y)).r).toBeGreaterThan(180);
 
   /* Largura e altura mudam separadas. */

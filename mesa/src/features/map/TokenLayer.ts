@@ -178,14 +178,14 @@ export function updateTokenView(
 
   view.selection.clear()
   if (selectedId === token.id) {
-    if (sprite)
-      view.selection
-        .ellipse(0, 0, diameter * 0.4, cellSize * 0.19)
-        .stroke({ color: 0x8fb0ff, width: 2 / zoom })
-    else
-      view.selection
-        .ellipse(0, 0, radius, radiusY)
-        .stroke({ color: 0x8fb0ff, width: 2 / zoom })
+    /* Aura em dois anéis: um largo e fraco, e o fino por cima. */
+    const auraX = sprite ? diameter * 0.4 : radius
+    const auraY = sprite ? cellSize * 0.19 : radiusY
+    view.selection
+      .ellipse(0, 0, auraX + 3 / zoom, auraY + 3 / zoom)
+      .stroke({ color: 0x8b5cf6, width: 7 / zoom, alpha: 0.35 })
+      .ellipse(0, 0, auraX, auraY)
+      .stroke({ color: 0xc9bcff, width: 2 / zoom })
   }
   view.ownerMark.clear()
   if (playerKey && token.ownerIds.includes(playerKey)) {

@@ -1,9 +1,9 @@
 import type { Metadata, Viewport } from 'next';
-import { Cinzel, Cinzel_Decorative, Spectral } from 'next/font/google';
+import { Almendra, Cinzel, Spectral } from 'next/font/google';
 import { Toaster } from 'sonner';
 
 const cinzel = Cinzel({ subsets: ['latin'], weight: ['500', '600', '700'], variable: '--font-cinzel' });
-const cinzelDecorativa = Cinzel_Decorative({ subsets: ['latin'], weight: ['700'], variable: '--font-cinzel-decorativa' });
+const almendra = Almendra({ subsets: ['latin'], weight: ['400', '700'], variable: '--font-almendra' });
 const spectral = Spectral({ subsets: ['latin'], weight: ['400', '500', '600', '700'], style: ['normal', 'italic'], variable: '--font-spectral' });
 
 export const metadata: Metadata = {
@@ -16,7 +16,7 @@ export const viewport: Viewport = { themeColor: '#0b0e1a', viewportFit: 'cover' 
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt-BR" className={`${cinzel.variable} ${cinzelDecorativa.variable} ${spectral.variable}`}>
+    <html lang="pt-BR" className={`${cinzel.variable} ${almendra.variable} ${spectral.variable}`}>
       <body>
         {children}
         <Toaster theme="dark" position="bottom-center" richColors closeButton />

@@ -1,6 +1,6 @@
 /* Estilos da mesa. Esta página não carrega app/globals.css: as classes chat-* dos dois projetos colidiriam. */
 :root {
-  --mesa-titulo: var(--font-cinzel), 'Palatino Linotype', Georgia, serif;
+  --mesa-titulo: var(--font-almendra), var(--font-cinzel), 'Palatino Linotype', Georgia, serif;
   --mesa-texto: var(--font-spectral), 'Palatino Linotype', Georgia, serif;
   font-family: var(--mesa-texto);
   color: #e6e9f5;
