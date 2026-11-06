@@ -17,7 +17,7 @@ export default function GraficoAtributos({ corpo, mente }: { corpo: Record<strin
   };
   const lista = (r: (i: number) => number) => ITENS.map((_, i) => ponto(i, r(i)).map(n => n.toFixed(1)).join(',')).join(' ');
   return (
-    <svg viewBox="0 0 380 264" role="img" aria-label={`Gráfico de corpo e mente: ${ITENS.map(({ rotulo }, i) => `${rotulo} ${nums[i]}`).join(', ')}`}>
+    <svg viewBox="-40 0 460 264" role="img" aria-label={`Gráfico de corpo e mente: ${ITENS.map(({ rotulo }, i) => `${rotulo} ${nums[i]}`).join(', ')}`}>
       {[.5, 1].map(fr => <polygon key={fr} points={lista(() => raio * fr)} fill="none" stroke="var(--border)" />)}
       {ITENS.map(({ k }, i) => {
         const [x, y] = ponto(i, raio);
@@ -31,7 +31,7 @@ export default function GraficoAtributos({ corpo, mente }: { corpo: Record<strin
         return (
           <g key={k}>
             <circle cx={x.toFixed(1)} cy={y.toFixed(1)} r="4" fill={COR[grupo]} />
-            <text x={lx.toFixed(1)} y={(ly + (noEixo ? (ly < cy ? -2 : 10) : 4)).toFixed(1)} textAnchor={noEixo ? 'middle' : lx > cx ? 'start' : 'end'} fontSize="15" fill="var(--text)">
+            <text x={lx.toFixed(1)} y={(ly + (noEixo ? (ly < cy ? -2 : 10) : 4)).toFixed(1)} textAnchor={noEixo ? 'middle' : lx > cx ? 'start' : 'end'} fontSize="14" fill="var(--text)">
               {rotulo} <tspan fontWeight="700" fill={COR[grupo]}>{nums[i]}</tspan>
             </text>
           </g>

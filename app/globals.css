@@ -1,4 +1,4 @@
-/* Conceito: fantasia mágica moderna. Noite azul, cards limpos, gradiente azul e roxo só em títulos e na ação principal.
+/* Conceito: um grimório arcano. Noite azul, molduras de runa e gradiente azul e roxo em títulos e na ação principal.
    Vida, mana, elementos, fadiga e núcleo mantêm as próprias cores, porque significam algo no jogo.
    A ficha continua se deteriorando com a fadiga mental. */
 :root{
@@ -16,8 +16,9 @@
   --vida:#f05252; --mana:#7ea0ff; --capitular-fundo:#1c2440; --capitular-letra:#b9a0fb;
   --e0:#9aa3c7; --e20:#d9c04f; --e40:#eb9a35; --e60:#ff7a45; --e80:#f0506e; --e99:#e0327e; --e100:#e6e9f5;
   --f-titulo:var(--font-cinzel),"Palatino Linotype",Georgia,serif;
-  --f-texto:var(--font-inter),system-ui,sans-serif;
-  --f-rotulo:var(--font-inter),system-ui,sans-serif;
+  --f-decorada:var(--font-cinzel-decorativa),var(--font-cinzel),"Palatino Linotype",Georgia,serif;
+  --f-texto:var(--font-spectral),"Palatino Linotype",Georgia,serif;
+  --f-rotulo:var(--font-spectral),"Palatino Linotype",Georgia,serif;
 }
 
 *{box-sizing:border-box}
@@ -825,3 +826,51 @@ body:has(.entrada){background:radial-gradient(900px 560px at 18% 12%,#4f7bff2e,t
   .attr[data-grupo="elementos"] .elemento-remover .btn{min-height:44px;padding:0 6px}
 }
 .attr[data-grupo="armas"] .passo{justify-self:start}
+
+/* ---------- Grimório: o que dá o clima de magia. Nada aqui se mexe nas telas de uso ---------- */
+body{font-size:16px;font-variant-numeric:lining-nums tabular-nums}
+body:not(:has(.entrada)){background:radial-gradient(1200px 700px at 50% -240px,#3a2a8f55,transparent 72%),radial-gradient(900px 600px at 100% 100%,#123a8f33,transparent 72%),var(--bg);background-attachment:fixed}
+
+/* Nome e marca em letra decorada; títulos e números em letra de inscrição */
+.marca,.placa-nome,.topo-marca{font-family:var(--f-decorada);letter-spacing:.01em}
+.placa-nome{filter:drop-shadow(0 0 16px #8b5cf659)}
+.pag-titulo,.rol-nome,.nucleo-nome,.titulo-grupo,.abas button,.vital-rot,.fadiga .vital-rot{font-family:var(--f-titulo)}
+.abas button{font-size:14px;font-weight:600}
+.subtitulo-grupo{font:600 15px/1.2 var(--f-titulo);color:var(--secondary-claro)}
+.vital-num,.vital-num input,.passo input,.msg-total,.medida-num b,.rol-tier,.pilula-pct,.degrau-pct{font-family:var(--f-titulo);font-variant-numeric:lining-nums tabular-nums}
+.attr label,.pericia-nome{font-weight:500}
+.btn,.topo-link,.topo-sair{font-family:var(--f-texto);font-weight:600}
+.topo-link,.topo-sair{font-size:15px}
+.grupo-desc{font-style:italic}
+.formula{font-size:14px}
+.rolar{font:700 12px/1 var(--f-titulo)}
+.grafico-atributos svg{font-family:var(--f-titulo);font-weight:500}
+
+/* Títulos de seção com estrela e um fio que se apaga */
+.titulo-grupo::before{content:"✦";margin-right:8px;font-size:.8em;color:var(--secondary-claro)}
+.cab-grupo,.pag-topo{border-bottom:0;padding-bottom:9px;background:linear-gradient(90deg,#8b5cf6,#4f7bff66 45%,transparent) bottom/100% 1px no-repeat}
+
+/* Moldura dupla e cantos de runa nos cards principais */
+.painel,.cartao-entrada,.fadiga,.vital,.painel-aba>div:not(.duas-col),.col-id>div,.placa,.painel-aba>.duas-col>.campo{background-color:var(--surface);background-image:linear-gradient(180deg,#8b5cf60d,transparent 110px),url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20width%3D'18'%20height%3D'18'%20viewBox%3D'0%200%2018%2018'%3E%3Cg%20transform%3D'rotate(0%209%209)'%3E%3Cpath%20d%3D'M1%2015V1h14'%20fill%3D'none'%20stroke%3D'%238fb0ff'%20stroke-width%3D'1.2'%2F%3E%3Cpath%20d%3D'M4.500%2010V4.500H10'%20fill%3D'none'%20stroke%3D'%238fb0ff'%20stroke-opacity%3D'.55'%2F%3E%3Cpath%20d%3D'M4.500%201.500%206%203%204.500%204.500%203%203z'%20fill%3D'%238fb0ff'%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E"),url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20width%3D'18'%20height%3D'18'%20viewBox%3D'0%200%2018%2018'%3E%3Cg%20transform%3D'rotate(90%209%209)'%3E%3Cpath%20d%3D'M1%2015V1h14'%20fill%3D'none'%20stroke%3D'%238fb0ff'%20stroke-width%3D'1.2'%2F%3E%3Cpath%20d%3D'M4.500%2010V4.500H10'%20fill%3D'none'%20stroke%3D'%238fb0ff'%20stroke-opacity%3D'.55'%2F%3E%3Cpath%20d%3D'M4.500%201.500%206%203%204.500%204.500%203%203z'%20fill%3D'%238fb0ff'%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E"),url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20width%3D'18'%20height%3D'18'%20viewBox%3D'0%200%2018%2018'%3E%3Cg%20transform%3D'rotate(180%209%209)'%3E%3Cpath%20d%3D'M1%2015V1h14'%20fill%3D'none'%20stroke%3D'%238fb0ff'%20stroke-width%3D'1.2'%2F%3E%3Cpath%20d%3D'M4.500%2010V4.500H10'%20fill%3D'none'%20stroke%3D'%238fb0ff'%20stroke-opacity%3D'.55'%2F%3E%3Cpath%20d%3D'M4.500%201.500%206%203%204.500%204.500%203%203z'%20fill%3D'%238fb0ff'%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E"),url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20width%3D'18'%20height%3D'18'%20viewBox%3D'0%200%2018%2018'%3E%3Cg%20transform%3D'rotate(270%209%209)'%3E%3Cpath%20d%3D'M1%2015V1h14'%20fill%3D'none'%20stroke%3D'%238fb0ff'%20stroke-width%3D'1.2'%2F%3E%3Cpath%20d%3D'M4.500%2010V4.500H10'%20fill%3D'none'%20stroke%3D'%238fb0ff'%20stroke-opacity%3D'.55'%2F%3E%3Cpath%20d%3D'M4.500%201.500%206%203%204.500%204.500%203%203z'%20fill%3D'%238fb0ff'%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E");background-repeat:no-repeat;background-position:0 0,left 4px top 4px,right 4px top 4px,right 4px bottom 4px,left 4px bottom 4px;background-size:auto,12px 12px,12px 12px,12px 12px,12px 12px;box-shadow:inset 0 0 0 3px var(--surface),inset 0 0 0 4px #8b5cf626,0 8px 24px #00000052}
+.painel:hover{border-color:color-mix(in srgb,var(--secondary) 55%,var(--border))}
+.attr[data-grupo="corpo"],.attr[data-grupo="mente"],.attr[data-grupo="armas"]{border-radius:8px}
+.rol-item,.rol-item:last-child{background-image:linear-gradient(180deg,#8b5cf60f,transparent 90px)}
+
+/* Círculo mágico em volta do retrato, a marca da ficha */
+.bloco-foto{position:relative;isolation:isolate;width:168px;gap:26px}
+.bloco-foto::before{content:"";position:absolute;z-index:-1;top:-18px;left:50%;width:168px;height:168px;transform:translateX(-50%);background:url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20width%3D'200'%20height%3D'200'%20viewBox%3D'0%200%20200%20200'%3E%3Cg%20fill%3D'none'%20stroke%3D'%23b9a0fb'%20stroke-opacity%3D'.55'%3E%3Ccircle%20cx%3D'100'%20cy%3D'100'%20r%3D'98'%2F%3E%3Ccircle%20cx%3D'100'%20cy%3D'100'%20r%3D'84'%20stroke-opacity%3D'.35'%2F%3E%3Cpath%20d%3D'M187.0%20100.0L197.0%20100.0'%2F%3E%3Cpath%20d%3D'M187.7%20120.0L194.6%20121.6'%2F%3E%3Cpath%20d%3D'M178.4%20137.7L187.4%20142.1'%2F%3E%3Cpath%20d%3D'M170.4%20156.1L175.8%20160.5'%2F%3E%3Cpath%20d%3D'M154.2%20168.0L160.5%20175.8'%2F%3E%3Cpath%20d%3D'M139.0%20181.1L142.1%20187.4'%2F%3E%3Cpath%20d%3D'M119.4%20184.8L121.6%20194.6'%2F%3E%3Cpath%20d%3D'M100.0%20190.0L100.0%20197.0'%2F%3E%3Cpath%20d%3D'M80.6%20184.8L78.4%20194.6'%2F%3E%3Cpath%20d%3D'M61.0%20181.1L57.9%20187.4'%2F%3E%3Cpath%20d%3D'M45.8%20168.0L39.5%20175.8'%2F%3E%3Cpath%20d%3D'M29.6%20156.1L24.2%20160.5'%2F%3E%3Cpath%20d%3D'M21.6%20137.7L12.6%20142.1'%2F%3E%3Cpath%20d%3D'M12.3%20120.0L5.4%20121.6'%2F%3E%3Cpath%20d%3D'M13.0%20100.0L3.0%20100.0'%2F%3E%3Cpath%20d%3D'M12.3%2080.0L5.4%2078.4'%2F%3E%3Cpath%20d%3D'M21.6%2062.3L12.6%2057.9'%2F%3E%3Cpath%20d%3D'M29.6%2043.9L24.2%2039.5'%2F%3E%3Cpath%20d%3D'M45.8%2032.0L39.5%2024.2'%2F%3E%3Cpath%20d%3D'M61.0%2018.9L57.9%2012.6'%2F%3E%3Cpath%20d%3D'M80.6%2015.2L78.4%205.4'%2F%3E%3Cpath%20d%3D'M100.0%2010.0L100.0%203.0'%2F%3E%3Cpath%20d%3D'M119.4%2015.2L121.6%205.4'%2F%3E%3Cpath%20d%3D'M139.0%2018.9L142.1%2012.6'%2F%3E%3Cpath%20d%3D'M154.2%2032.0L160.5%2024.2'%2F%3E%3Cpath%20d%3D'M170.4%2043.9L175.8%2039.5'%2F%3E%3Cpath%20d%3D'M178.4%2062.3L187.4%2057.9'%2F%3E%3Cpath%20d%3D'M187.7%2080.0L194.6%2078.4'%2F%3E%3Cpolygon%20points%3D'100.0%2C8.0%20139.9%2C182.9%2028.1%2C42.6%20189.7%2C120.5%2010.3%2C120.5%20171.9%2C42.6%2060.1%2C182.9'%20stroke%3D'%238fb0ff'%20stroke-opacity%3D'.22'%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E") center/contain no-repeat;pointer-events:none}
+.capitular.retrato{background:radial-gradient(circle at 50% 40%,#3a2a8f,var(--surface-2) 70%) padding-box,var(--gradient) border-box}
+.placa{min-height:172px}
+.placa-chips li{font-size:14px;border-radius:6px}
+
+/* Linha de perícia com fio de pergaminho */
+.pericia-cab{font-family:var(--f-titulo);font-size:12px}
+.pericia-linha:not(.pericia-cab){border-bottom:1px solid #2a335a66}
+.pericia-linha input[type=number]{font-family:var(--f-titulo)}
+
+@media (max-width:859px){
+  .bloco-foto::before{display:none}
+  .pericia-cab{font-family:var(--f-texto);font-size:12px}
+  .placa{min-height:0}
+  .capitular.retrato{outline:1px solid #b9a0fb66;outline-offset:4px}
+}
