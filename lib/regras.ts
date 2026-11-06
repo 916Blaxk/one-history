@@ -61,8 +61,12 @@ export const NUCLEOS: EstagioNucleo[] = [
 ];
 
 export interface AjustesMestre { vida: number; mana: number; sp: number }
-export interface Magia { id: string; nome: string; elemento: string; custo: number; alcance: string; duracao: string; descricao: string }
+export interface Magia { id: string; nome: string; elemento: string; custo: number; dano: string; alcance: string; duracao: string; descricao: string }
 export const LIMITE_MAGIAS = 100;
+/* Variação de um elemento base ou fusão de dois. A origem é sempre um dos cinco elementos base. */
+export interface ElementoCriado { id: string; nome: string; tipo: 'variacao' | 'fusao'; origens: string[]; valor: number }
+export const LIMITE_ELEMENTOS_CRIADOS = 20;
+export const TAMANHO_NOME_ELEMENTO = 40;
 
 export interface DadosFicha {
   player: string; nome: string; idade: string; raca: string; estilo: string;
@@ -73,6 +77,7 @@ export interface DadosFicha {
   /* Só o mestre da campanha altera estes dois. `limites` usa chaves "grupo.item"; sem chave, não há limite. */
   ajustes: AjustesMestre; limites: Record<string, number>;
   magias: Magia[];
+  elementosCriados: ElementoCriado[];
   /* Só vale para ficha do mestre na própria campanha: sem isto, os jogadores não sabem que ela existe. */
   publica: boolean;
 }
@@ -91,6 +96,7 @@ export function bonusNucleo(estagioNucleo: number | undefined) {
 export const spGastos = (f: Pick<DadosFicha, 'pericias'>) => Object.values(f.pericias).reduce((soma, v) => soma + v, 0);
 export const spTotal = (f: Pick<DadosFicha, 'nucleo' | 'ajustes'>) => Math.max(0, bonusNucleo(f.nucleo).sp + f.ajustes.sp);
 export const chaveLimite = (g: Grupo, k: string) => `${g}.${k}`;
+export const chaveCriado = (id: string) => `criados.${id}`;
 export const fichaPrivada = (f: { donoId: string; dados: Pick<DadosFicha, 'publica'> }, mestreId: string) => f.donoId === mestreId && !f.dados.publica;
 /* Lados do dado que a perícia soma à rolagem. O documento do sistema vai até 25; acima disso, o mestre pode liberar o valor, e o dado fica no maior. */
 export const dadoAdicional = (valor: number) => (valor <= 0 ? 0 : valor <= 5 ? 2 : valor <= 10 ? 4 : valor <= 15 ? 6 : valor <= 20 ? 8 : 10);
@@ -131,7 +137,27 @@ export function inteiro(v: unknown, min: number, max: number) {
 }
 const texto = (v: unknown, lim: number) => (typeof v === 'string' ? v.slice(0, lim) : '');
 
-function normalizarMagias(entrada: unknown): Magia[] {
+function normalizarElementosCriados(entrada: unknown): ElementoCriado[] {
+  if (!Array.isArray(entrada)) return [];
+  const ids = new Set<string>();
+  const base = new Set<string>(GRUPOS.elementos.map(([k]) => k));
+  const lista: ElementoCriado[] = [];
+  for (const bruto of entrada) {
+    const e = (bruto && typeof bruto === 'object' ? bruto : {}) as Record<string, unknown>;
+    const nome = texto(e.nome, TAMANHO_NOME_ELEMENTO).trim();
+    const tipo = e.tipo === 'fusao' ? 'fusao' : 'variacao';
+    const origens = Array.isArray(e.origens) ? e.origens.filter((o): o is string => typeof o === 'string' && base.has(o)) : [];
+    const certos = tipo === 'fusao' ? origens.length === 2 && origens[0] !== origens[1] : origens.length === 1;
+    /* O id entra na chave de rolagem "criados.id": um arquivo editado não pode trazer ponto nem repetir. */
+    const pedido = texto(e.id, 40);
+    if (!nome || !certos || !/^[\w-]+$/.test(pedido) || ids.has(pedido) || lista.length >= LIMITE_ELEMENTOS_CRIADOS) continue;
+    ids.add(pedido);
+    lista.push({ id: pedido, nome, tipo, origens, valor: inteiro(e.valor ?? 0, 0, 999) });
+  }
+  return lista;
+}
+
+function normalizarMagias(entrada: unknown, criados: readonly ElementoCriado[]): Magia[] {
   if (!Array.isArray(entrada)) return [];
   const ids = new Set<string>();
   return entrada.slice(0, LIMITE_MAGIAS).map((bruta, i) => {
@@ -140,9 +166,9 @@ function normalizarMagias(entrada: unknown): Magia[] {
     /* O id identifica o cartão na tela: um arquivo editado não pode repetir nem omitir. */
     const id = pedido && !ids.has(pedido) ? pedido : `m${i}-${ids.size}`;
     ids.add(id);
-    const elemento = GRUPOS.elementos.some(([k]) => k === m.elemento) ? String(m.elemento) : '';
+    const elemento = GRUPOS.elementos.some(([k]) => k === m.elemento) || criados.some((e) => e.id === m.elemento) ? String(m.elemento) : '';
     return {
-      id, nome: texto(m.nome, 80), elemento, custo: inteiro(m.custo ?? 0, 0, 9999),
+      id, nome: texto(m.nome, 80), elemento, custo: inteiro(m.custo ?? 0, 0, 9999), dano: texto(m.dano, 40),
       alcance: texto(m.alcance, 60), duracao: texto(m.duracao, 60), descricao: texto(m.descricao, 4000),
     };
   });
@@ -153,6 +179,11 @@ export function aplicarTravasDoJogador(nova: DadosFicha, antes: DadosFicha) {
   for (const g of NOMES_GRUPOS) for (const [k] of GRUPOS[g]) {
     const limite = nova.limites[chaveLimite(g, k)];
     if (limite !== undefined && nova[g][k] > antes[g][k]) nova[g][k] = Math.max(antes[g][k], limite);
+  }
+  for (const criado of nova.elementosCriados) {
+    const limite = nova.limites[chaveCriado(criado.id)];
+    const antigo = antes.elementosCriados.find((e) => e.id === criado.id)?.valor ?? 0;
+    if (limite !== undefined && criado.valor > antigo) criado.valor = Math.max(antigo, limite);
   }
   let excesso = spGastos(nova) - spTotal(nova);
   for (const [k] of GRUPOS.pericias) {
@@ -166,6 +197,7 @@ export function aplicarTravasDoJogador(nova: DadosFicha, antes: DadosFicha) {
 /* Transforma qualquer entrada em uma ficha válida: campos desconhecidos somem e números respeitam as travas. */
 export function normalizar(entrada: unknown): DadosFicha {
   const o = (entrada && typeof entrada === 'object' ? entrada : {}) as Record<string, any>;
+  const elementosCriados = normalizarElementosCriados(o.elementosCriados);
   const f: DadosFicha = {
     player: texto(o.player, 80), nome: texto(o.nome, 80), idade: texto(String(o.idade ?? ''), 20),
     raca: texto(o.raca, 60), estilo: texto(o.estilo, 80),
@@ -182,13 +214,18 @@ export function normalizar(entrada: unknown): DadosFicha {
       sp: inteiro(o.ajustes?.sp ?? 0, -9999, 9999),
     },
     limites: {},
-    magias: normalizarMagias(o.magias),
+    magias: normalizarMagias(o.magias, elementosCriados),
+    elementosCriados,
     publica: o.publica === true,
   };
   for (const g of NOMES_GRUPOS) for (const [k] of GRUPOS[g]) {
     f[g][k] = inteiro(o[g]?.[k], 0, 999);
     const limite = o.limites?.[chaveLimite(g, k)];
     if (limite !== undefined && limite !== null && limite !== '') f.limites[chaveLimite(g, k)] = inteiro(limite, 0, 999);
+  }
+  for (const { id } of elementosCriados) {
+    const limite = o.limites?.[chaveCriado(id)];
+    if (limite !== undefined && limite !== null && limite !== '') f.limites[chaveCriado(id)] = inteiro(limite, 0, 999);
   }
   f.vidaAtual = inteiro(o.vidaAtual ?? vidaMax(f), 0, vidaMax(f));
   f.manaAtual = inteiro(o.manaAtual ?? manaMax(f), 0, manaMax(f));

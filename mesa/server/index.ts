@@ -14,7 +14,7 @@ import {
 import { avancarVez, tirarDoCombate } from '../src/shared/combate.js'
 import { CAMADA_MUNDO, MAX_NUMEROS_NEVOA, MAX_OPS_NEVOA, celulasParaOps, tamanhoDaNevoa } from '../src/shared/nevoa.js'
 import * as R from '../../lib/regras'
-import { expressaoAtributo, expressaoDaAcao, itemDaAcao } from '../../lib/resumoFicha'
+import { expressaoAtributo, expressaoDaAcao, lerAcao } from '../../lib/resumoFicha'
 import { ouvirMesa, type EventoMesa } from '../../lib/servidor/barramento'
 import { alterarFicha, gravarRolagem, textoDaRolagem } from '../../lib/servidor/rotas'
 import { COOKIE, usuarioDoToken } from '../../lib/servidor/sessao'
@@ -786,10 +786,10 @@ async function handleCommand(socket: TableSocket, room: RoomState, player: RoomP
       if (!can(player.role, 'chat:roll')) return deny(socket)
       const ficha = await lerFicha(message.fichaId)
       if (!ficha || ficha.campanhaId !== room.code || (player.role !== 'gm' && ficha.donoId !== player.id)) return deny(socket)
-      const item = itemDaAcao(message.acao)
+      const item = lerAcao(ficha.dados, message.acao)
       if (!item) return deny(socket)
       /* O bônus vem da ficha guardada: o navegador só diz qual atributo rolar. */
-      const expression = expressaoDaAcao(item.grupo, ficha.dados[item.grupo][item.chave])
+      const expression = expressaoDaAcao(item.grupo, item.valor)
       const roll = rollDice(expression)
       /* Todos da mesa veem a rolagem: o nome e o id entregariam a ficha privada. */
       const privada = R.fichaPrivada(ficha, room.mestreId)

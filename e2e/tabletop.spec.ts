@@ -343,9 +343,10 @@ test('mesa: mapa, névoa, combate, magia e ferramentas na mesma sessão', async 
   await jogador.getByRole('button', { name: 'Conjurar Bola de fogo' }).click();
   await expect(jogador.locator('.mini-sheet-identity')).toContainText('Mana: 20');
   await expect(jogador.getByLabel('Mana atual')).toHaveValue('20');
-  await jogador.getByLabel('Fadiga mental (%)').fill('60');
-  await jogador.getByLabel('Fadiga mental (%)').press('Enter');
-  await expect.poll(async () => (await (await jogador.request.get(`/api/fichas/${fichaId}`)).json()).ficha.fadiga).toBe(60);
+  /* A fadiga é do mestre: o jogador só vê. */
+  await expect(jogador.getByLabel('Fadiga mental (%)')).toHaveCount(0);
+  await mestre.request.patch(`/api/fichas/${fichaId}`, { data: { fadiga: 60 } });
+  await expect(jogador.locator('.mini-sheet-cena')).toContainText('60%');
   await jogador.getByRole('button', { name: 'Encerrar cena' }).click();
   await expect.poll(async () => (await (await jogador.request.get(`/api/fichas/${fichaId}`)).json()).ficha.manaPerdida).toBeGreaterThan(0);
   /* O jogador não remove o token da ficha: a tecla nem pergunta. O mestre confirma e remove. */
@@ -358,6 +359,9 @@ test('mesa: mapa, névoa, combate, magia e ferramentas na mesma sessão', async 
   await expect(jogador.getByLabel('PV atual')).toBeVisible();
   await mestre.mouse.click(525, 745);
   await expect(mestre.getByLabel('PV atual')).toHaveValue('25');
+  await mestre.getByLabel('Fadiga mental (%)').fill('70');
+  await mestre.getByLabel('Fadiga mental (%)').press('Enter');
+  await expect.poll(async () => (await (await mestre.request.get(`/api/fichas/${fichaId}`)).json()).ficha.fadiga).toBe(70);
   await mestre.locator('canvas').focus();
   await mestre.keyboard.press('Delete');
   await expect(mestre.getByLabel('PV atual')).toHaveCount(0);

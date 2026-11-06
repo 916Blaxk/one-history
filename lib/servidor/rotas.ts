@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { rollDice } from '../../mesa/src/features/chat/dice-parser';
 import type { DiceRollResult } from '../../mesa/src/features/chat/dice-types';
 import * as R from '../regras';
-import { itemDaAcao, resumoDaFicha } from '../resumoFicha';
+import { lerAcao, resumoDaFicha } from '../resumoFicha';
 import type { Ficha, Mensagem, PaginaChat, Papel, ResumoFicha } from '../tipos';
 import { avisarMesa } from './barramento';
 import { db } from './db';
@@ -17,7 +17,7 @@ const LIMITE_FICHAS = 200, LIMITE_CAMPANHAS = 50, LIMITE_MEMBROS = 60, LIMITE_FO
 const LIMITE_ROLAGENS = 500, PAGINA_CHAT = 50;
 const ALFABETO_CODIGO = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 const FOTO_VALIDA = /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/;
-const CAMPOS_FICHA = new Set(['player', 'nome', 'idade', 'raca', 'estilo', 'tier', 'inventario', 'notas', 'manaPerdida', 'fadiga', 'vidaAtual', 'manaAtual', 'magias']);
+const CAMPOS_FICHA = new Set(['player', 'nome', 'idade', 'raca', 'estilo', 'tier', 'inventario', 'notas', 'manaPerdida', 'fadiga', 'vidaAtual', 'manaAtual', 'magias', 'elementosCriados']);
 /* O núcleo define os SP: se o jogador pudesse mudá-lo, o limite de SP não valeria nada. */
 const CAMPOS_MESTRE = new Set(['ajustes', 'limites', 'nucleo', 'publica']);
 const JANELA_MS = 15 * 60 * 1000;
@@ -432,6 +432,8 @@ rota('PATCH', '/api/fichas/:id', async ctx => {
   const f = await alterarFicha(ctx.params.id, l => {
     const base: Record<string, any> = { ...l.dados };
     for (const [k, v] of Object.entries(ctx.corpo)) {
+      /* Em campanha, a fadiga é decisão do mestre. Fora dela, não há mestre, e quem cuida é o dono. */
+      if (k === 'fadiga' && l.campanhaId && !souMestre) continue;
       const ehObjeto = v && typeof v === 'object';
       if (k in R.GRUPOS && ehObjeto) base[k] = { ...base[k], ...v };
       else if (CAMPOS_MESTRE.has(k)) { if (souMestre) base[k] = ehObjeto ? { ...base[k], ...v } : v; }
@@ -474,10 +476,10 @@ rota('POST', '/api/fichas/:id/rolar', async ctx => {
   let r: ReturnType<typeof rolar>;
   if (ctx.corpo.atributo) {
     /* Rolagem de atributo é sempre d20 + o valor guardado na ficha, e a de perícia soma o dado adicional: o navegador não escolhe o bônus. */
-    const item = itemDaAcao(String(ctx.corpo.atributo));
+    const item = lerAcao(R.normalizar(f.dados), String(ctx.corpo.atributo));
     if (!item) throw new Erro(400, 'Esse atributo não existe na ficha.');
     rotulo = item.rotulo;
-    const valor = R.normalizar(f.dados)[item.grupo][item.chave];
+    const { valor } = item;
     r = rolar(20, valor, item.grupo === 'pericias' ? R.dadoAdicional(valor) : 0);
   } else {
     r = rolar(Number(ctx.corpo.lados), R.inteiro(ctx.corpo.bonus, -999, 999));

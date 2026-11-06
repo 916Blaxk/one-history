@@ -269,6 +269,43 @@ describe('campanhas', () => {
     expect((await jog.c('GET', foto)).status).toBe(404);
   });
 
+  it('em campanha, só o mestre muda a fadiga; fora dela, o dono', async () => {
+    const { mestre, jog, c, codigo, f } = await mesa();
+    expect((await jog.c('PATCH', `/api/fichas/${f.id}`, { fadiga: 30 })).corpo.ficha.fadiga).toBe(30);
+    await jog.c('POST', `/api/convites/${codigo}/entrar`);
+    await jog.c('POST', `/api/campanhas/${c.id}/fichas`, { fichaId: f.id });
+    const tentou = (await jog.c('PATCH', `/api/fichas/${f.id}`, { fadiga: 0, notas: 'segue valendo' })).corpo.ficha;
+    expect(tentou).toMatchObject({ fadiga: 30, notas: 'segue valendo' });
+    expect((await mestre.c('PATCH', `/api/fichas/${f.id}`, { fadiga: 80 })).corpo.ficha.fadiga).toBe(80);
+  });
+
+  it('elemento criado: variação ou fusão, com rolagem, limite e magia própria', async () => {
+    const { mestre, jog, c, codigo, f } = await mesa();
+    await jog.c('POST', `/api/convites/${codigo}/entrar`);
+    await jog.c('POST', `/api/campanhas/${c.id}/fichas`, { fichaId: f.id });
+    const criar = (elementosCriados: unknown[]) => jog.c('PATCH', `/api/fichas/${f.id}`, { elementosCriados });
+    const lava = { id: 'e1', nome: 'Lava', tipo: 'fusao', origens: ['fogo', 'terra'], valor: 3 };
+    const gelo = { id: 'e2', nome: 'Gelo', tipo: 'variacao', origens: ['agua'], valor: 2 };
+    const salvos = (await criar([lava, gelo, { id: 'ruim', nome: 'Sem origem', tipo: 'fusao', origens: ['fogo', 'fogo'] }, { id: 'a.b', nome: 'Com ponto', tipo: 'variacao', origens: ['vento'] }])).corpo.ficha;
+    expect(salvos.elementosCriados).toEqual([lava, gelo]);
+
+    const rolagem = (await jog.c('POST', `/api/fichas/${f.id}/rolar`, { atributo: 'criados.e1' })).corpo.rolagem;
+    expect(rolagem.rotulo).toBe('Lava');
+    expect(rolagem.det).toMatch(/^d20 \(\d+\) \+ 3$/);
+    expect((await jog.c('POST', `/api/fichas/${f.id}/rolar`, { atributo: 'criados.nao-existe' })).status).toBe(400);
+    expect((await jog.c('GET', `/api/fichas/${f.id}/resumo`)).corpo.acoes.some((a: { id: string; rotulo: string }) => a.id === 'criados.e2' && a.rotulo === 'Gelo')).toBe(true);
+
+    await mestre.c('PATCH', `/api/fichas/${f.id}`, { limites: { 'criados.e1': 4 } });
+    expect((await criar([{ ...lava, valor: 50 }, gelo])).corpo.ficha.elementosCriados[0].valor).toBe(4);
+
+    /* A magia guarda o dano e pode usar o elemento criado. Sem o elemento, ela não fica apontando para o nada. */
+    const magia = { id: 'm1', nome: 'Erupção', elemento: 'e1', custo: 5, dano: '2d6+3', alcance: '', duracao: '', descricao: '' };
+    const comMagia = (await jog.c('PATCH', `/api/fichas/${f.id}`, { magias: [magia] })).corpo.ficha;
+    expect(comMagia.magias[0]).toMatchObject({ elemento: 'e1', dano: '2d6+3' });
+    expect((await jog.c('GET', `/api/fichas/${f.id}/resumo`)).corpo.magias[0].dano).toBe('2d6+3');
+    expect((await criar([gelo])).corpo.ficha.magias[0].elemento).toBe('');
+  });
+
   it('mestre edita a ficha do jogador; colega não vê vida nem fadiga; mestre não apaga', async () => {
     const { mestre, jog, c, codigo, f } = await mesa();
     const colega = await novaConta('Colega');

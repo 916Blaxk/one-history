@@ -3,7 +3,7 @@ import * as R from './regras';
 
 export interface AcaoRolagem { id: string; grupo: R.Grupo; categoria: string; rotulo: string; valor: number; expressao: string }
 export interface Recurso { id: 'vida' | 'mana'; rotulo: string; atual: number; max: number }
-export interface MagiaResumo { id: string; nome: string; elemento: string; custo: number }
+export interface MagiaResumo { id: string; nome: string; elemento: string; custo: number; dano: string }
 export interface ResumoDaFicha {
   id: string; nome: string; atualizado: number; fotoV: number;
   recursos: Recurso[]; acoes: AcaoRolagem[]; magias: MagiaResumo[]; fadiga: number;
@@ -32,14 +32,27 @@ export function itemDaAcao(acao: string) {
   return item ? { grupo: g, chave: k, rotulo: item[1] } : null;
 }
 
+/* O que a rolagem usa, sempre do que está guardado na ficha. Elemento criado não existe em GRUPOS: cada ficha tem os seus. */
+export function lerAcao(d: R.DadosFicha, acao: string) {
+  if (acao.startsWith('criados.')) {
+    const criado = d.elementosCriados.find(e => R.chaveCriado(e.id) === acao);
+    return criado ? { grupo: 'elementos' as const, rotulo: criado.nome, valor: criado.valor } : null;
+  }
+  const item = itemDaAcao(acao);
+  return item ? { grupo: item.grupo, rotulo: item.rotulo, valor: d[item.grupo][item.chave] } : null;
+}
+
 export function acoesDeRolagem(d: R.DadosFicha): AcaoRolagem[] {
-  return R.NOMES_GRUPOS.flatMap(g => R.GRUPOS[g].map(item => {
+  const criados = d.elementosCriados.map(e => ({
+    id: R.chaveCriado(e.id), grupo: 'elementos' as const, categoria: NOME_GRUPO.elementos, rotulo: e.nome, valor: e.valor, expressao: expressaoAtributo(e.valor),
+  }));
+  return [...criados, ...R.NOMES_GRUPOS.flatMap(g => R.GRUPOS[g].map(item => {
     const [k, rotulo] = item;
     return {
       id: `${g}.${k}`, grupo: g, categoria: g === 'pericias' ? CATEGORIA_PERICIA.get(k) ?? NOME_GRUPO[g] : NOME_GRUPO[g],
       rotulo, valor: d[g][k], expressao: expressaoDaAcao(g, d[g][k]),
     };
-  }));
+  }))];
 }
 
 export function recursosDaFicha(d: R.DadosFicha): Recurso[] {
@@ -55,7 +68,7 @@ export function resumoDaFicha(f: { id: string; dados: unknown; fotoV: number; at
     id: f.id, nome: d.nome || 'Sem nome', atualizado: f.atualizado, fotoV: f.fotoV,
     recursos: recursosDaFicha(d),
     acoes: acoesDeRolagem(d),
-    magias: d.magias.map(m => ({ id: m.id, nome: m.nome, elemento: m.elemento, custo: R.custoMagia(d, m) })),
+    magias: d.magias.map(m => ({ id: m.id, nome: m.nome, elemento: m.elemento, custo: R.custoMagia(d, m), dano: m.dano })),
     fadiga: d.fadiga,
   };
 }

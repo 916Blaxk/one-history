@@ -584,3 +584,12 @@ a.rol-linha:hover,a.camp-linha:hover{background:transparent}
   .passo{grid-template-columns:38px 40px 38px}
   .topo-marca{font-size:20px}
 }
+
+/* ---------- Elementos criados ---------- */
+.elementos-criados{display:grid;gap:4px;margin-top:10px}
+.elemento-criar{justify-self:start;margin-top:6px}
+.elemento-remover{grid-column:1 / -1;justify-self:end}
+.elemento-form{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));padding:14px;margin-top:6px;background:var(--fundo-campo);border:1px solid var(--latao-escuro);border-radius:4px}
+.elemento-form .acoes{grid-column:1 / -1}
+.magia-custo small{display:block;font-size:13px;color:var(--vida)}
+.fadiga input:disabled,.degrau:disabled{cursor:not-allowed;opacity:.75}

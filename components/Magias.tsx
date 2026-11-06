@@ -2,13 +2,13 @@
 import { useState } from 'react';
 import { BotaoConfirmar, CampoNumero } from '@/components/comuns';
 import * as R from '@/lib/regras';
+import { PontoElemento, origemDoElemento } from '@/components/ElementosCriados';
 
 const novoId = () => `m${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
-const nomeElemento = (k: string) => R.GRUPOS.elementos.find(([e]) => e === k)?.[1] ?? '';
 
 /* A aba de feitiços da ficha. O custo mostrado já desconta o gasto universal do núcleo. */
-export default function Magias({ magias, gastoUniversal, aoMudar, aoConjurar }: {
-  magias: R.Magia[]; gastoUniversal: number;
+export default function Magias({ magias, criados, gastoUniversal, aoMudar, aoConjurar }: {
+  magias: R.Magia[]; criados: readonly R.ElementoCriado[]; gastoUniversal: number;
   aoMudar: (magias: R.Magia[]) => void; aoConjurar: (m: R.Magia) => void;
 }) {
   const [abertas, setAbertas] = useState<ReadonlySet<string>>(new Set());
@@ -17,10 +17,11 @@ export default function Magias({ magias, gastoUniversal, aoMudar, aoConjurar }: 
     if (!n.delete(id)) n.add(id);
     return n;
   });
+  const nomeElemento = (k: string) => R.GRUPOS.elementos.find(([e]) => e === k)?.[1] ?? criados.find(e => e.id === k)?.nome ?? '';
   const mudar = (id: string, campos: Partial<R.Magia>) => aoMudar(magias.map(m => (m.id === id ? { ...m, ...campos } : m)));
   function adicionar() {
     const id = novoId();
-    aoMudar([...magias, { id, nome: '', elemento: '', custo: 0, alcance: '', duracao: '', descricao: '' }]);
+    aoMudar([...magias, { id, nome: '', elemento: '', custo: 0, dano: '', alcance: '', duracao: '', descricao: '' }]);
     setAbertas(a => new Set(a).add(id));
   }
 
@@ -34,14 +35,15 @@ export default function Magias({ magias, gastoUniversal, aoMudar, aoConjurar }: 
       <ul className="lista-magias">
         {magias.map(m => {
           const aberta = abertas.has(m.id), custo = Math.max(0, m.custo - gastoUniversal), nome = m.nome || 'Magia sem nome', elemento = nomeElemento(m.elemento);
+          const criado = criados.find(e => e.id === m.elemento);
           return (
-            <li className={`magia${m.elemento ? ` c-${m.elemento}` : ''}`} key={m.id}>
+            <li className={`magia${m.elemento && !criado ? ` c-${m.elemento}` : ''}`} key={m.id}>
               <div className="magia-topo">
                 <button type="button" className="magia-nome" aria-expanded={aberta} onClick={() => alternar(m.id)}>
-                  {m.elemento && <span className="ponto" />}{nome}
+                  {criado ? <PontoElemento origens={criado.origens} /> : m.elemento && <span className="ponto" />}{nome}
                   {elemento && <small>{elemento}</small>}
                 </button>
-                <span className="magia-custo">{gastoUniversal > 0 && m.custo > 0 ? `${m.custo} − ${gastoUniversal} = ` : ''}<b>{custo}</b> de mana</span>
+                <span className="magia-custo">{gastoUniversal > 0 && m.custo > 0 ? `${m.custo} − ${gastoUniversal} = ` : ''}<b>{custo}</b> de mana{m.dano && <small>Dano: <b>{m.dano}</b></small>}</span>
                 <button type="button" className="rolar" aria-label={`Conjurar ${nome}`} onClick={() => aoConjurar(m)}>Conjurar</button>
               </div>
               {aberta && (
@@ -55,11 +57,16 @@ export default function Magias({ magias, gastoUniversal, aoMudar, aoConjurar }: 
                     <select id={`m-elemento-${m.id}`} value={m.elemento} onChange={ev => mudar(m.id, { elemento: ev.target.value })}>
                       <option value="">Nenhum</option>
                       {R.GRUPOS.elementos.map(([k, rotulo]) => <option key={k} value={k}>{rotulo}</option>)}
+                      {criados.map(e => <option key={e.id} value={e.id}>{e.nome} ({origemDoElemento(e)})</option>)}
                     </select>
                   </div>
                   <div className="campo">
                     <label className="rotulo" htmlFor={`m-custo-${m.id}`}>Custo de mana</label>
                     <CampoNumero id={`m-custo-${m.id}`} min={0} valor={m.custo} aoMudar={v => mudar(m.id, { custo: R.inteiro(v, 0, 9999) })} />
+                  </div>
+                  <div className="campo">
+                    <label className="rotulo" htmlFor={`m-dano-${m.id}`}>Dano</label>
+                    <input id={`m-dano-${m.id}`} type="text" maxLength={40} placeholder="Ex.: 2d6+3" value={m.dano} onChange={ev => mudar(m.id, { dano: ev.target.value })} />
                   </div>
                   <div className="campo">
                     <label className="rotulo" htmlFor={`m-alcance-${m.id}`}>Alcance</label>

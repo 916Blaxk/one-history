@@ -383,3 +383,51 @@ test('ficha do mestre: o jogador só vê depois que ele a torna pública', async
   await mestre.getByRole('button', { name: 'Tornar privada' }).click();
   await expect(jogador.getByText('Vilão Oculto')).toHaveCount(0, { timeout: 8000 });
 });
+
+test('ficha: criar elemento, dano na magia e fadiga só com o mestre', async ({ browser }) => {
+  const mestre = await novaPessoa(browser, 'Mestra Ana');
+  const jogador = await novaPessoa(browser, 'Jogador Bia');
+  await criarFicha(jogador, 'Kael');
+  const fichaId = jogador.url().split('/').pop()!;
+
+  /* Fora de campanha não há mestre: o dono ainda controla a própria fadiga. */
+  await expect(jogador.locator('#r-fadiga')).toBeEnabled();
+
+  await jogador.getByRole('button', { name: '+ Criar elemento' }).click();
+  await jogador.getByLabel('Nome do elemento').fill('Lava');
+  await jogador.getByLabel('Tipo').selectOption('fusao');
+  await jogador.getByLabel('Primeiro elemento').selectOption('fogo');
+  await jogador.getByLabel('Segundo elemento').selectOption('terra');
+  await jogador.getByRole('button', { name: 'Salvar elemento' }).click();
+  await expect(jogador.getByText('Fusão de Fogo e Terra')).toBeVisible();
+  await jogador.getByRole('button', { name: 'Aumentar Lava' }).click();
+  await expect(jogador.getByRole('status').filter({ hasText: 'Salvo' })).toBeVisible();
+  await jogador.getByRole('button', { name: 'Rolar d20 mais Lava' }).click();
+  await expect(jogador.locator('.msg-rotulo').last()).toHaveText('Lava');
+  await jogador.locator('.chat-fechar').click();
+
+  await jogador.getByRole('tab', { name: /Magias/ }).click();
+  await jogador.getByRole('button', { name: 'Adicionar magia' }).click();
+  await jogador.getByLabel('Nome da magia').fill('Erupção');
+  await jogador.getByLabel('Dano').fill('2d6+3');
+  await jogador.getByLabel('Elemento', { exact: true }).selectOption({ label: 'Lava (Fusão de Fogo e Terra)' });
+  await expect(jogador.locator('.magia-custo')).toContainText('Dano: 2d6+3');
+  await expect(jogador.getByRole('status').filter({ hasText: 'Salvo' })).toBeVisible();
+
+  const { campanha } = await (await mestre.request.post('/api/campanhas', { data: { nome: 'Regras', descricao: '' } })).json();
+  const detalhe = await (await mestre.request.get(`/api/campanhas/${campanha.id}`)).json();
+  await jogador.request.post(`/api/convites/${detalhe.campanha.codigo}/entrar`, { data: {} });
+  await jogador.request.post(`/api/campanhas/${campanha.id}/fichas`, { data: { fichaId } });
+
+  await jogador.reload();
+  await expect(jogador.getByText('Só o mestre da campanha muda a fadiga mental.')).toBeVisible();
+  await expect(jogador.locator('#r-fadiga')).toBeDisabled();
+  await expect(jogador.locator('#v-fadiga')).toBeDisabled();
+  await expect(jogador.getByRole('button', { name: /Sem fadiga/ })).toBeDisabled();
+
+  await mestre.goto(`/fichas/${fichaId}`);
+  await expect(mestre.locator('#r-fadiga')).toBeEnabled();
+  await mestre.getByRole('button', { name: /Desgaste/ }).click();
+  await expect(mestre.locator('#v-fadiga')).toHaveValue('20');
+  await expect.poll(async () => { await jogador.reload(); return jogador.locator('#v-fadiga').inputValue(); }, { timeout: 15000 }).toBe('20');
+});

@@ -74,6 +74,7 @@ function FichaVinculada({ token, fichaId }: { token: Token; fichaId: string }) {
     window.setTimeout(() => useRoomStore.getState().setNotice(null), 3500)
   }
   const url = `/api/fichas/${fichaId}`
+  const mestre = useRoomStore((state) => state.role) === 'gm'
   /* A mana e a cena mudam pela mesma rota da página da ficha: as regras e os avisos continuam em um lugar só. */
   async function agir(acao: () => Promise<unknown>) {
     try {
@@ -83,14 +84,17 @@ function FichaVinculada({ token, fichaId }: { token: Token; fichaId: string }) {
       avisar(mensagem(erro))
     }
   }
-  function conjurar(magia: { nome: string; custo: number }) {
+  function conjurar(magia: { nome: string; custo: number; dano: string }) {
     const mana = data?.recursos.find((recurso) => recurso.id === 'mana')?.atual ?? 0
     const nome = magia.nome || 'Magia sem nome'
     if (magia.custo > mana) {
       avisar(`Mana insuficiente: ${nome} custa ${magia.custo}, e a ficha tem ${mana}.`)
       return
     }
-    void agir(() => api('PATCH', url, { manaAtual: mana - magia.custo }))
+    void agir(async () => {
+      await api('PATCH', url, { manaAtual: mana - magia.custo })
+      if (magia.dano) avisar(`${nome}: dano ${magia.dano}`)
+    })
   }
   function encerrarCena() {
     if (!window.confirm(`Encerrar a cena com ${data?.fadiga ?? 0}% de fadiga? A perda de mana, se houver, é permanente.`)) return
@@ -160,7 +164,7 @@ function FichaVinculada({ token, fichaId }: { token: Token; fichaId: string }) {
             {data.magias.map((magia) => (
               <li className="mini-sheet-spell" key={magia.id}>
                 <span>{magia.nome || 'Magia sem nome'}</span>
-                <b>{magia.custo} de mana</b>
+                <b>{magia.custo} de mana{magia.dano ? ` · dano ${magia.dano}` : ''}</b>
                 <button type="button" className="mini-sheet-text-button" aria-label={`Conjurar ${magia.nome || 'magia sem nome'}`} onClick={() => conjurar(magia)}>Conjurar</button>
               </li>
             ))}
@@ -168,18 +172,22 @@ function FichaVinculada({ token, fichaId }: { token: Token; fichaId: string }) {
         </details>
       )}
       <div className="mini-sheet-cena">
-        <label className="token-field">
-          Fadiga mental (%)
-          <input
-            key={data.fadiga}
-            type="number"
-            min="0"
-            max="100"
-            defaultValue={data.fadiga}
-            onBlur={(event) => { if (Number(event.target.value) !== data.fadiga) void agir(() => api('PATCH', url, { fadiga: Number(event.target.value) })) }}
-            onKeyDown={(event) => { if (event.key === 'Enter') event.currentTarget.blur() }}
-          />
-        </label>
+        {mestre ? (
+          <label className="token-field">
+            Fadiga mental (%)
+            <input
+              key={data.fadiga}
+              type="number"
+              min="0"
+              max="100"
+              defaultValue={data.fadiga}
+              onBlur={(event) => { if (Number(event.target.value) !== data.fadiga) void agir(() => api('PATCH', url, { fadiga: Number(event.target.value) })) }}
+              onKeyDown={(event) => { if (event.key === 'Enter') event.currentTarget.blur() }}
+            />
+          </label>
+        ) : (
+          <p className="mini-sheet-note">Fadiga mental: <b>{data.fadiga}%</b>. Só o mestre muda.</p>
+        )}
         <button className="token-image-button" type="button" onClick={encerrarCena}>Encerrar cena</button>
       </div>
       <button className="mini-sheet-text-button" type="button" onClick={desvincular}>Desvincular ficha</button>

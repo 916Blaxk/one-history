@@ -5,6 +5,7 @@ import { useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { ChatFlutuante } from '@/components/Chat';
 import { BotaoConfirmar, CampoNumero, Capitular } from '@/components/comuns';
+import ElementosCriados from '@/components/ElementosCriados';
 import Magias from '@/components/Magias';
 import Pentagrama from '@/components/Pentagrama';
 import { api, dataCurta, mensagem, pct, virgula } from '@/lib/cliente';
@@ -46,6 +47,8 @@ export default function EditorFicha({ f, ed, chat }: {
   /* Só o celular usa: no computador, as três colunas ficam sempre à vista. */
   const [secao, setSecao] = useState<'cena' | 'perfil' | 'habilidades'>('cena');
   const souMestre = f.contexto.souMestre;
+  /* O servidor aplica a mesma regra: aqui é só para não oferecer o que não vai valer. */
+  const podeMudarFadiga = souMestre || !f.contexto.campanha;
   const url = `/api/fichas/${f.id}`;
   const vm = R.vidaMax(f), mm = R.manaMax(f), e = R.estagio(f.fadiga), perdido = e.min === 100, perda = R.perdaDeCena(f);
   const campanha = f.contexto.campanha;
@@ -84,7 +87,7 @@ export default function EditorFicha({ f, ed, chat }: {
     const custo = R.custoMagia(f, m), nome = m.nome || 'Magia sem nome';
     if (custo > f.manaAtual) { toast.error(`Mana insuficiente: ${nome} custa ${custo} e a ficha tem ${f.manaAtual}.`); return; }
     mudarVital('manaAtual', f.manaAtual - custo);
-    toast(`${nome}: −${custo} de mana`);
+    toast(`${nome}: −${custo} de mana${m.dano ? `. Dano: ${m.dano}` : ''}`);
   }
 
   async function rolar(corpo: Record<string, unknown>) {
@@ -255,6 +258,12 @@ export default function EditorFicha({ f, ed, chat }: {
                 <div className="pentagrama"><Pentagrama valores={f.elementos} /></div>
                 <div className="elementos-lista">{R.GRUPOS.elementos.map(i => linhaAttr('elementos', i, true))}</div>
               </div>
+              <ElementosCriados
+                f={f} souMestre={souMestre} editandoLimites={editandoLimites}
+                aoMudar={elementosCriados => ed.definir({ ...f, elementosCriados }, { elementosCriados })}
+                aoMudarLimite={mudarLimite}
+                aoRolar={atributo => rolar({ atributo })}
+              />
             </div>
             <div className="duas-col">
               <div className="grupo-corpo">
@@ -310,7 +319,7 @@ export default function EditorFicha({ f, ed, chat }: {
           </div>
           <div className="painel-aba" id="painel-magias" role="tabpanel" aria-labelledby="aba-magias" hidden={aba !== 'magias'}>
             <Magias
-              magias={f.magias} gastoUniversal={bonus.gasto}
+              magias={f.magias} criados={f.elementosCriados} gastoUniversal={bonus.gasto}
               aoMudar={magias => ed.definir({ ...f, magias }, { magias })} aoConjurar={conjurar}
             />
           </div>
@@ -331,13 +340,14 @@ export default function EditorFicha({ f, ed, chat }: {
           <div className="fadiga">
             <div className="vital-topo">
               <label className="vital-rot" htmlFor="v-fadiga">Fadiga mental</label>
-              <span className="vital-num"><CampoNumero id="v-fadiga" min={0} max={100} aoVivo valor={f.fadiga} aoMudar={mudarFadiga} /><span>%</span></span>
+              <span className="vital-num"><CampoNumero id="v-fadiga" min={0} max={100} aoVivo disabled={!podeMudarFadiga} valor={f.fadiga} aoMudar={mudarFadiga} /><span>%</span></span>
             </div>
-            <input id="r-fadiga" type="range" min={0} max={100} step={1} value={f.fadiga} aria-label="Fadiga mental em porcentagem" onChange={ev => mudarFadiga(ev.target.value)} />
+            <input id="r-fadiga" type="range" min={0} max={100} step={1} disabled={!podeMudarFadiga} value={f.fadiga} aria-label="Fadiga mental em porcentagem" onChange={ev => mudarFadiga(ev.target.value)} />
+            {!podeMudarFadiga && <p className="formula">Só o mestre da campanha muda a fadiga mental.</p>}
             <ol className="escada">
               {R.ESTAGIOS.map(s => (
                 <li key={s.min}>
-                  <button type="button" className={`degrau est-${s.min}${s.min <= f.fadiga ? ' passou' : ''}`} aria-current={s.min === e.min ? 'true' : undefined} onClick={() => mudarFadiga(s.min)}>
+                  <button type="button" className={`degrau est-${s.min}${s.min <= f.fadiga ? ' passou' : ''}`} aria-current={s.min === e.min ? 'true' : undefined} disabled={!podeMudarFadiga} onClick={() => mudarFadiga(s.min)}>
                     <b>{String(s.min).padStart(2, '0')}%</b>
                     <span className="degrau-nome">{s.nome}</span>
                     {s.txt && <span className="degrau-txt">{s.txt}</span>}
