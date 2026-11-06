@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Alegreya, Alegreya_SC, Almendra } from 'next/font/google';
 import { Toaster } from 'sonner';
 
@@ -10,6 +10,9 @@ export const metadata: Metadata = {
   title: { default: 'One History', template: '%s · One History' },
   description: 'Fichas e campanhas do sistema de RPG One History.',
 };
+
+/* `cover` libera a área do entalhe do celular: os estilos já respeitam as margens seguras. */
+export const viewport: Viewport = { themeColor: '#15101c', viewportFit: 'cover' };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

@@ -1,6 +1,6 @@
 # Publicar o One History
 
-O site roda como um único serviço Node. Para publicar, rode `railway up` na raiz do projeto. O envio para o GitHub só publica sozinho depois de instalar o app do Railway no GitHub.
+O site roda como um único serviço Node. Cada envio para a branch `main` publica o site sozinho, em alguns minutos.
 
 **Situação atual:** no ar em https://one-history-production.up.railway.app, com banco em volume do Railway montado em `/data`. O Turso abaixo é o próximo passo opcional, para ver e editar os dados com mais facilidade.
 
@@ -50,7 +50,7 @@ Se o indicador não conectar, confira se a hospedagem aceita WebSocket. Sem isso
 
 ## Atualizar depois
 
-Rode `railway up`, ou envie o código para a `main` se o app do Railway estiver instalado no GitHub. O Railway recompila e publica em alguns minutos. Migrações novas rodam ao iniciar, antes de o site abrir.
+Envie o código para a `main`. O Railway recompila e publica em alguns minutos. Migrações novas rodam ao iniciar, antes de o site abrir.
 
 Evite publicar durante uma sessão: o site fica fora por alguns instantes, e a mesa reconecta sozinha ao voltar.
 

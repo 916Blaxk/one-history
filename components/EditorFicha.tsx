@@ -43,6 +43,8 @@ export default function EditorFicha({ f, ed, chat }: {
   const entradaFoto = useRef<HTMLInputElement>(null);
   const [editandoLimites, setEditandoLimites] = useState(false);
   const [aba, setAba] = useState<'atributos' | 'magias'>('atributos');
+  /* Só o celular usa: no computador, as três colunas ficam sempre à vista. */
+  const [secao, setSecao] = useState<'cena' | 'perfil' | 'habilidades'>('cena');
   const souMestre = f.contexto.souMestre;
   const url = `/api/fichas/${f.id}`;
   const vm = R.vidaMax(f), mm = R.manaMax(f), e = R.estagio(f.fadiga), perdido = e.min === 100, perda = R.perdaDeCena(f);
@@ -191,6 +193,7 @@ export default function EditorFicha({ f, ed, chat }: {
         {f.contexto.souDono && <BotaoConfirmar rotulo="Apagar" confirmar="Confirmar: apagar para sempre" aoConfirmar={apagar} />}
       </div>
       <header className="placa">
+        <span className="orbe placa-orbe" aria-hidden="true" style={{ '--orbe': COR_DO_NUCLEO[f.nucleo] } as React.CSSProperties} />
         <h1 className="placa-nome">{perdido ? '???' : f.nome || 'Sem nome'}</h1>
         <p className="placa-sub">{perdido ? '???' : sub}</p>
         <svg className="fenda" viewBox="0 0 1000 100" preserveAspectRatio="none" aria-hidden="true">
@@ -200,7 +203,12 @@ export default function EditorFicha({ f, ed, chat }: {
         </svg>
       </header>
 
-      <div className="ficha-grade">
+      <div className="ficha-secoes" role="group" aria-label="Parte da ficha">
+        {([['cena', 'Cena'], ['perfil', 'Perfil'], ['habilidades', 'Habilidades']] as const).map(([id, rotulo]) => (
+          <button type="button" key={id} aria-pressed={secao === id} onClick={() => { setSecao(id); window.scrollTo({ top: 0 }); }}>{rotulo}</button>
+        ))}
+      </div>
+      <div className="ficha-grade" data-secao={secao}>
         <section className="col-id" aria-label="Identidade">
           <div className="bloco-foto">
             {perdido ? <span className="capitular retrato">???</span> : <Capitular className="retrato" nome={f.nome} fichaId={f.id} fotoV={f.fotoV} />}

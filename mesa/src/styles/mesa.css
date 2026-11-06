@@ -2002,3 +2002,56 @@ button:disabled {
 .chat-toggle:hover {
   background: linear-gradient(180deg, #de6a30, #b5431c);
 }
+
+/* Os controles de névoa parecem botões, em qualquer tela. */
+.fog-controls > div {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto 1fr;
+}
+.fog-controls button {
+  border: 1px solid #ffffff1c;
+  background: #ffffff08;
+}
+.fog-controls button:disabled {
+  opacity: 0.45;
+}
+
+@media (max-width: 768px) {
+  /* Mesmas cores do site, e sem o zoom do iPhone ao tocar em um campo. */
+  .mobile-bottom-sheet {
+    border-top: 1px solid #8a6a2c !important;
+    background: #221a2c !important;
+  }
+  .mobile-map-nav {
+    border-top: 1px solid #e0b458;
+    background: #1b1423f5;
+  }
+  .mobile-sheet-content input:not([type='range'], [type='checkbox'], [type='color']),
+  .mobile-sheet-content select,
+  .mobile-sheet-content textarea,
+  .chat-panel input,
+  .chat-panel textarea {
+    min-height: 44px;
+    font-size: 16px;
+  }
+  .combate-lista button,
+  .token-condicoes button,
+  .scene-list-item button,
+  .sprite-abas button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .combate-lista input {
+    width: 56px;
+    min-height: 40px;
+  }
+  .mini-sheet-group summary {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
+  .mini-sheet-group li button,
+  .mini-sheet-group li.mini-sheet-spell button {
+    min-height: 44px;
+  }
+}

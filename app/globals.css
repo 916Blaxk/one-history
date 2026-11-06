@@ -485,3 +485,102 @@ a.rol-linha:hover,a.camp-linha:hover{background:transparent}
 .ficha[data-estagio="100"] .placa{background:#000}
 .ficha[data-estagio="100"] .placa-nome,.ficha[data-estagio="100"] .placa-sub{color:var(--tinta);text-shadow:none}
 .ficha[data-estagio="100"] .retrato{background:#000;color:var(--tinta)}
+
+/* ---------- Barra de abas: só aparece como barra no celular ---------- */
+.topo-abas{display:contents}
+.topo-link svg{display:none}
+.ficha-secoes,.placa-orbe{display:none}
+
+/* ---------- Celular: pensado para o polegar, não apenas encolhido ---------- */
+@media (max-width:859px){
+  :root{--barra-inferior:calc(60px + env(safe-area-inset-bottom,0px))}
+  body{padding-bottom:var(--barra-inferior)}
+  [data-sonner-toaster]{--mobile-offset-bottom:calc(var(--barra-inferior) + 12px)}
+
+  /* Topo só com a marca e a conta. O que se usa toda hora desce para a barra. */
+  .topo-int{flex-wrap:nowrap;gap:12px;padding-block:6px}
+  .topo-marca{font-size:23px;margin-right:0;min-height:44px;flex:none}
+  .topo-marca::before{width:26px;height:26px}
+  .topo-int>.topo-link{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:flex;align-items:center;min-height:44px;font-size:14px}
+  .topo-sair{min-height:44px;min-width:44px;flex:none}
+  .foto-botoes .btn{min-height:44px}
+  .topo-abas{position:fixed;z-index:9;inset:auto 0 0;height:var(--barra-inferior);padding-bottom:env(safe-area-inset-bottom,0px);display:grid;grid-template-columns:1fr 1fr;background:linear-gradient(180deg,#2c2238,#1b1423);border-top:1px solid var(--ouro);box-shadow:0 -6px 20px #0009}
+  .topo-abas .topo-link{display:grid;justify-items:center;align-content:center;gap:2px;padding:4px;border-bottom:0;font-size:13px}
+  .topo-abas .topo-link svg{display:block;width:21px;height:21px}
+  .topo-abas .topo-link[aria-current="page"]{color:var(--ouro);background:linear-gradient(180deg,#e0b4581f,transparent);box-shadow:inset 0 2px 0 var(--ouro)}
+
+  /* Alvos de toque de pelo menos 44 px, e letra de 16 px nos campos: abaixo disso, o iPhone dá zoom ao tocar. */
+  .btn,.btn-pequeno{min-height:44px;padding-inline:14px;font-size:15px}
+  .campo input,.campo select,.busca,.link-convite,.bonus input,.perda-perm input,.campo-limite input{min-height:44px;font-size:16px}
+  .campo textarea{font-size:16px}
+  .vital-num input{font-size:34px}
+  .abas button{min-height:44px}
+  .attr{gap:8px;padding-block:8px}
+  .passo{grid-template-columns:42px 46px 42px;height:46px}
+  .passo input{font-size:16px}
+  .rolar{height:44px;min-width:46px}
+  .vital-botoes button{min-height:46px;font-size:16px}
+  .dados-botoes{grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+  .dados-botoes button{min-height:46px}
+  .categoria-pericia summary{display:flex;align-items:center;min-height:46px;padding-block:0}
+  .chat-fechar{width:44px;height:44px}
+  .degrau{min-height:44px}
+  input[type=range]{min-height:32px}
+
+  /* Espaço: menos moldura, mais conteúdo */
+  .folio{padding-block:14px calc(40px + 56px)}
+  .painel,.cartao-entrada{padding:18px 16px}
+  .pag-topo{padding-bottom:14px;margin-bottom:14px}
+  .pag-titulo{font-size:clamp(34px,10vw,44px)}
+  .pag-topo .acoes{display:grid;grid-template-columns:1fr 1fr;width:100%}
+  .pag-topo .acoes .btn-forte{grid-column:1 / -1;order:-1;min-height:50px;font-size:17px}
+  .pag-topo .acoes .btn{width:100%}
+  .busca{max-width:none;flex-basis:100%}
+  .rol-acao{gap:8px}
+  .rol-acao .btn{flex:1 1 0}
+  .chat-painel{grid-template-rows:auto minmax(0,220px) auto}
+  .chat-painel .chat-lista{height:220px}
+
+  /* Entrada: a marca aparece, mas o formulário já cabe na primeira tela */
+  .entrada{gap:22px;padding-block:24px 32px;align-items:start}
+  .orbe-entrada{width:84px;margin:6px auto 22px}
+  .marca{font-size:clamp(48px,14vw,64px);text-align:center}
+  .entrada-texto{margin-top:8px;max-width:none;font-size:17px;text-align:center}
+  .entrada-lista{display:none}
+  .aba{min-height:44px}
+
+  /* Ficha em três partes: a que importa durante a cena vem primeiro */
+  .ficha-barra{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:12px}
+  .ficha-barra>.btn:first-child,.ficha-barra>a{grid-column:1 / span 2}
+  .ficha-barra .espaco{display:none}
+  .ficha-barra .btn{padding-inline:6px;width:100%}
+  .salvo{min-width:0;justify-self:end;align-self:center}
+  .placa{display:grid;grid-template-columns:48px minmax(0,1fr);column-gap:14px;align-items:center;padding:6px 0 14px 4px;margin-bottom:0;border-bottom:0;overflow:visible}
+  .placa-orbe{display:block;width:38px;grid-row:1 / span 2;justify-self:center;box-shadow:0 0 14px color-mix(in srgb,var(--orbe) 85%,transparent),inset 0 0 12px color-mix(in srgb,var(--orbe) 40%,#000)}
+  .placa-nome{font-size:clamp(30px,9vw,42px);line-height:1.05}
+  .placa-sub{margin-top:2px;font-size:14px}
+  .ficha-secoes{position:sticky;top:0;z-index:4;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));margin:0 calc(max(16px,env(safe-area-inset-left,0px)) * -1) 18px;background:#1b1423f5;border-block:1px solid var(--latao-escuro);backdrop-filter:blur(8px)}
+  .ficha-secoes button{min-height:48px;background:transparent;border:0;font:700 15px/1 var(--f-rotulo);letter-spacing:.03em;color:var(--tinta-2)}
+  .ficha-secoes button[aria-pressed="true"]{color:var(--ouro);box-shadow:inset 0 -3px 0 var(--ouro);background:#e0b45812}
+  .ficha-grade[data-secao="cena"] .col-id,.ficha-grade[data-secao="cena"] .col-attr,
+  .ficha-grade[data-secao="perfil"] .col-attr,.ficha-grade[data-secao="perfil"] .col-cena,
+  .ficha-grade[data-secao="habilidades"] .col-id,.ficha-grade[data-secao="habilidades"] .col-cena{display:none}
+  .bloco-foto{max-width:none;justify-items:center}
+  .retrato{width:min(58vw,220px);font-size:96px}
+  .foto-botoes{width:min(58vw,220px)}
+  .elementos-corpo{justify-content:center}
+  /* Na escada de fadiga, só o degrau atual explica o efeito: a lista cabe sem rolar tanto. */
+  .degrau:not([aria-current="true"]) .degrau-txt,.degrau:not([aria-current="true"]) .degrau-custo{display:none}
+
+  /* O chat fica acima da barra e não cobre os controles da ficha */
+  /* Redondo e com o dado: o nome continua lá para leitores de tela, sem cobrir a ficha. */
+  .chat-pilula{bottom:calc(var(--barra-inferior) + 10px);right:10px;width:52px;height:52px;min-height:0;padding:0;justify-content:center;border-radius:50%;font-size:0;letter-spacing:0;box-shadow:0 4px 14px #000a}
+  .chat-pilula::before{content:"";width:32px;height:32px;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 1 29 8.5v15L16 31 3 23.500v-15z' fill='%233a1d2a' stroke='%23e0b458' stroke-width='1.5'/%3E%3Cpath d='M16 8 24 21H8zM16 1v7M3 8.500 16 8l13 .5M3 23.500 8 21 3 8.500M29 23.500 24 21l5-12.500M16 31l-8-10M16 31l8-10' fill='none' stroke='%23e0b458' stroke-width='1'/%3E%3C/svg%3E") center/contain no-repeat}
+  .chat-contagem{position:absolute;top:-4px;right:-4px;font-size:12px;border-radius:999px}
+  .chat-flutuante{bottom:calc(var(--barra-inferior) + 6px);z-index:10}
+  .ficha-grade{padding-bottom:64px}
+}
+@media (max-width:360px){
+  .passo{grid-template-columns:38px 40px 38px}
+  .topo-marca{font-size:20px}
+}
