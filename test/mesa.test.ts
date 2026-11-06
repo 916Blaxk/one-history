@@ -263,6 +263,58 @@ describe('papéis vêm do banco', () => {
     expect(m.ultimoToken(t).hpCurrent).toBeUndefined();
   });
 
+  it('ficha que entra na campanha ganha um token, e ele acompanha a ficha', async () => {
+    const { mestre, jogador, ficha, id } = await mesaCompleta();
+    const m = await entrar(mestre, id);
+    const j = await entrar(jogador, id);
+    const daFicha = (c: any, fichaId: string) => [...c.tokens.values()].filter((k: any) => k.characterId === fichaId) as any[];
+
+    /* A ficha entrou com a mesa fechada: o token nasce ao abrir, com o que veio dela. */
+    const [doJogador] = daFicha(m, ficha.id);
+    expect(daFicha(m, ficha.id)).toHaveLength(1);
+    expect(doJogador).toMatchObject({ name: 'Kael', hidden: false, ownerIds: [jogador.id], hpCurrent: 25, hpMax: 25, automatico: true });
+    expect(daFicha(j, ficha.id)).toHaveLength(1);
+
+    await jogador.c('PATCH', `/api/fichas/${ficha.id}`, { nome: 'Kael, o Bravo' });
+    await ate(() => m.ultimoToken(doJogador.id).name === 'Kael, o Bravo');
+    /* O dono renomeou: daqui em diante, o nome do token é dele. */
+    j.comando({ type: 'token:update', id: doJogador.id, changes: { name: 'Disfarce' } });
+    await ate(() => m.ultimoToken(doJogador.id).name === 'Disfarce');
+    await jogador.c('PATCH', `/api/fichas/${ficha.id}`, { nome: 'Kael', vidaAtual: 3 });
+    await ate(() => m.ultimoToken(doJogador.id).hpCurrent === 3);
+    expect(m.ultimoToken(doJogador.id).name).toBe('Disfarce');
+
+    /* Ficha privada do mestre, com a mesa aberta: o token nasce oculto. */
+    const npc = (await mestre.c('POST', '/api/fichas', { dados: { nome: 'Vilão' } })).corpo.ficha;
+    await mestre.c('POST', `/api/campanhas/${id}/fichas`, { fichaId: npc.id });
+    const noMestre = await ate(() => daFicha(m, npc.id)[0]);
+    expect(noMestre).toMatchObject({ name: 'Vilão', hidden: true, ownerIds: [] });
+    expect(daFicha(j, npc.id)).toHaveLength(0);
+
+    /* Mesmo mostrado no mapa, ele não entrega o nome enquanto a ficha for privada. */
+    m.comando({ type: 'token:update', id: noMestre.id, changes: { hidden: false } });
+    const visto = await ate(() => j.ultimoToken(noMestre.id));
+    expect(visto.name).toBe('???');
+    expect(JSON.stringify(visto)).not.toContain('Vilão');
+    await mestre.c('PATCH', `/api/fichas/${npc.id}`, { publica: true });
+    await ate(() => j.ultimoToken(noMestre.id).name === 'Vilão');
+
+    /* Token apagado não volta sozinho. */
+    m.comando({ type: 'token:remove', id: noMestre.id });
+    await ate(() => !m.ultimoToken(noMestre.id));
+    const outra = (await mestre.c('POST', '/api/fichas', { dados: { nome: 'Outra' } })).corpo.ficha;
+    await mestre.c('POST', `/api/campanhas/${id}/fichas`, { fichaId: outra.id });
+    await ate(() => daFicha(m, outra.id).length === 1);
+    expect(daFicha(m, npc.id)).toHaveLength(0);
+
+    /* A ficha saiu da campanha: o token sai junto. Se voltar, ganha outro. */
+    await jogador.c('DELETE', `/api/campanhas/${id}/fichas/${ficha.id}`);
+    await ate(() => daFicha(m, ficha.id).length === 0);
+    await jogador.c('POST', `/api/campanhas/${id}/fichas`, { fichaId: ficha.id });
+    await ate(() => daFicha(m, ficha.id).length === 1);
+    expect(daFicha(m, ficha.id)[0].id).not.toBe(doJogador.id);
+  });
+
   it('jogador só recebe a foto de token com ficha do mestre quando ela é pública', async () => {
     const { mestre, jogador, id } = await mesaCompleta();
     const npc = (await mestre.c('POST', '/api/fichas', { dados: { nome: 'Vilão' } })).corpo.ficha;
@@ -546,6 +598,8 @@ describe('persistência', () => {
     expect(s.grid).toEqual({ enabled: true, cellSize: 50, opacity: 0.3 });
     expect(s.nevoa.mundo).toEqual([{ tipo: 'traco', revelar: false, raio: 1, pontos: [0, 0] }]);
     expect(s.scenes).toEqual([{ id: 'c1', imageUrl: PIXEL, x: 10, y: 20, width: 100, height: 200, nome: 'Salão', oculto: true }]);
+    /* O que foi vinculado à mão e o que nasceu com a ficha: reiniciar não cria outro. */
+    expect(s.tokens.filter((x: any) => x.characterId === ficha.id)).toHaveLength(2);
     const token = s.tokens.find((x: any) => x.id === t);
     expect(token).toMatchObject({ name: 'Salvo', hidden: true, characterId: ficha.id, hpCurrent: 25, activeSpriteId: 's1' });
     expect(s.spritesByTokenId[t]).toEqual([{ id: 's1', label: 'Rosto', imageUrl: PIXEL }]);

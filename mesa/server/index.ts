@@ -18,7 +18,7 @@ import { ouvirMesa, type EventoMesa } from '../../lib/servidor/barramento'
 import { alterarFicha, gravarRolagem, textoDaRolagem } from '../../lib/servidor/rotas'
 import { COOKIE, usuarioDoToken } from '../../lib/servidor/sessao'
 import {
-  campanhaExiste, carregarHistorico, carregarMesa, gravarMensagem, lerAcesso, lerFicha, lerMembros, rolagemParaChat, salvarMesa, type EstadoMesa,
+  campanhaExiste, carregarHistorico, carregarMesa, gravarMensagem, lerAcesso, lerFicha, lerFichasDaCampanha, lerMembros, rolagemParaChat, salvarMesa, type EstadoMesa,
 } from './armazem'
 
 const MAX_IMAGE_DATA_URL_LENGTH = 700_000
@@ -30,6 +30,11 @@ const ROOM_TTL_MS = 30 * 60 * 1000
 const INTERVALO_SALVAR_MS = 1000
 const INTERVALO_SESSAO_MS = 60 * 1000
 const defaultGrid: RoomGrid = { enabled: true, cellSize: 70, opacity: 0.24 }
+const NOME_FICHA_PRIVADA = '???'
+const CORES_TOKEN_AUTOMATICO = ['#80624a', '#4a6f80', '#5f8050', '#7a4f7c', '#8a5a44', '#4f5f8a']
+/* Fora do centro do cenário: o token novo não pode cair em cima do que o mestre está mostrando. */
+const CELULAS_ATE_TOKEN_NOVO = 3
+const TOKENS_NOVOS_POR_LINHA = 8
 
 type SocketData = { usuario: { id: string; nome: string }; token: string; campanhaId?: string }
 type TableSocket = Socket<ClientToServerEvents, ServerToClientEvents, Record<string, never>, SocketData>
@@ -90,7 +95,9 @@ function validToken(value: unknown, sprites: TokenSprite[]): value is Token {
     (value.characterId === undefined || (typeof value.characterId === 'string' && value.characterId.length <= 80)) &&
     resource(value.hpCurrent) && resource(value.hpMax) && resource(value.manaCurrent) && resource(value.manaMax) &&
     (value.fotoFichaV === undefined || (typeof value.fotoFichaV === 'number' && Number.isFinite(value.fotoFichaV) && value.fotoFichaV >= 0)) &&
-    (value.fotoFichaPrivada === undefined || typeof value.fotoFichaPrivada === 'boolean')
+    (value.fotoFichaPrivada === undefined || typeof value.fotoFichaPrivada === 'boolean') &&
+    (value.automatico === undefined || typeof value.automatico === 'boolean') &&
+    (value.nomeDaFicha === undefined || typeof value.nomeDaFicha === 'boolean')
     && Array.isArray(value.ownerIds) && value.ownerIds.length <= 100 &&
     value.ownerIds.every((id) => typeof id === 'string' && id.length <= 100) &&
     typeof value.hidden === 'boolean' &&
@@ -151,6 +158,7 @@ class RoomState {
   grid: RoomGrid = { ...defaultGrid }
   scenes: RoomScene[] = []
   nevoa: NevoaDaMesa = {}
+  fichasComToken = new Set<string>()
   lastMoveAt = new Map<string, number>()
   cleanupTimer?: ReturnType<typeof setTimeout>
   /* Só para saber quem vê a vida e a mana de um token vinculado, sem consultar o banco a cada envio. */
@@ -187,7 +195,11 @@ function visaoDoToken(room: RoomState, token: Token, player: RoomPlayer): Token 
   if (!token.characterId || player.role === 'gm' || room.donosFicha.get(token.characterId) === player.id) return token
   const visao = { ...token }
   delete visao.hpCurrent; delete visao.hpMax; delete visao.manaCurrent; delete visao.manaMax
-  if (token.fotoFichaPrivada) delete visao.fotoFichaV
+  /* O mestre pode mostrar o token no mapa, mas o nome e a foto da ficha privada continuam guardados. */
+  if (token.fotoFichaPrivada) {
+    delete visao.fotoFichaV
+    if (token.nomeDaFicha) visao.name = NOME_FICHA_PRIVADA
+  }
   delete visao.fotoFichaPrivada
   return visao
 }
@@ -273,6 +285,7 @@ function estadoDaSala(room: RoomState) {
     scenes: room.scenes.map(({ id, x, y, width, height, nome, oculto }) => ({ id, x, y, width, height, nome, oculto })),
     nevoa: room.nevoa,
     espectadores: [...room.espectadores],
+    fichasComToken: [...room.fichasComToken],
   }
   return { estado, imagens }
 }
@@ -300,7 +313,14 @@ function valoresDaFicha(room: RoomState, ficha: NonNullable<Awaited<ReturnType<t
     fotoFichaV: ficha.fotoV, fotoFichaPrivada: R.fichaPrivada(ficha, room.mestreId),
   }
 }
+const nomeParaToken = (dados: R.DadosFicha) => (dados.nome.trim() || 'Sem nome').slice(0, 32)
 function desvincular(room: RoomState, token: Token) {
+  if (token.automatico) {
+    room.tokens.delete(token.id); room.sprites.delete(token.id)
+    broadcast(room, { type: 'token:removed', id: token.id })
+    marcarSuja(room)
+    return
+  }
   const atualizado = { ...token }
   delete atualizado.characterId; delete atualizado.hpCurrent; delete atualizado.hpMax; delete atualizado.manaCurrent; delete atualizado.manaMax
   delete atualizado.fotoFichaV; delete atualizado.fotoFichaPrivada
@@ -315,18 +335,49 @@ async function sincronizarFicha(room: RoomState, fichaId: string) {
   const ficha = await lerFicha(fichaId)
   if (!ficha || ficha.campanhaId !== room.code) {
     room.donosFicha.delete(fichaId)
+    room.fichasComToken.delete(fichaId)
     for (const token of tokens) desvincular(room, token)
     return
   }
   room.donosFicha.set(fichaId, ficha.donoId)
   const valores = valoresDaFicha(room, ficha)
   for (const token of tokens) {
-    if (token.hpCurrent === valores.hpCurrent && token.hpMax === valores.hpMax && token.manaCurrent === valores.manaCurrent && token.manaMax === valores.manaMax &&
+    const name = token.nomeDaFicha ? nomeParaToken(ficha.dados) : token.name
+    if (token.name === name && token.hpCurrent === valores.hpCurrent && token.hpMax === valores.hpMax && token.manaCurrent === valores.manaCurrent && token.manaMax === valores.manaMax &&
       token.fotoFichaV === valores.fotoFichaV && token.fotoFichaPrivada === valores.fotoFichaPrivada) continue
-    const atualizado = { ...token, ...valores }
+    const atualizado = { ...token, ...valores, name }
     room.tokens.set(token.id, atualizado)
     broadcastVisible(room, { type: 'token:updated', token: atualizado, sprites: room.sprites.get(token.id) ?? [] }, atualizado)
     marcarSuja(room)
+  }
+}
+/* Cada ficha que entra na campanha ganha um token uma vez só. Quem apaga o token não o vê voltar sozinho. */
+async function criarTokensDasFichas(room: RoomState) {
+  const lista = await lerFichasDaCampanha(room.code)
+  const presentes = new Set(lista.map((f) => f.id))
+  for (const id of room.fichasComToken) if (!presentes.has(id)) { room.fichasComToken.delete(id); marcarSuja(room) }
+  const cenario = room.scenes.filter((scene) => !scene.oculto).at(-1)
+  const celula = room.grid.cellSize
+  for (const ficha of lista) {
+    if (room.fichasComToken.has(ficha.id)) continue
+    room.fichasComToken.add(ficha.id)
+    marcarSuja(room)
+    room.donosFicha.set(ficha.id, ficha.donoId)
+    if ([...room.tokens.values()].some((token) => token.characterId === ficha.id) || room.tokens.size >= MAX_TOKENS_PER_ROOM) continue
+    const vaga = room.fichasComToken.size - 1
+    const x = (cenario?.x ?? 0) + (vaga % TOKENS_NOVOS_POR_LINHA - CELULAS_ATE_TOKEN_NOVO) * celula
+    const y = (cenario?.y ?? 0) + (Math.floor(vaga / TOKENS_NOVOS_POR_LINHA) + CELULAS_ATE_TOKEN_NOVO) * celula
+    const privada = R.fichaPrivada(ficha, room.mestreId)
+    const token: Token = {
+      id: crypto.randomUUID(), name: nomeParaToken(ficha.dados),
+      x: snap(x, 1, celula), y: snap(y, 1, celula), size: 1, rotation: 0,
+      spriteIds: [], activeSpriteId: null, flipX: false, color: CORES_TOKEN_AUTOMATICO[vaga % CORES_TOKEN_AUTOMATICO.length]!,
+      characterId: ficha.id, ...valoresDaFicha(room, ficha),
+      ownerIds: ficha.donoId === room.mestreId ? [] : [ficha.donoId],
+      hidden: privada, automatico: true, nomeDaFicha: true,
+    }
+    room.tokens.set(token.id, token); room.sprites.set(token.id, [])
+    broadcastVisible(room, { type: 'token:added', token, sprites: [], playerId: '' }, token)
   }
 }
 async function revalidarVinculos(room: RoomState) {
@@ -349,7 +400,7 @@ async function handleCommand(socket: TableSocket, room: RoomState, player: RoomP
         createdByPlayerKey: player.id,
       }
       /* O vínculo com a ficha passa sempre pela checagem de token:update. */
-      delete token.characterId; delete token.fotoFichaV; delete token.fotoFichaPrivada
+      delete token.characterId; delete token.fotoFichaV; delete token.fotoFichaPrivada; delete token.automatico; delete token.nomeDaFicha
       if (!validToken(token, message.sprites)) return
       room.tokens.set(token.id, token); room.sprites.set(token.id, message.sprites)
       broadcastVisible(room, { type: 'token:added', token, sprites: message.sprites, playerId: socket.id }, token); return
@@ -361,6 +412,7 @@ async function handleCommand(socket: TableSocket, room: RoomState, player: RoomP
       const allowed = new Set<string>(player.role === 'gm' ? GM_TOKEN_FIELDS : PLAYER_TOKEN_FIELDS)
       if (!validChanges(message.changes) || Object.keys(message.changes).some((key) => !allowed.has(key))) return deny(socket)
       const changes: Record<string, unknown> = { ...message.changes }
+      if ('name' in changes) changes.nomeDaFicha = null
       const vinculoNovo = 'characterId' in changes ? (changes.characterId as string | null) : undefined
       const fichaId = vinculoNovo === undefined ? current.characterId : vinculoNovo
       const pedidoFicha: { vidaAtual?: number; manaAtual?: number } = {}
@@ -628,6 +680,7 @@ async function carregarSala(campanhaId: string) {
     room.nevoa = e.nevoa ?? {}
     if (e.fogCells?.length && !room.nevoa[CAMADA_MUNDO]) room.nevoa[CAMADA_MUNDO] = celulasParaOps(e.fogCells, e.grid.cellSize)
     room.espectadores = new Set(e.espectadores)
+    room.fichasComToken = new Set(e.fichasComToken)
     room.scenes = e.scenes.flatMap((c) => {
       const imageUrl = salva.imagens.get(c.id)
       return imageUrl ? [{ ...c, imageUrl }] : []
@@ -644,8 +697,9 @@ async function carregarSala(campanhaId: string) {
   for (const m of lista) {
     room.players.set(m.id, { id: m.id, name: m.nome, status: 'offline', role: papelDaSala(room, m.id) })
   }
-  /* A ficha pode ter mudado com o servidor desligado. */
+  /* A ficha pode ter mudado com o servidor desligado, ou entrado na campanha com a mesa fechada. */
   await revalidarVinculos(room)
+  await criarTokensDasFichas(room)
   return room
 }
 function papelDaSala(room: RoomState, usuarioId: string): RoomPlayer['role'] {
@@ -698,6 +752,7 @@ async function sincronizarMembros(room: RoomState) {
     room.players.set(m.id, atual ? { ...atual, name: m.nome } : { id: m.id, name: m.nome, status: 'offline', role: papelDaSala(room, m.id) })
   }
   await revalidarVinculos(room)
+  await criarTokensDasFichas(room)
   broadcastPlayers(room)
   broadcastSnapshots(room)
 }

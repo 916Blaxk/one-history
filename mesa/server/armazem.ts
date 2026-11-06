@@ -34,6 +34,11 @@ export async function lerFicha(fichaId: string) {
   return f ? { ...f, dados: R.normalizar(f.dados) } : null
 }
 
+export async function lerFichasDaCampanha(campanhaId: string) {
+  const linhas = await db.select({ id: fichas.id, donoId: fichas.donoId, campanhaId: fichas.campanhaId, dados: fichas.dados, fotoV: fichas.fotoV }).from(fichas).where(eq(fichas.campanhaId, campanhaId))
+  return linhas.map((f) => ({ ...f, dados: R.normalizar(f.dados) }))
+}
+
 export function rolagemParaChat(l: LinhaRolagem): ChatMessage {
   return {
     id: l.id, type: 'roll', author: l.autor, timestamp: l.em,
@@ -83,6 +88,8 @@ export interface EstadoMesa {
   /* Só em mesas salvas antes do pincel livre: é convertido ao carregar. */
   fogCells?: string[]
   espectadores: string[]
+  /* Fichas que já tiveram token: é o que impede um token apagado de voltar sozinho. */
+  fichasComToken?: string[]
 }
 
 export async function carregarMesa(campanhaId: string) {

@@ -20,6 +20,10 @@ export type Token = {
   fotoFichaV?: number
   /* O jogador não recebe a foto de ficha privada do mestre. */
   fotoFichaPrivada?: boolean
+  /* O token nasceu sozinho com a ficha: sai da mesa quando ela sai da campanha. */
+  automatico?: boolean
+  /* O nome acompanha o da ficha até alguém renomear o token. */
+  nomeDaFicha?: boolean
   ownerIds: string[]
   hidden: boolean
   createdByPlayerKey?: string

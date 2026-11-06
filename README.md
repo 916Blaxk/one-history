@@ -25,7 +25,7 @@ Os dados ficam em `dados/one-history.db`. Para fazer backup, copie essa pasta co
 - **Jogador:** vê a própria ficha completa. Das fichas dos colegas, só nome, foto e raça.
 - **Fichas do mestre:** na campanha dele, são privadas: os jogadores não as veem, e as rolagens delas aparecem como "Mestre". O mestre pode tornar cada uma pública, e aí os jogadores veem nome, foto e raça.
 - **Magias:** cada ficha tem uma aba de feitiços. Conjurar desconta da mana o custo menos o gasto universal do núcleo.
-- **Mesa:** a página da campanha tem o botão **Mesa**, com mapa, tokens, cenários, névoa e chat. O mestre pode preparar cenários ocultos antes da sessão, com a névoa pronta, e mostrar cada um quando quiser. O mestre é o GM, e os membros são jogadores. Um token pode usar uma ficha da campanha: ele passa a mostrar a foto dela, e a vida e a mana acompanham a ficha na hora.
+- **Mesa:** a página da campanha tem o botão **Mesa**, com mapa, tokens, cenários, névoa e chat. O mestre pode preparar cenários ocultos antes da sessão, com a névoa pronta, e mostrar cada um quando quiser. O mestre é o GM, e os membros são jogadores. Toda ficha que entra na campanha ganha um token vinculado, oculto se for ficha privada do mestre. O token mostra o nome e a foto da ficha, e a vida e a mana acompanham a ficha na hora.
 - **Chat de dados:** abre sozinho ao rolar e mostra cada rolagem como mensagem. Em campanha, todos da mesa veem. Fora dela, só o dono da ficha. Cada chat guarda as 500 rolagens mais recentes.
 - **Ao vivo:** a mesa e a ficha conversam na hora por Socket.IO. As telas de campanha, ficha e chat também se atualizam sozinhas a cada 3 segundos.
 
