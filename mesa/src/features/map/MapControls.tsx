@@ -19,6 +19,7 @@ import {
   UserRoundPlus,
   X,
 } from 'lucide-react'
+import AjusteFoto, { arquivoDaTela } from '@/components/AjusteFoto'
 import { Card, CardContent } from '@mesa/components/ui/card'
 import { useUiStore } from '@mesa/stores/ui-store'
 import { useTokenStore } from '@mesa/features/tokens/token-store'
@@ -38,6 +39,8 @@ export function MapControls({
 }) {
   const [collapsed, setCollapsed] = useState(false)
   const fileInput = useRef<HTMLInputElement>(null)
+  /* Vários arquivos de uma vez: a janela de ajuste abre para um de cada vez. */
+  const [cenariosNaFila, setCenariosNaFila] = useState<File[]>([])
   const grid = useUiStore((state) => state.grid)
   const setGrid = useUiStore((state) => state.setGrid)
   const scenes = useUiStore((state) => state.scenes)
@@ -64,32 +67,29 @@ export function MapControls({
   const contentVisible = mobileMode ? mobileOpen : !collapsed
   const dragHandlers = useBottomSheetDismiss(Boolean(mobileOpen), onMobileClose)
 
-  async function selectImages(files: FileList | null) {
-    if (!files?.length) return
+  async function adicionarCenario(file: File) {
     /* Lado a lado: cenários empilhados não dariam para pintar nem arrastar separados na preparação. */
     const { camera: cameraInicial, scenes: atuais } = useUiStore.getState()
-    let bordaDireita = atuais.length ? Math.max(...atuais.map((scene) => scene.x + scene.width / 2)) + grid.cellSize * 2 : null
-    for (const file of Array.from(files)) {
-      const objectUrl = URL.createObjectURL(file)
-      try {
-        const image = new Image()
-        image.src = objectUrl
-        await image.decode()
-        const x = bordaDireita === null ? (window.innerWidth / 2 - cameraInicial.x) / cameraInicial.zoom : bordaDireita + image.naturalWidth / 2
-        const y = (window.innerHeight / 2 - cameraInicial.y) / cameraInicial.zoom
-        const imageUrl = isRoomMode() ? await fileToRoomScene(file) : objectUrl
-        addScene({
-          id: crypto.randomUUID(), imageUrl, x, y, width: image.naturalWidth, height: image.naturalHeight,
-          nome: file.name.replace(/\.[^.]+$/, '').slice(0, 60), oculto: true,
-        })
-        bordaDireita = x + image.naturalWidth / 2 + grid.cellSize * 2
-        if (isRoomMode()) URL.revokeObjectURL(objectUrl)
-      } catch (error) {
-        URL.revokeObjectURL(objectUrl)
-        window.alert(error instanceof Error ? error.message : 'Não foi possível preparar a imagem.')
-      }
+    const bordaDireita = atuais.length ? Math.max(...atuais.map((scene) => scene.x + scene.width / 2)) + grid.cellSize * 2 : null
+    const objectUrl = URL.createObjectURL(file)
+    try {
+      const image = new Image()
+      image.src = objectUrl
+      await image.decode()
+      const x = bordaDireita === null ? (window.innerWidth / 2 - cameraInicial.x) / cameraInicial.zoom : bordaDireita + image.naturalWidth / 2
+      const y = (window.innerHeight / 2 - cameraInicial.y) / cameraInicial.zoom
+      const imageUrl = isRoomMode() ? await fileToRoomScene(file) : objectUrl
+      addScene({
+        id: crypto.randomUUID(), imageUrl, x, y, width: image.naturalWidth, height: image.naturalHeight,
+        nome: file.name.replace(/\.[^.]+$/, '').slice(0, 60), oculto: true,
+      })
+      if (isRoomMode()) URL.revokeObjectURL(objectUrl)
+    } catch (error) {
+      URL.revokeObjectURL(objectUrl)
+      window.alert(error instanceof Error ? error.message : 'Não foi possível preparar a imagem.')
     }
   }
+  const proximoCenario = () => setCenariosNaFila((fila) => fila.slice(1))
 
   function resetView() {
     useUiStore.getState().setCamera({
@@ -151,10 +151,25 @@ export function MapControls({
                 multiple
                 accept="image/*"
                 onChange={(event) => {
-                  void selectImages(event.currentTarget.files)
+                  setCenariosNaFila(Array.from(event.currentTarget.files ?? []))
                   event.currentTarget.value = ''
                 }}
               />
+              {cenariosNaFila[0] && (
+                <AjusteFoto
+                  key={`${cenariosNaFila[0].name}-${cenariosNaFila[0].lastModified}-${cenariosNaFila.length}`}
+                  arquivo={cenariosNaFila[0]}
+                  titulo={`Ajustar o cenário ${cenariosNaFila[0].name}`}
+                  aoCancelar={proximoCenario}
+                  aoFalhar={() => { window.alert('Não consegui ler essa imagem. Use um arquivo JPG, PNG ou WebP.'); proximoCenario() }}
+                  aoSalvar={(tela, inteira) => {
+                    const arquivo = cenariosNaFila[0]!
+                    proximoCenario()
+                    /* Inteiro, o cenário segue o arquivo original, sem perder qualidade em mais uma conversão. */
+                    void (inteira ? Promise.resolve(arquivo) : arquivoDaTela(tela, arquivo.name)).then(adicionarCenario)
+                  }}
+                />
+              )}
               <button
                 className="upload-button"
                 type="button"

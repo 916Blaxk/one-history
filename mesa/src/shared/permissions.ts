@@ -31,6 +31,7 @@ export const PLAYER_TOKEN_FIELDS = [
   'characterId',
   'condicoes',
   'spriteSangrandoId',
+  'armado',
 ] as const
 export const GM_TOKEN_FIELDS = [
   ...PLAYER_TOKEN_FIELDS,

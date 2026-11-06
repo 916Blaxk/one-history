@@ -3,13 +3,14 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useRef, useState } from 'react';
 import { toast } from 'sonner';
-import AjusteFoto from '@/components/AjusteFoto';
+import AjusteFoto, { fotoDaTela } from '@/components/AjusteFoto';
 import { ChatFlutuante } from '@/components/Chat';
 import { BotaoConfirmar, CampoNumero, Capitular } from '@/components/comuns';
 import ElementosCriados from '@/components/ElementosCriados';
 import Magias from '@/components/Magias';
 import Pentagrama from '@/components/Pentagrama';
 import { api, dataCurta, mensagem, pct, virgula } from '@/lib/cliente';
+import { MOLDURA_FOTO } from '@/lib/enquadramento';
 import * as R from '@/lib/regras';
 import type { Ficha, Mensagem } from '@/lib/tipos';
 import type { useChat } from '@/lib/useChat';
@@ -214,9 +215,11 @@ export default function EditorFicha({ f, ed, chat }: {
               <AjusteFoto
                 key={`${fotoEscolhida.name}-${fotoEscolhida.lastModified}`}
                 arquivo={fotoEscolhida}
+                titulo="Ajustar a foto"
+                moldura={MOLDURA_FOTO}
                 aoCancelar={() => setFotoEscolhida(null)}
                 aoFalhar={() => { setFotoEscolhida(null); toast.error('Não consegui ler essa imagem. Use um arquivo JPG, PNG ou WebP.'); }}
-                aoSalvar={foto => { setFotoEscolhida(null); void enviarFoto(foto); }}
+                aoSalvar={tela => { const foto = fotoDaTela(tela); setFotoEscolhida(null); void enviarFoto(foto); }}
               />
             )}
           </div>
@@ -349,7 +352,8 @@ export default function EditorFicha({ f, ed, chat }: {
                 </li>
               ))}
             </ol>
-            <button type="button" className="btn btn-forte" onClick={encerrarCena}>{perda ? `Encerrar cena: −${perda} de mana total` : 'Encerrar cena'}</button>
+            {/* A mesma regra da fadiga: em campanha é do mestre; fora dela, não há mestre, e quem cuida é o dono. */}
+            {podeMudarFadiga && <button type="button" className="btn btn-forte" onClick={encerrarCena}>{perda ? `Encerrar cena: −${perda} de mana total` : 'Encerrar cena'}</button>}
             <ul className="registro">
               {f.registro.slice(0, 3).map(r => <li key={r.em}>{dataCurta(r.em)}: {r.txt}</li>)}
             </ul>

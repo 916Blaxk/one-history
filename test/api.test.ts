@@ -279,6 +279,18 @@ describe('campanhas', () => {
     expect((await mestre.c('PATCH', `/api/fichas/${f.id}`, { fadiga: 80 })).corpo.ficha.fadiga).toBe(80);
   });
 
+  it('em campanha, só o mestre encerra a cena; fora dela, o dono', async () => {
+    const { mestre, jog, c, codigo, f } = await mesa();
+    const encerrar = (quem: typeof jog.c) => quem('POST', `/api/fichas/${f.id}/encerrar-cena`);
+    expect((await encerrar(jog.c)).status).toBe(200);
+    await jog.c('POST', `/api/convites/${codigo}/entrar`);
+    await jog.c('POST', `/api/campanhas/${c.id}/fichas`, { fichaId: f.id });
+    const antes = (await jog.c('GET', `/api/fichas/${f.id}`)).corpo.ficha.manaPerdida;
+    expect((await encerrar(jog.c)).status).toBe(403);
+    expect((await jog.c('GET', `/api/fichas/${f.id}`)).corpo.ficha.manaPerdida).toBe(antes);
+    expect((await encerrar(mestre.c)).status).toBe(200);
+  });
+
   it('a fadiga volta ao valor da campanha quando a ficha retorna', async () => {
     const { mestre, jog, c, codigo, f } = await mesa();
     const url = `/api/fichas/${f.id}`;

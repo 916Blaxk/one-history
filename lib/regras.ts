@@ -149,21 +149,20 @@ function normalizarElementosCriados(entrada: unknown): ElementoCriado[] {
   if (!Array.isArray(entrada)) return [];
   const ids = new Set<string>();
   const base = new Set<string>(GRUPOS.elementos.map(([k]) => k));
-  /* A fusão só aceita o que já veio antes na lista: um elemento não pode, nem por voltas, depender de si mesmo. */
-  const paraFusao = new Set(base);
+  /* A origem precisa ter vindo antes na lista: um elemento não pode, nem por voltas, depender de si mesmo. */
+  const aceitas = new Set(base);
   const lista: ElementoCriado[] = [];
   for (const bruto of entrada) {
     const e = (bruto && typeof bruto === 'object' ? bruto : {}) as Record<string, unknown>;
     const nome = texto(e.nome, TAMANHO_NOME_ELEMENTO).trim();
     const tipo = e.tipo === 'fusao' ? 'fusao' : 'variacao';
-    const aceitas = tipo === 'fusao' ? paraFusao : base;
     const origens = Array.isArray(e.origens) ? e.origens.filter((o): o is string => typeof o === 'string' && aceitas.has(o)) : [];
     const certos = tipo === 'fusao' ? origens.length === 2 && origens[0] !== origens[1] : origens.length === 1;
     /* O id entra na chave de rolagem "criados.id": um arquivo editado não pode trazer ponto nem repetir. */
     const pedido = texto(e.id, 40);
     if (!nome || !certos || !/^[\w-]+$/.test(pedido) || ids.has(pedido) || lista.length >= LIMITE_ELEMENTOS_CRIADOS) continue;
     ids.add(pedido);
-    paraFusao.add(pedido);
+    aceitas.add(pedido);
     lista.push({ id: pedido, nome, tipo, origens, valor: inteiro(e.valor ?? 0, 0, 999) });
   }
   return lista;

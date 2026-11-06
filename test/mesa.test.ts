@@ -235,32 +235,21 @@ describe('papéis vêm do banco', () => {
     expect((await entrar(mestre, id)).snapshot.nevoa.prep).toHaveLength(3);
   });
 
-  it('token vinculado acompanha a foto e os status da ficha', async () => {
+  it('token vinculado acompanha os status da ficha, sem a foto dela', async () => {
     const { mestre, jogador, ficha, id } = await mesaCompleta();
     const m = await entrar(mestre, id);
     const j = await entrar(jogador, id);
     const t = await criarToken(j, { name: 'Kael' });
     j.comando({ type: 'token:update', id: t, changes: { characterId: ficha.id } });
     await ate(() => m.ultimoToken(t)?.characterId === ficha.id);
-    expect(m.ultimoToken(t).fotoFichaV).toBe(0);
 
     await jogador.c('PATCH', `/api/fichas/${ficha.id}`, { foto: PIXEL, vidaAtual: 5, manaAtual: 7 });
-    const comFoto = await ate(() => { const k = m.ultimoToken(t); return k.fotoFichaV > 0 && k; });
-    expect(comFoto).toMatchObject({ hpCurrent: 5, manaCurrent: 7 });
-    await ate(() => j.ultimoToken(t).fotoFichaV === comFoto.fotoFichaV);
+    const atualizado = await ate(() => { const k = m.ultimoToken(t); return k.hpCurrent === 5 && k; });
+    expect(atualizado).toMatchObject({ hpCurrent: 5, manaCurrent: 7, spriteIds: [], activeSpriteId: null });
+    expect(atualizado.fotoFichaV).toBeUndefined();
 
-    /* A versão vem da ficha: quem está na mesa não escolhe a foto. */
-    j.comando({ type: 'token:update', id: t, changes: { fotoFichaV: 1 } });
-    await ate(() => j.eventos.some(e => e.type === 'permission:error'));
-    m.comando({ type: 'token:create', token: { id: 'forjado', name: 'F', x: 0, y: 0, size: 1, rotation: 0, spriteIds: [], activeSpriteId: null, flipX: false, color: '#806240', ownerIds: [], hidden: false, fotoFichaV: 5 }, sprites: [] });
-    await ate(() => m.ultimoToken('forjado'));
-    expect(m.ultimoToken('forjado').fotoFichaV).toBeUndefined();
-
-    await jogador.c('PATCH', `/api/fichas/${ficha.id}`, { foto: '' });
-    await ate(() => m.ultimoToken(t).fotoFichaV === 0);
     j.comando({ type: 'token:update', id: t, changes: { characterId: null } });
     await ate(() => m.ultimoToken(t).characterId === undefined);
-    expect(m.ultimoToken(t).fotoFichaV).toBeUndefined();
     expect(m.ultimoToken(t).hpCurrent).toBeUndefined();
   });
 
@@ -415,9 +404,9 @@ describe('papéis vêm do banco', () => {
     const j = await entrar(jogador, id);
     const col = await entrar(colega, id);
     const heroi = [...j.tokens.values()].find((k: any) => k.characterId === ficha.id) as any;
-    j.comando({ type: 'token:sprite:add', id: heroi.id, sprite: { id: 'normal', label: 'Normal', imageUrl: PIXEL } });
+    j.comando({ type: 'token:sprite:add', id: heroi.id, sprite: { id: 'normal', label: 'Normal', imageUrl: PIXEL }, vaga: 'normal' });
     await ate(() => j.ultimoToken(heroi.id).activeSpriteId === 'normal');
-    j.comando({ type: 'token:sprite:add', id: heroi.id, sprite: { id: 'ferido', label: 'Sangrando', imageUrl: PIXEL }, sangrando: true });
+    j.comando({ type: 'token:sprite:add', id: heroi.id, sprite: { id: 'ferido', label: 'Sangrando', imageUrl: PIXEL }, vaga: 'machucado' });
     await ate(() => j.ultimoToken(heroi.id).spriteSangrandoId === 'ferido');
     expect(j.ultimoToken(heroi.id).activeSpriteId).toBe('normal');
 
@@ -434,7 +423,7 @@ describe('papéis vêm do banco', () => {
     await ate(() => col.ultimoToken(heroi.id).sangrando === false);
 
     /* Um sprite sangrando novo substitui o anterior, e remover não deixa referência solta. */
-    j.comando({ type: 'token:sprite:add', id: heroi.id, sprite: { id: 'ferido2', label: 'Sangrando', imageUrl: PIXEL }, sangrando: true });
+    j.comando({ type: 'token:sprite:add', id: heroi.id, sprite: { id: 'ferido2', label: 'Sangrando', imageUrl: PIXEL }, vaga: 'machucado' });
     await ate(() => j.ultimoToken(heroi.id).spriteSangrandoId === 'ferido2');
     expect(j.ultimoToken(heroi.id).spriteIds).toEqual(['normal', 'ferido2']);
     j.comando({ type: 'token:sprite:remove', id: heroi.id, spriteId: 'ferido2' });
@@ -443,9 +432,49 @@ describe('papéis vêm do banco', () => {
 
     /* Sem sprite normal, o sangrando não vira o sprite do dia a dia. */
     const novo = await criarToken(m, { name: 'Só ferido' });
-    m.comando({ type: 'token:sprite:add', id: novo, sprite: { id: 'so', label: 'Sangrando', imageUrl: PIXEL }, sangrando: true });
+    m.comando({ type: 'token:sprite:add', id: novo, sprite: { id: 'so', label: 'Sangrando', imageUrl: PIXEL }, vaga: 'machucado' });
     await ate(() => m.ultimoToken(novo).spriteSangrandoId === 'so');
     expect(m.ultimoToken(novo).activeSpriteId).toBeNull();
+  });
+
+  it('cada vaga guarda uma imagem, e o botão Armado é do dono e do mestre', async () => {
+    const { mestre, jogador, colega, ficha, id } = await mesaCompleta();
+    const m = await entrar(mestre, id);
+    const j = await entrar(jogador, id);
+    const col = await entrar(colega, id);
+    const heroi = [...j.tokens.values()].find((k: any) => k.characterId === ficha.id) as any;
+    const colocar = (spriteId: string, vaga: string) => j.comando({ type: 'token:sprite:add', id: heroi.id, sprite: { id: spriteId, label: vaga, imageUrl: PIXEL }, vaga });
+
+    colocar('n1', 'normal');
+    await ate(() => j.ultimoToken(heroi.id).activeSpriteId === 'n1');
+    colocar('a1', 'armado');
+    await ate(() => j.ultimoToken(heroi.id).spriteArmadoId === 'a1');
+    expect(j.ultimoToken(heroi.id).activeSpriteId).toBe('n1');
+
+    /* Trocar a imagem de uma vaga não acumula nem mexe nas outras. */
+    colocar('n2', 'normal');
+    await ate(() => j.ultimoToken(heroi.id).activeSpriteId === 'n2');
+    expect(j.ultimoToken(heroi.id).spriteIds).toEqual(['a1', 'n2']);
+    expect(j.ultimoToken(heroi.id).spriteArmadoId).toBe('a1');
+    colocar('a2', 'armado');
+    await ate(() => j.ultimoToken(heroi.id).spriteArmadoId === 'a2');
+    expect(j.ultimoToken(heroi.id).spriteIds).toEqual(['n2', 'a2']);
+
+    j.comando({ type: 'token:update', id: heroi.id, changes: { armado: true } });
+    await ate(() => col.ultimoToken(heroi.id)?.armado === true);
+    col.comando({ type: 'token:update', id: heroi.id, changes: { armado: false } });
+    await ate(() => col.eventos.some(e => e.type === 'permission:error'));
+    expect(m.ultimoToken(heroi.id).armado).toBe(true);
+    m.comando({ type: 'token:update', id: heroi.id, changes: { armado: false } });
+    await ate(() => j.ultimoToken(heroi.id).armado === false);
+    j.comando({ type: 'token:update', id: heroi.id, changes: { armado: true } });
+    await ate(() => j.ultimoToken(heroi.id).armado === true);
+
+    /* Sem a imagem, o token deixa de estar armado. */
+    j.comando({ type: 'token:sprite:remove', id: heroi.id, spriteId: 'a2' });
+    await ate(() => j.ultimoToken(heroi.id).spriteArmadoId === undefined);
+    expect(j.ultimoToken(heroi.id).armado).toBeUndefined();
+    expect(j.ultimoToken(heroi.id).activeSpriteId).toBe('n2');
   });
 
   it('condições ficam no token e têm limite', async () => {
@@ -459,27 +488,6 @@ describe('papéis vêm do banco', () => {
     j.comando({ type: 'token:update', id: heroi.id, changes: { name: 'Depois' } });
     await ate(() => m.ultimoToken(heroi.id).name === 'Depois');
     expect(m.ultimoToken(heroi.id).condicoes).toEqual(['Caído', 'Cego']);
-  });
-
-  it('jogador só recebe a foto de token com ficha do mestre quando ela é pública', async () => {
-    const { mestre, jogador, id } = await mesaCompleta();
-    const npc = (await mestre.c('POST', '/api/fichas', { dados: { nome: 'Vilão' } })).corpo.ficha;
-    await mestre.c('POST', `/api/campanhas/${id}/fichas`, { fichaId: npc.id });
-    await mestre.c('PATCH', `/api/fichas/${npc.id}`, { foto: PIXEL });
-    const m = await entrar(mestre, id);
-    const j = await entrar(jogador, id);
-    const t = await criarToken(m, { name: 'Sombra' });
-    await ate(() => j.ultimoToken(t));
-    m.comando({ type: 'token:update', id: t, changes: { characterId: npc.id } });
-    await ate(() => m.ultimoToken(t).fotoFichaV > 0);
-    await ate(() => j.ultimoToken(t).characterId === npc.id);
-    expect(j.ultimoToken(t).fotoFichaV).toBeUndefined();
-    expect(j.ultimoToken(t).fotoFichaPrivada).toBeUndefined();
-
-    await mestre.c('PATCH', `/api/fichas/${npc.id}`, { publica: true });
-    await ate(() => j.ultimoToken(t).fotoFichaV > 0);
-    await mestre.c('PATCH', `/api/fichas/${npc.id}`, { publica: false });
-    await ate(() => j.ultimoToken(t).fotoFichaV === undefined);
   });
 
   it('rolagem de ficha privada do mestre aparece na mesa como Mestre', async () => {
@@ -720,7 +728,7 @@ describe('persistência', () => {
     const { mestre, jogador, id, ficha } = await mesaCompleta();
     const m = await entrar(mestre, id);
     const t = await criarToken(m, { name: 'Salvo', hidden: true });
-    m.comando({ type: 'token:sprite:add', id: t, sprite: { id: 's1', label: 'Rosto', imageUrl: PIXEL } });
+    m.comando({ type: 'token:sprite:add', id: t, sprite: { id: 's1', label: 'Rosto', imageUrl: PIXEL }, vaga: 'normal' });
     await ate(() => m.ultimoToken(t).spriteIds.length === 1);
     m.comando({ type: 'token:update', id: t, changes: { characterId: ficha.id } });
     await ate(() => m.ultimoToken(t).characterId === ficha.id);

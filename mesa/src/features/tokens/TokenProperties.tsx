@@ -1,17 +1,15 @@
-import { useRef, useState } from 'react'
-import { ChevronDown, ChevronUp, ImagePlus, Trash2, X } from 'lucide-react'
+import { useState } from 'react'
+import { ChevronDown, ChevronUp, Trash2, X } from 'lucide-react'
 import { Card, CardContent } from '@mesa/components/ui/card'
 import { useTokenStore } from '@mesa/features/tokens/token-store'
 import { useUiStore } from '@mesa/stores/ui-store'
 import type { Token } from '@mesa/features/tokens/token-types'
-import type { TokenSprite } from '@mesa/features/tokens/token-types'
 import { useBottomSheetDismiss } from '@mesa/hooks/use-bottom-sheet-dismiss'
 import { isRoomMode } from '@mesa/features/rooms/room-commands'
 import { useRoomStore } from '@mesa/features/rooms/room-store'
 import { FichaDoToken } from '@mesa/features/tokens/FichaDoToken'
+import { ImagensDoToken } from '@mesa/features/tokens/ImagensDoToken'
 import { CONDICOES, TAMANHO_MAXIMO, TAMANHO_MINIMO, alturaDoToken } from '@mesa/features/tokens/token-types'
-
-const EMPTY_SPRITES: TokenSprite[] = []
 
 const celulas = (n: number) => `${n.toLocaleString('pt-BR')} ${n === 1 ? 'célula' : 'células'}`
 
@@ -24,25 +22,13 @@ export function TokenProperties({
   mobileOpen?: boolean
   onMobileClose?: () => void
 }) {
-  const fileInput = useRef<HTMLInputElement>(null)
   const [collapsed, setCollapsed] = useState(false)
-  const [spritesExpanded, setSpritesExpanded] = useState(false)
-  const [abaSprite, setAbaSprite] = useState<'normal' | 'sangrando'>('normal')
-  const arquivoSangrando = useRef<HTMLInputElement>(null)
   const selectedTokenId = useTokenStore((state) => state.selectedTokenId)
   const token = useTokenStore((state) =>
     state.tokens.find((item) => item.id === selectedTokenId),
   )
-  const sprites = useTokenStore(
-    (state) => state.spritesByTokenId[selectedTokenId ?? ''] ?? EMPTY_SPRITES,
-  )
   const updateToken = useTokenStore((state) => state.updateToken)
   const removeToken = useTokenStore((state) => state.removeToken)
-  const addTokenSprites = useTokenStore((state) => state.addTokenSprites)
-  const addSpriteSangrando = useTokenStore((state) => state.addSpriteSangrando)
-  const renameTokenSprite = useTokenStore((state) => state.renameTokenSprite)
-  const selectTokenSprite = useTokenStore((state) => state.selectTokenSprite)
-  const removeTokenSprite = useTokenStore((state) => state.removeTokenSprite)
   const players = useRoomStore((state) => state.players)
   const playerKey = useRoomStore((state) => state.playerKey)
   const role = useRoomStore((state) => state.role)
@@ -73,12 +59,6 @@ export function TokenProperties({
   function setValue(changes: Partial<Omit<Token, 'id'>>) {
     updateToken(selectedToken.id, changes)
   }
-
-  const activeSprite = sprites.find(
-    (sprite) => sprite.id === selectedToken.activeSpriteId,
-  )
-  const spritesNormais = sprites.filter((sprite) => sprite.id !== selectedToken.spriteSangrandoId)
-  const spriteSangrando = sprites.find((sprite) => sprite.id === selectedToken.spriteSangrandoId)
 
   /* Largura e altura mudam separadas. Na grade, cada eixo se alinha pela própria medida. */
   function changeSize(changes: { size?: number; altura?: number }) {
@@ -155,6 +135,7 @@ export function TokenProperties({
               onChange={(event) => setValue({ name: event.target.value })}
             />
           </label>
+          <ImagensDoToken token={selectedToken} />
           {isGM && (
             <label className="range-control">
               <span>Largura <b>{celulas(selectedToken.size)}</b></span>
@@ -326,132 +307,6 @@ export function TokenProperties({
             })}
           </fieldset>
           <FichaDoToken token={selectedToken} campanhaId={campanhaId} />
-          <section
-            className={`token-sprites-section ${spritesExpanded ? 'is-expanded' : ''}`}
-            aria-label="Sprites do token"
-          >
-            <button
-              className="token-sprites-toggle"
-              type="button"
-              aria-expanded={spritesExpanded}
-              onClick={() => setSpritesExpanded((value) => !value)}
-            >
-              Sprites <ChevronDown size={15} />
-            </button>
-            <div className="token-sprites-content">
-              <span className="token-sprites-title">Sprites</span>
-              <div className="sprite-abas" role="group" aria-label="Tipo de sprite">
-                <button type="button" className={abaSprite === 'normal' ? 'is-active' : ''} aria-pressed={abaSprite === 'normal'} onClick={() => setAbaSprite('normal')}>Sprite normal</button>
-                <button type="button" className={abaSprite === 'sangrando' ? 'is-active' : ''} aria-pressed={abaSprite === 'sangrando'} onClick={() => setAbaSprite('sangrando')}>Sprite sangrando</button>
-              </div>
-              {abaSprite === 'sangrando' ? (
-                <div className="sprite-sangrando">
-                  <p className="mini-sheet-note">Aparece sozinho quando a vida fica abaixo da metade, e o sprite normal volta quando ela sobe.</p>
-                  {spriteSangrando && <img className="sprite-sangrando-previa" src={spriteSangrando.imageUrl} alt="Sprite sangrando atual" />}
-                  <input
-                    ref={arquivoSangrando}
-                    className="visually-hidden"
-                    type="file"
-                    accept="image/*"
-                    aria-label="Arquivo do sprite sangrando"
-                    onChange={(event) => {
-                      const arquivo = event.currentTarget.files?.[0]
-                      if (arquivo) addSpriteSangrando(selectedToken.id, arquivo)
-                      event.currentTarget.value = ''
-                    }}
-                  />
-                  <button className="token-image-button" type="button" onClick={() => arquivoSangrando.current?.click()}>
-                    <ImagePlus size={15} /> {spriteSangrando ? 'Trocar sprite sangrando' : 'Adicionar sprite sangrando'}
-                  </button>
-                  {spriteSangrando && (
-                    <button className="token-delete-button" type="button" onClick={() => removeTokenSprite(selectedToken.id, spriteSangrando.id)}>
-                      <Trash2 size={15} /> Remover sprite sangrando
-                    </button>
-                  )}
-                </div>
-              ) : (
-              <>
-              {linked && Boolean(selectedToken.fotoFichaV) && (
-                <p className="mini-sheet-note">O sprite normal deste token é a foto da ficha. Os sprites abaixo voltam se a foto for removida ou a ficha, desvinculada.</p>
-              )}
-              <label className="token-field">
-                Sprite ativo
-                <select
-                  value={activeSprite?.id ?? ''}
-                  onChange={(event) => {
-                    if (event.target.value)
-                      selectTokenSprite(selectedToken.id, event.target.value)
-                  }}
-                >
-                  {spritesNormais.length === 0 && <option value="">Sem sprite</option>}
-                  {spritesNormais.map((sprite) => (
-                    <option key={sprite.id} value={sprite.id}>
-                      {sprite.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <input
-                ref={fileInput}
-                className="visually-hidden"
-                type="file"
-                accept="image/*"
-                multiple
-                onChange={(event) => {
-                  const files = Array.from(event.currentTarget.files ?? [])
-                  if (files.length) addTokenSprites(selectedToken.id, files)
-                  event.currentTarget.value = ''
-                }}
-              />
-              <button
-                className="token-image-button"
-                type="button"
-                onClick={() => fileInput.current?.click()}
-              >
-                <ImagePlus size={15} /> Adicionar sprite
-              </button>
-              {activeSprite && (
-                <>
-                  <label className="token-field">
-                    Rótulo
-                    <input
-                      type="text"
-                      maxLength={40}
-                      value={activeSprite.label}
-                      onChange={(event) =>
-                        renameTokenSprite(
-                          selectedToken.id,
-                          activeSprite.id,
-                          event.target.value,
-                        )
-                      }
-                    />
-                  </label>
-                  <button
-                    className="token-delete-button"
-                    type="button"
-                    onClick={() =>
-                      removeTokenSprite(selectedToken.id, activeSprite.id)
-                    }
-                  >
-                    <Trash2 size={15} /> Remover sprite
-                  </button>
-                </>
-              )}
-              </>
-              )}
-              <label className="token-flip-toggle">
-                <input
-                  type="checkbox"
-                  checked={selectedToken.flipX}
-                  onChange={(event) =>
-                    setValue({ flipX: event.target.checked })
-                  }
-                />
-                <span>Espelhar imagem</span>
-              </label>
-            </div>
-          </section>
           {canRemove && (
             <button
               className="token-delete-button"

@@ -157,7 +157,7 @@ test('foto: entra inteira, sem corte, e o ajuste escolhe o trecho', async ({ bro
 
   /* Sem mexer: as duas pontas aparecem, e o que sobra na moldura fica vazio. */
   await escolher();
-  await p.getByRole('button', { name: 'Salvar foto' }).click();
+  await p.getByRole('button', { name: 'Salvar', exact: true }).click();
   await expect(p.getByRole('dialog')).toHaveCount(0);
   await expect(p.locator('.retrato img')).toBeVisible();
   await expect.poll(() => pixel(3, 200).then(vermelho)).toBe(true);
@@ -176,7 +176,7 @@ test('foto: entra inteira, sem corte, e o ajuste escolhe o trecho', async ({ bro
   await p.mouse.down();
   await p.mouse.move(moldura.x + moldura.width, moldura.y + moldura.height / 2, { steps: 4 });
   await p.mouse.up();
-  await p.getByRole('button', { name: 'Salvar foto' }).click();
+  await p.getByRole('button', { name: 'Salvar', exact: true }).click();
   await expect.poll(() => p.locator('.retrato img').getAttribute('src')).not.toBe(srcAntes);
   await expect.poll(() => pixel(160, 200).then(vermelho)).toBe(true);
   expect(vermelho(await pixel(3, 5))).toBe(true);
@@ -505,6 +505,12 @@ test('ficha: criar elemento, dano na magia e fadiga só com o mestre', async ({ 
   await jogador.getByLabel('Segundo elemento').selectOption('agua');
   await jogador.getByRole('button', { name: 'Salvar elemento' }).click();
   await expect(jogador.getByText('Fusão de Lava e Água')).toBeVisible();
+  await jogador.getByRole('button', { name: '+ Criar elemento' }).click();
+  await jogador.getByLabel('Nome do elemento').fill('Magma');
+  await jogador.getByLabel('Tipo').selectOption('variacao');
+  await jogador.getByLabel('Elemento de origem').selectOption({ label: 'Lava' });
+  await jogador.getByRole('button', { name: 'Salvar elemento' }).click();
+  await expect(jogador.getByText('Variação de Lava')).toBeVisible();
   await jogador.getByRole('button', { name: 'Remover Lava' }).click();
   await jogador.getByRole('button', { name: 'Confirmar: remover' }).click();
   await expect(jogador.getByText('Lava faz parte de Obsidiana. Remova Obsidiana primeiro.')).toBeVisible();

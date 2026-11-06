@@ -382,39 +382,150 @@ button:disabled {
   min-height: 32px;
   border: 0;
 }
-.sprite-abas {
+.imagens-token {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 4px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
 }
-.sprite-abas button {
+.vaga-imagem {
+  position: relative;
+  display: grid;
+  gap: 3px;
+  justify-items: center;
+  color: #ddd5c8;
+  font-size: 12px;
+}
+.vaga-imagem-botao {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 1;
+  padding: 0;
+  overflow: hidden;
+  border: 1px dashed #e0b45866;
+  border-radius: 6px;
+  color: #e0b458;
+  background: #ffffff08;
+  cursor: pointer;
+}
+.vaga-imagem-botao:hover {
+  border-color: #e0b458;
+  background: #e0b45822;
+}
+/* Fora do fluxo: a altura da imagem não pode esticar a vaga. */
+.vaga-imagem-botao img {
+  position: absolute;
+  inset: 3px;
+  width: calc(100% - 6px);
+  height: calc(100% - 6px);
+  object-fit: contain;
+}
+.vaga-imagem-remover {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid #ffffff2e;
+  border-radius: 4px;
+  color: #f7c9c6;
+  background: #15101bdd;
+  cursor: pointer;
+}
+.token-armado {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   min-height: 38px;
-  padding: 0 6px;
   border: 1px solid #ffffff1c;
   border-radius: 6px;
   color: #ddd5c8;
   background: #ffffff08;
-  font-size: 12px;
+  font-size: 13px;
+  cursor: pointer;
 }
-.sprite-abas button.is-active {
-  border-color: #d9534f;
-  color: #f7c9c6;
-  background: #d9534f22;
-}
-.sprite-abas button:first-child.is-active {
+.token-armado.is-active {
   border-color: #e0b458;
   color: #f2d18d;
   background: #e0b45822;
 }
-.sprite-sangrando {
-  display: grid;
-  gap: 8px;
+.token-armado:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
-.sprite-sangrando-previa {
+.ajuste-foto {
+  width: min(380px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  margin: auto;
+  padding: 16px;
+  overflow: auto;
+  border: 1px solid #e0b458;
+  color: #f2eadb;
+  background: #211827;
+  box-shadow: 0 8px 28px rgb(0 0 0 / 0.5);
+}
+.ajuste-foto[open] {
+  display: grid;
+  gap: 10px;
+}
+.ajuste-foto::backdrop {
+  background: rgb(0 0 0 / 0.7);
+}
+.ajuste-foto .titulo-grupo {
+  color: #e0b458;
+  font: 500 20px var(--mesa-titulo);
+  overflow-wrap: anywhere;
+}
+.ajuste-foto-dica {
+  margin: 0;
+  color: #cfc5b4;
+  font-size: 13px;
+  line-height: 1.3;
+}
+/* O xadrez mostra o que fica transparente. touch-action: sem isso, arrastar com o dedo rolaria a página. */
+.ajuste-foto-moldura {
   justify-self: center;
   max-width: 100%;
-  max-height: 140px;
-  object-fit: contain;
+  max-height: calc(100dvh - 370px);
+  outline: 1px solid #e0b458;
+  background: repeating-conic-gradient(#ffffff14 0 25%, transparent 0 50%) 0 0 / 20px 20px #3a1d2a;
+  cursor: grab;
+  touch-action: none;
+}
+.ajuste-foto-moldura:active {
+  cursor: grabbing;
+}
+.ajuste-foto-zoom {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+}
+.ajuste-foto .acoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.ajuste-foto .acoes button {
+  flex: 1 1 auto;
+  min-height: 40px;
+  padding: 0 10px;
+  border: 1px solid #ffffff2e;
+  border-radius: 6px;
+  color: #f2eadb;
+  background: #ffffff0d;
+  font-size: 14px;
+  cursor: pointer;
+}
+.ajuste-foto .acoes .ajuste-foto-salvar {
+  border-color: #e88a4c;
+  background: linear-gradient(180deg, #d05a24, #a33813);
 }
 .mini-sheet-cena {
   display: grid;
@@ -1174,7 +1285,6 @@ button:disabled {
 
 .mobile-sheet-close,
 .mobile-quick-toggle,
-.token-sprites-toggle,
 .quick-quantity {
   display: none;
 }
@@ -1368,27 +1478,6 @@ button:disabled {
   .token-sprites-section {
     gap: 7px;
     padding-top: 7px;
-  }
-  .token-sprites-toggle {
-    min-height: 40px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    border: 0;
-    background: transparent;
-    color: #d7ad5b;
-    font-size: 13px;
-    font-weight: 600;
-  }
-  .token-sprites-title {
-    display: none;
-  }
-  .token-sprites-content {
-    display: none;
-    gap: 8px;
-  }
-  .token-sprites-section.is-expanded .token-sprites-content {
-    display: grid;
   }
   .token-delete-button {
     min-height: 40px;
@@ -2037,7 +2126,7 @@ button:disabled {
   .combate-lista button,
   .token-condicoes button,
   .scene-list-item button,
-  .sprite-abas button {
+  .token-armado {
     min-width: 44px;
     min-height: 44px;
   }

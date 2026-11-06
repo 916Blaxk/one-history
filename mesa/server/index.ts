@@ -3,7 +3,7 @@ import { Server, type Socket } from 'socket.io'
 import { z } from 'zod'
 import { DiceExpressionError, rollDice } from '../src/features/chat/dice-parser.js'
 import type { ChatMessage } from '../src/features/chat/chat-types.js'
-import { TAMANHO_MAXIMO, TAMANHO_MINIMO, alturaDoToken, estaSangrando, type Token, type TokenPosition, type TokenSprite } from '../src/features/tokens/token-types.js'
+import { TAMANHO_MAXIMO, TAMANHO_MINIMO, alturaDoToken, estaSangrando, type Token, type TokenPosition, type TokenSprite, type VagaImagem } from '../src/features/tokens/token-types.js'
 import type {
   ClientToServerEvents, Combate, NevoaDaMesa, RoomCommand, RoomGrid, RoomPlayer, RoomScene, RoomSnapshot,
   ServerRoomMessage, ServerToClientEvents,
@@ -100,10 +100,11 @@ function validToken(value: unknown, sprites: TokenSprite[]): value is Token {
     typeof value.color === 'string' && /^#[0-9a-f]{6}$/i.test(value.color) &&
     (value.characterId === undefined || (typeof value.characterId === 'string' && value.characterId.length <= 80)) &&
     resource(value.hpCurrent) && resource(value.hpMax) && resource(value.manaCurrent) && resource(value.manaMax) &&
-    (value.fotoFichaV === undefined || (typeof value.fotoFichaV === 'number' && Number.isFinite(value.fotoFichaV) && value.fotoFichaV >= 0)) &&
     (value.fotoFichaPrivada === undefined || typeof value.fotoFichaPrivada === 'boolean') &&
     (value.automatico === undefined || typeof value.automatico === 'boolean') &&
     (value.spriteSangrandoId === undefined || (typeof value.spriteSangrandoId === 'string' && ids.includes(value.spriteSangrandoId))) &&
+    (value.spriteArmadoId === undefined || (typeof value.spriteArmadoId === 'string' && ids.includes(value.spriteArmadoId))) &&
+    (value.armado === undefined || typeof value.armado === 'boolean') &&
     (value.sangrando === undefined || typeof value.sangrando === 'boolean') &&
     (value.condicoes === undefined || (Array.isArray(value.condicoes) && value.condicoes.length <= 10 && value.condicoes.every((c) => typeof c === 'string' && c.length >= 1 && c.length <= 24))) &&
     (value.nomeDaFicha === undefined || typeof value.nomeDaFicha === 'boolean')
@@ -120,7 +121,7 @@ const esquemaComando = z.discriminatedUnion('type', [
   z.object({ type: z.literal('token:create'), token: z.record(z.string(), z.unknown()), sprites: z.unknown().refine(validSprites) }),
   z.object({ type: z.literal('token:update'), id: idCurto, changes: z.record(z.string(), z.unknown()) }),
   z.object({ type: z.literal('token:sprites'), id: idCurto, sprites: z.unknown().refine(validSprites) }),
-  z.object({ type: z.literal('token:sprite:add'), id: idCurto, sprite: z.unknown().refine(validSprite), sangrando: z.boolean().optional() }),
+  z.object({ type: z.literal('token:sprite:add'), id: idCurto, sprite: z.unknown().refine(validSprite), vaga: z.enum(['normal', 'machucado', 'armado']) }),
   z.object({ type: z.literal('token:sprite:rename'), id: idCurto, spriteId: idCurto, label: z.string().max(40) }),
   z.object({ type: z.literal('token:sprite:remove'), id: idCurto, spriteId: idCurto }),
   z.object({ type: z.literal('token:remove'), id: idCurto }),
@@ -224,11 +225,8 @@ function visaoDoToken(room: RoomState, token: Token, player: RoomPlayer): Token 
   /* A vida fica guardada, mas o sprite ferido é visível: quem olha só recebe se está abaixo da metade. */
   const visao = { ...token, sangrando: estaSangrando(token) }
   delete visao.hpCurrent; delete visao.hpMax; delete visao.manaCurrent; delete visao.manaMax
-  /* O mestre pode mostrar o token no mapa, mas o nome e a foto da ficha privada continuam guardados. */
-  if (token.fotoFichaPrivada) {
-    delete visao.fotoFichaV
-    if (token.nomeDaFicha) visao.name = NOME_FICHA_PRIVADA
-  }
+  /* O mestre pode mostrar o token no mapa, mas o nome da ficha privada continua guardado. */
+  if (token.fotoFichaPrivada && token.nomeDaFicha) visao.name = NOME_FICHA_PRIVADA
   delete visao.fotoFichaPrivada
   return visao
 }
@@ -360,7 +358,7 @@ function valoresDaFicha(room: RoomState, ficha: NonNullable<Awaited<ReturnType<t
   const { dados } = ficha
   return {
     hpCurrent: dados.vidaAtual, hpMax: R.vidaMax(dados), manaCurrent: dados.manaAtual, manaMax: R.manaMax(dados),
-    fotoFichaV: ficha.fotoV, fotoFichaPrivada: R.fichaPrivada(ficha, room.mestreId),
+    fotoFichaPrivada: R.fichaPrivada(ficha, room.mestreId),
   }
 }
 const nomeParaToken = (dados: R.DadosFicha) => (dados.nome.trim() || 'Sem nome').slice(0, 32)
@@ -374,7 +372,7 @@ function desvincular(room: RoomState, token: Token) {
   }
   const atualizado = { ...token }
   delete atualizado.characterId; delete atualizado.hpCurrent; delete atualizado.hpMax; delete atualizado.manaCurrent; delete atualizado.manaMax
-  delete atualizado.fotoFichaV; delete atualizado.fotoFichaPrivada
+  delete atualizado.fotoFichaPrivada
   room.tokens.set(token.id, atualizado)
   broadcastVisible(room, { type: 'token:updated', token: atualizado, sprites: room.sprites.get(token.id) ?? [] }, atualizado)
   marcarSuja(room)
@@ -395,7 +393,7 @@ async function sincronizarFicha(room: RoomState, fichaId: string) {
   for (const token of tokens) {
     const name = token.nomeDaFicha ? nomeParaToken(ficha.dados) : token.name
     if (token.name === name && token.hpCurrent === valores.hpCurrent && token.hpMax === valores.hpMax && token.manaCurrent === valores.manaCurrent && token.manaMax === valores.manaMax &&
-      token.fotoFichaV === valores.fotoFichaV && token.fotoFichaPrivada === valores.fotoFichaPrivada) continue
+      token.fotoFichaPrivada === valores.fotoFichaPrivada) continue
     const atualizado = { ...token, ...valores, name }
     room.tokens.set(token.id, atualizado)
     broadcastVisible(room, { type: 'token:updated', token: atualizado, sprites: room.sprites.get(token.id) ?? [] }, atualizado)
@@ -468,7 +466,7 @@ async function handleCommand(socket: TableSocket, room: RoomState, player: RoomP
         createdByPlayerKey: player.id,
       }
       /* O vínculo com a ficha passa sempre pela checagem de token:update. */
-      delete token.characterId; delete token.fotoFichaV; delete token.fotoFichaPrivada; delete token.automatico; delete token.nomeDaFicha; delete token.sangrando; delete token.spriteSangrandoId
+      delete token.characterId; delete token.fotoFichaPrivada; delete token.automatico; delete token.nomeDaFicha; delete token.sangrando; delete token.spriteSangrandoId; delete token.spriteArmadoId; delete token.armado
       if (!validToken(token, message.sprites)) return
       room.tokens.set(token.id, token); room.sprites.set(token.id, message.sprites)
       broadcastVisible(room, { type: 'token:added', token, sprites: message.sprites, playerId: socket.id }, token); return
@@ -495,7 +493,7 @@ async function handleCommand(socket: TableSocket, room: RoomState, player: RoomP
         if (!donos.includes(ficha.donoId)) changes.ownerIds = [...donos, ficha.donoId]
       } else if (vinculoNovo === null) {
         changes.hpCurrent = null; changes.hpMax = null; changes.manaCurrent = null; changes.manaMax = null
-        changes.fotoFichaV = null; changes.fotoFichaPrivada = null
+        changes.fotoFichaPrivada = null
       } else if (fichaId) {
         /* Token vinculado: a ficha manda. O máximo não muda por aqui, e o valor atual é gravado nela. */
         if ('hpMax' in changes || 'manaMax' in changes) return deny(socket)
@@ -537,13 +535,13 @@ async function handleCommand(socket: TableSocket, room: RoomState, player: RoomP
       const current = room.tokens.get(message.id); const sprites = [...(room.sprites.get(message.id) ?? [])]
       if (!current) return
       if (!can(player.role, 'token:sprites', current, player.id)) return deny(socket)
-      let sangrandoId = current.spriteSangrandoId
+      const vagas: VagasDoToken = { normal: current.activeSpriteId ?? undefined, machucado: current.spriteSangrandoId, armado: current.spriteArmadoId }
       if (message.type === 'token:sprite:add') {
-        /* O sprite sangrando é um só: um novo substitui o anterior. */
-        const lista = message.sangrando ? sprites.filter((item) => item.id !== current.spriteSangrandoId) : sprites
+        /* Cada vaga guarda uma imagem: a nova substitui a anterior. */
+        const lista = sprites.filter((item) => item.id !== vagas[message.vaga])
         if (!validSprite(message.sprite) || lista.length >= MAX_SPRITES_PER_TOKEN || lista.some((item) => item.id === message.sprite.id)) return
         sprites.splice(0, sprites.length, ...lista, message.sprite)
-        if (message.sangrando) sangrandoId = message.sprite.id
+        vagas[message.vaga] = message.sprite.id
       } else if (message.type === 'token:sprite:rename') {
         if (message.label.trim().length === 0 || message.label.length > 40 || !sprites.some((item) => item.id === message.spriteId)) return
         const index = sprites.findIndex((item) => item.id === message.spriteId); sprites[index] = { ...sprites[index]!, label: message.label }
@@ -551,7 +549,7 @@ async function handleCommand(socket: TableSocket, room: RoomState, player: RoomP
         if (!sprites.some((item) => item.id === message.spriteId)) return
         const index = sprites.findIndex((item) => item.id === message.spriteId); sprites.splice(index, 1)
       }
-      updateSprites(room, message.id, current, sprites, sangrandoId); return
+      updateSprites(room, message.id, current, sprites, vagas); return
     }
     case 'token:remove': {
       const token = room.tokens.get(message.id); if (!token) return
@@ -827,13 +825,18 @@ async function handleCommand(socket: TableSocket, room: RoomState, player: RoomP
     }
   }
 }
-function updateSprites(room: RoomState, id: string, current: Token, sprites: TokenSprite[], sangrandoPedido = current.spriteSangrandoId) {
+type VagasDoToken = Partial<Record<VagaImagem, string>>
+function updateSprites(room: RoomState, id: string, current: Token, sprites: TokenSprite[], vagas: VagasDoToken = { normal: current.activeSpriteId ?? undefined, machucado: current.spriteSangrandoId, armado: current.spriteArmadoId }) {
   const ids = sprites.map((sprite) => sprite.id)
-  const sangrandoId = sangrandoPedido && ids.includes(sangrandoPedido) ? sangrandoPedido : undefined
-  const normais = ids.filter((spriteId) => spriteId !== sangrandoId)
-  const updated: Token = { ...current, spriteIds: ids, activeSpriteId: normais.includes(current.activeSpriteId ?? '') ? current.activeSpriteId : (normais[0] ?? null) }
-  if (sangrandoId) updated.spriteSangrandoId = sangrandoId
+  const existente = (spriteId?: string) => (spriteId && ids.includes(spriteId) ? spriteId : undefined)
+  const machucado = existente(vagas.machucado), armado = existente(vagas.armado)
+  /* Tokens antigos podem ter mais de uma imagem normal: ao remover a atual, a próxima assume. */
+  const normais = ids.filter((spriteId) => spriteId !== machucado && spriteId !== armado)
+  const updated: Token = { ...current, spriteIds: ids, activeSpriteId: normais.includes(vagas.normal ?? '') ? vagas.normal! : (normais[0] ?? null) }
+  if (machucado) updated.spriteSangrandoId = machucado
   else delete updated.spriteSangrandoId
+  if (armado) updated.spriteArmadoId = armado
+  else { delete updated.spriteArmadoId; delete updated.armado }
   if (!validToken(updated, sprites)) return
   room.tokens.set(id, updated); room.sprites.set(id, sprites)
   broadcastVisible(room, { type: 'token:updated', token: updated, sprites }, updated)

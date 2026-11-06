@@ -16,15 +16,16 @@ export type Token = {
   manaCurrent?: number
   manaMax?: number
   characterId?: string
-  /* Versão da foto da ficha vinculada. Só o servidor preenche, e 0 é ficha sem foto. */
-  fotoFichaV?: number
-  /* O jogador não recebe a foto de ficha privada do mestre. */
+  /* Ficha privada do mestre: o jogador não recebe o nome dela. Só o servidor preenche. */
   fotoFichaPrivada?: boolean
   /* O token nasceu sozinho com a ficha: sai da mesa quando ela sai da campanha. */
   automatico?: boolean
   condicoes?: string[]
-  /* Sprite mostrado abaixo da metade da vida. Fica fora da lista de sprites normais. */
+  /* Imagem Machucado: aparece abaixo da metade da vida. Fica fora das imagens normais. */
   spriteSangrandoId?: string
+  /* Imagem Armado: aparece com `armado` ligado, se o token não estiver machucado. */
+  spriteArmadoId?: string
+  armado?: boolean
   /* Só o servidor preenche, para quem não recebe a vida deste token. */
   sangrando?: boolean
   /* O nome acompanha o da ficha até alguém renomear o token. */
@@ -87,19 +88,20 @@ export const TAMANHO_MINIMO = 0.25
 export const TAMANHO_MAXIMO = 10
 export const alturaDoToken = (token: Pick<Token, 'size' | 'altura'>) => token.altura ?? token.size
 
-/* Com a ficha vinculada, a foto dela é a imagem do token. Sem foto, valem os sprites do próprio token. */
+export type VagaImagem = 'normal' | 'machucado' | 'armado'
+export function idDaVaga(token: Pick<Token, 'activeSpriteId' | 'spriteSangrandoId' | 'spriteArmadoId'>, vaga: VagaImagem) {
+  if (vaga === 'machucado') return token.spriteSangrandoId
+  if (vaga === 'armado') return token.spriteArmadoId
+  return token.activeSpriteId ?? undefined
+}
+
 export function estaSangrando(token: Pick<Token, 'hpCurrent' | 'hpMax' | 'sangrando'>) {
   if (token.sangrando !== undefined) return token.sangrando
   return token.hpMax !== undefined && token.hpMax > 0 && token.hpCurrent !== undefined && token.hpCurrent < token.hpMax / 2
 }
 
+/* O machucado vem primeiro: todos precisam ver que o token está ferido, mesmo armado. */
 export function spriteDoToken(token: Token, sprites: readonly TokenSprite[] = []): TokenSprite | undefined {
-  if (token.spriteSangrandoId && estaSangrando(token)) {
-    const ferido = sprites.find((sprite) => sprite.id === token.spriteSangrandoId)
-    if (ferido) return ferido
-  }
-  if (token.characterId && token.fotoFichaV) {
-    return { id: `ficha-${token.characterId}-${token.fotoFichaV}`, label: 'Foto da ficha', imageUrl: `/api/fichas/${token.characterId}/foto?v=${token.fotoFichaV}` }
-  }
-  return token.activeSpriteId ? sprites.find((sprite) => sprite.id === token.activeSpriteId) : undefined
+  const daVaga = (vaga: VagaImagem) => sprites.find((sprite) => sprite.id === idDaVaga(token, vaga))
+  return (estaSangrando(token) ? daVaga('machucado') : undefined) ?? (token.armado ? daVaga('armado') : undefined) ?? daVaga('normal')
 }

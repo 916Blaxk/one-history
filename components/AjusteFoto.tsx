@@ -1,10 +1,15 @@
 'use client';
-import { useEffect, useRef, useState } from 'react';
-import { FOTO_ALTURA, FOTO_LARGURA, inicial, mudarZoom, prender, tamanhoNaMoldura, zoomMaximo, type Enquadramento } from '@/lib/enquadramento';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { inicial, molduraDaImagem, mudarZoom, prender, tamanhoNaMoldura, zoomMaximo, type Enquadramento, type Tamanho } from '@/lib/enquadramento';
 import { LIMITE_FOTO } from '@/lib/regras';
+import { retirarFundo } from '@/lib/retirarFundo';
+
+/* A retirada de fundo roda a cada mudança da barra: acima disso, a tela do celular trava. */
+const MAIOR_LADO_DO_FUNDO = 1024;
+const FORCA_INICIAL = 25;
 
 /* WebP guarda a transparência das sobras da moldura. Sem suporte ou grande demais, vira JPEG, em que as sobras precisam de uma cor. */
-function exportar(tela: HTMLCanvasElement) {
+export function fotoDaTela(tela: HTMLCanvasElement) {
   const webp = tela.toDataURL('image/webp', .82);
   if (webp.startsWith('data:image/webp') && webp.length <= LIMITE_FOTO) return webp;
   const copia = document.createElement('canvas');
@@ -16,20 +21,45 @@ function exportar(tela: HTMLCanvasElement) {
   return copia.toDataURL('image/jpeg', .82);
 }
 
+export function arquivoDaTela(tela: HTMLCanvasElement, nome: string) {
+  return new Promise<File>((ok, falha) => {
+    tela.toBlob(blob => { if (blob) ok(new File([blob], nome, { type: 'image/png' })); else falha(new Error('Este navegador não conseguiu processar a imagem.')); }, 'image/png');
+  });
+}
+
+function imagemSemFundo(img: HTMLImageElement, forca: number) {
+  const { l, a } = molduraDaImagem({ l: img.naturalWidth, a: img.naturalHeight }, MAIOR_LADO_DO_FUNDO);
+  const c = document.createElement('canvas');
+  c.width = l; c.height = a;
+  const ctx = c.getContext('2d', { willReadFrequently: true })!;
+  ctx.drawImage(img, 0, 0, l, a);
+  const dados = ctx.getImageData(0, 0, l, a);
+  retirarFundo(dados, forca);
+  ctx.putImageData(dados, 0, 0);
+  return c;
+}
+
 const SETAS: Record<string, [number, number]> = { ArrowLeft: [-8, 0], ArrowRight: [8, 0], ArrowUp: [0, -8], ArrowDown: [0, 8] };
 
-export default function AjusteFoto({ arquivo, aoSalvar, aoCancelar, aoFalhar }: {
-  arquivo: File; aoSalvar: (foto: string) => void; aoCancelar: () => void; aoFalhar: () => void;
+/* A mesma janela para foto, sprite e cenário. Com `moldura`, o formato é fixo; sem ela, é o da imagem, limitado a `maiorLado`. */
+export default function AjusteFoto({ arquivo, titulo, moldura: molduraFixa, maiorLado = 3072, comRetiradaDeFundo = false, aoSalvar, aoCancelar, aoFalhar }: {
+  arquivo: File; titulo: string; moldura?: Tamanho; maiorLado?: number; comRetiradaDeFundo?: boolean;
+  aoSalvar: (tela: HTMLCanvasElement, inteira: boolean) => void; aoCancelar: () => void; aoFalhar: () => void;
 }) {
   const [img, setImg] = useState<HTMLImageElement | null>(null);
   const [e, setE] = useState<Enquadramento | null>(null);
+  const [forca, setForca] = useState(FORCA_INICIAL);
   const tela = useRef<HTMLCanvasElement>(null);
   const dialogo = useRef<HTMLDialogElement>(null);
   const arraste = useRef<{ px: number; py: number; x: number; y: number } | null>(null);
 
+  const imagem = useMemo<Tamanho | null>(() => (img ? { l: img.naturalWidth, a: img.naturalHeight } : null), [img]);
+  const moldura = useMemo<Tamanho | null>(() => (imagem ? molduraFixa ?? molduraDaImagem(imagem, maiorLado) : null), [imagem, molduraFixa, maiorLado]);
+  const fonte = useMemo(() => (img && comRetiradaDeFundo ? imagemSemFundo(img, forca) : img), [img, comRetiradaDeFundo, forca]);
+
   useEffect(() => {
     const url = URL.createObjectURL(arquivo), nova = new Image();
-    nova.onload = () => { setImg(nova); setE(inicial(nova.naturalWidth, nova.naturalHeight)); };
+    nova.onload = () => setImg(nova);
     nova.onerror = aoFalhar;
     nova.src = url;
     return () => URL.revokeObjectURL(url);
@@ -40,53 +70,65 @@ export default function AjusteFoto({ arquivo, aoSalvar, aoCancelar, aoFalhar }: 
   const carregada = img !== null;
   useEffect(() => { if (carregada) dialogo.current?.showModal(); }, [carregada]);
 
-  /* A moldura é a própria foto final: o que aparece aqui é exatamente o que será salvo. */
+  /* Sem ajuste guardado, vale a imagem inteira. */
+  const atual = useMemo(() => (imagem && moldura ? e ?? inicial(imagem, moldura) : null), [e, imagem, moldura]);
+
+  /* A moldura é a própria imagem final: o que aparece aqui é exatamente o que será salvo. */
   useEffect(() => {
     const ctx = tela.current?.getContext('2d');
-    if (!ctx || !img || !e) return;
-    const { l, a } = tamanhoNaMoldura(e, img.naturalWidth, img.naturalHeight);
-    ctx.clearRect(0, 0, FOTO_LARGURA, FOTO_ALTURA);
+    if (!ctx || !fonte || !atual || !imagem || !moldura) return;
+    const { l, a } = tamanhoNaMoldura(atual, imagem, moldura);
+    ctx.clearRect(0, 0, moldura.l, moldura.a);
     ctx.imageSmoothingQuality = 'high';
-    ctx.drawImage(img, e.x, e.y, l, a);
-  }, [img, e]);
+    ctx.drawImage(fonte, atual.x, atual.y, l, a);
+  }, [fonte, atual, imagem, moldura]);
 
-  if (!img || !e) return null;
-  const largura = img.naturalWidth, altura = img.naturalHeight;
+  if (!imagem || !moldura || !atual) return null;
 
   return (
-    <dialog ref={dialogo} className="ajuste-foto" aria-labelledby="ajuste-foto-titulo" onCancel={aoCancelar}>
-      <h2 id="ajuste-foto-titulo" className="titulo-grupo">Ajustar a foto</h2>
+    /* O teclado fica na janela: as teclas da ficha e da mesa não podem agir por trás dela. */
+    <dialog ref={dialogo} className="ajuste-foto" aria-labelledby="ajuste-foto-titulo" onCancel={aoCancelar} onKeyDown={ev => ev.stopPropagation()}>
+      <h2 id="ajuste-foto-titulo" className="titulo-grupo">{titulo}</h2>
       <p className="ajuste-foto-dica">A imagem começa inteira. Para mostrar só uma parte, aumente o zoom e arraste.</p>
       <canvas
-        ref={tela} className="ajuste-foto-moldura" width={FOTO_LARGURA} height={FOTO_ALTURA} tabIndex={0} role="img"
-        aria-label="Foto na moldura. Use as setas do teclado para mover."
+        ref={tela} className="ajuste-foto-moldura" width={moldura.l} height={moldura.a} tabIndex={0} role="img"
+        aria-label="Imagem na moldura. Use as setas do teclado para mover."
         onKeyDown={ev => {
           const seta = SETAS[ev.key];
           if (!seta) return;
           ev.preventDefault();
-          setE(prender({ ...e, x: e.x + seta[0], y: e.y + seta[1] }, largura, altura));
+          setE(prender({ ...atual, x: atual.x + seta[0], y: atual.y + seta[1] }, imagem, moldura));
         }}
         onPointerDown={ev => {
           ev.currentTarget.setPointerCapture(ev.pointerId);
-          arraste.current = { px: ev.clientX, py: ev.clientY, x: e.x, y: e.y };
+          arraste.current = { px: ev.clientX, py: ev.clientY, x: atual.x, y: atual.y };
         }}
         onPointerMove={ev => {
           const a = arraste.current;
           if (!a) return;
-          /* A moldura na tela pode ser menor que a foto: o arraste precisa acompanhar o dedo. */
-          const escala = FOTO_LARGURA / ev.currentTarget.clientWidth;
-          setE(prender({ ...e, x: a.x + (ev.clientX - a.px) * escala, y: a.y + (ev.clientY - a.py) * escala }, largura, altura));
+          /* A moldura na tela pode ser menor que a imagem: o arraste precisa acompanhar o dedo. */
+          const escala = moldura.l / ev.currentTarget.clientWidth;
+          setE(prender({ ...atual, x: a.x + (ev.clientX - a.px) * escala, y: a.y + (ev.clientY - a.py) * escala }, imagem, moldura));
         }}
         onPointerUp={() => { arraste.current = null; }}
         onPointerCancel={() => { arraste.current = null; }}
       />
       <label className="ajuste-foto-zoom">
         Zoom
-        <input type="range" min={1} max={zoomMaximo(largura, altura)} step={0.01} value={e.zoom} onChange={ev => setE(mudarZoom(e, Number(ev.target.value), largura, altura))} />
+        <input type="range" min={1} max={zoomMaximo(imagem, moldura)} step={0.01} value={atual.zoom} onChange={ev => setE(mudarZoom(atual, Number(ev.target.value), imagem, moldura))} />
       </label>
+      {comRetiradaDeFundo && (
+        <>
+          <label className="ajuste-foto-zoom">
+            Retirar fundo
+            <input type="range" min={0} max={100} step={1} value={forca} onChange={ev => setForca(Number(ev.target.value))} />
+          </label>
+          <p className="ajuste-foto-dica">Funciona melhor em fundo liso. Se apagar demais, diminua a barra. Em zero, o fundo fica.</p>
+        </>
+      )}
       <div className="acoes">
-        <button type="button" className="btn btn-forte" onClick={() => aoSalvar(exportar(tela.current!))}>Salvar foto</button>
-        <button type="button" className="btn" onClick={() => setE(inicial(largura, altura))}>Ver inteira</button>
+        <button type="button" className="btn btn-forte ajuste-foto-salvar" onClick={() => aoSalvar(tela.current!, atual.zoom === 1)}>Salvar</button>
+        <button type="button" className="btn" onClick={() => setE(null)}>Ver inteira</button>
         <button type="button" className="btn" onClick={aoCancelar}>Cancelar</button>
       </div>
     </dialog>

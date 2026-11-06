@@ -12,14 +12,16 @@
 
 ## Decisões em aberto
 
-1. **Encerrar cena:** hoje, o jogador também pode encerrar a cena da própria ficha.
-2. **Perícia acima de 25:** hoje, o dado adicional fica em 1d10.
+1. **Perícia acima de 25:** hoje, o dado adicional fica em 1d10.
 
 ## Decisões tomadas
 
 - **Brecha da fadiga (6 de novembro de 2026):** quando a ficha sai de uma campanha, o servidor guarda a fadiga dela. Se a ficha voltar para a mesma campanha, a fadiga volta a esse valor, e o registro da ficha mostra a mudança. Em outra campanha, a ficha entra com a fadiga atual.
 - **Quem cria elemento (6 de novembro de 2026):** o dono da ficha e o mestre.
-- **Fusão de elementos (6 de novembro de 2026):** combina elementos base e elementos já criados na ficha. A variação continua partindo só de um elemento base. Um elemento usado em uma fusão não pode ser removido antes dela.
+- **Fusão e variação de elementos (6 de novembro de 2026):** partem de elementos base ou de elementos já criados na ficha. Um elemento usado em outro não pode ser removido antes dele.
+- **Encerrar cena (6 de novembro de 2026):** em campanha, só o mestre. Fora de campanha, o dono da ficha, como na fadiga.
+- **Imagens do token (6 de novembro de 2026):** o token não usa a foto da ficha. Tem três vagas: Normal, Machucado (abaixo da metade da vida) e Armado (por botão, do dono e do mestre). O machucado vem na frente do armado.
+- **Retirada de fundo (6 de novembro de 2026):** feita por cor, no navegador, nas imagens do token, com uma barra de força. Funciona melhor em fundo liso; foto com fundo complexo pediria um modelo de IA, cerca de 55 MB na primeira vez.
 
 ## Pendências
 

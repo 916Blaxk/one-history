@@ -113,7 +113,7 @@ describe('regras do sistema', () => {
     expect(f.limites).toEqual({ 'corpo.tracao': 3 });
   });
 
-  it('fusão aceita elemento criado antes dela; variação, só elemento base', () => {
+  it('fusão e variação aceitam elemento criado antes delas', () => {
     const lava = { id: 'e1', nome: 'Lava', tipo: 'fusao', origens: ['fogo', 'terra'], valor: 0 };
     const obsidiana = { id: 'e2', nome: 'Obsidiana', tipo: 'fusao', origens: ['e1', 'agua'], valor: 0 };
     const criados = (lista: unknown[]) => R.normalizar({ elementosCriados: lista }).elementosCriados.map(e => e.nome);
@@ -123,8 +123,10 @@ describe('regras do sistema', () => {
     expect(criados([{ ...lava, origens: ['e1', 'fogo'] }])).toEqual([]);
     /* Quem dependia de um elemento inválido cai junto. */
     expect(criados([{ ...lava, origens: ['fogo', 'fogo'] }, obsidiana])).toEqual([]);
-    expect(criados([lava, { id: 'e3', nome: 'Magma', tipo: 'variacao', origens: ['e1'] }])).toEqual(['Lava']);
-    const lista = R.normalizar({ elementosCriados: [lava, obsidiana] }).elementosCriados;
+    expect(criados([lava, { id: 'e3', nome: 'Magma', tipo: 'variacao', origens: ['e1'] }])).toEqual(['Lava', 'Magma']);
+    expect(criados([{ id: 'e3', nome: 'Magma', tipo: 'variacao', origens: ['e1'] }, lava])).toEqual(['Lava']);
+    const lista = R.normalizar({ elementosCriados: [lava, obsidiana, { id: 'e3', nome: 'Magma', tipo: 'variacao', origens: ['e2'] }] }).elementosCriados;
+    expect(R.basesDoElemento('e3', lista)).toEqual(['fogo', 'terra', 'agua']);
     expect(R.basesDoElemento('e2', lista)).toEqual(['fogo', 'terra', 'agua']);
     expect(R.basesDoElemento('fogo', lista)).toEqual(['fogo']);
   });

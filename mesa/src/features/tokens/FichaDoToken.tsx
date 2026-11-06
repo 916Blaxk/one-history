@@ -188,7 +188,7 @@ function FichaVinculada({ token, fichaId }: { token: Token; fichaId: string }) {
         ) : (
           <p className="mini-sheet-note">Fadiga mental: <b>{data.fadiga}%</b>. Só o mestre muda.</p>
         )}
-        <button className="token-image-button" type="button" onClick={encerrarCena}>Encerrar cena</button>
+        {mestre && <button className="token-image-button" type="button" onClick={encerrarCena}>Encerrar cena</button>}
       </div>
       <button className="mini-sheet-text-button" type="button" onClick={desvincular}>Desvincular ficha</button>
     </div>

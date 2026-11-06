@@ -3,6 +3,7 @@ import type {
   Token,
   TokenPosition,
   TokenSprite,
+  VagaImagem,
 } from '@mesa/features/tokens/token-types'
 import { alturaDoToken } from '@mesa/features/tokens/token-types'
 import {
@@ -31,14 +32,11 @@ type TokenState = {
   selectedTokenId: string | null
   addToken: (position: TokenPosition) => Token
   updateToken: (id: string, changes: Partial<Omit<Token, 'id'>>) => void
-  addTokenSprites: (tokenId: string, files: File[]) => void
-  renameTokenSprite: (tokenId: string, spriteId: string, label: string) => void
-  selectTokenSprite: (tokenId: string, spriteId: string) => void
+  definirImagem: (tokenId: string, vaga: VagaImagem, rotulo: string, file: File) => void
   removeTokenSprite: (tokenId: string, spriteId: string) => void
   updateTokenPosition: (id: string, position: TokenPosition) => void
   snapTokenToGrid: (id: string, cellSize: number) => void
   snapTokensToGrid: (cellSize: number) => void
-  addSpriteSangrando: (tokenId: string, file: File) => void
   removeToken: (id: string) => void
   selectToken: (id: string | null) => void
   applyRoomSnapshot: (
@@ -98,95 +96,15 @@ export const useTokenStore = create<TokenState>((set) => ({
       ),
     }))
   },
-  addTokenSprites: (tokenId, files) => {
-    if (isRoomMode()) {
-      void (async () => {
-        try {
-          const added = await Promise.all(
-            files.map(async (file): Promise<TokenSprite> => ({
-              id: crypto.randomUUID(),
-              label: file.name.replace(/\.[^.]+$/, '').trim() || 'Sprite',
-              imageUrl: await fileToRoomImage(file),
-            })),
-          )
-          if (!useTokenStore.getState().tokens.some((item) => item.id === tokenId)) return
-          for (const sprite of added)
-            sendRoomCommand({ type: 'token:sprite:add', id: tokenId, sprite })
-        } catch (error) {
-          window.alert(
-            error instanceof Error
-              ? error.message
-              : 'Não foi possível preparar as imagens.',
-          )
-        }
-      })()
-      return
-    }
-    set((state) => {
-      const token = state.tokens.find((item) => item.id === tokenId)
-      if (!token) return state
-      const added = files.map((file): TokenSprite => ({
-        id: crypto.randomUUID(),
-        label: file.name.replace(/\.[^.]+$/, '').trim() || 'Sprite',
-        imageUrl: URL.createObjectURL(file),
-      }))
-      const sprites = [...(state.spritesByTokenId[tokenId] ?? []), ...added]
-      const spriteIds = [
-        ...token.spriteIds,
-        ...added.map((sprite) => sprite.id),
-      ]
-      return {
-        spritesByTokenId: { ...state.spritesByTokenId, [tokenId]: sprites },
-        tokens: state.tokens.map((item) =>
-          item.id === tokenId
-            ? {
-                ...item,
-                spriteIds,
-                activeSpriteId: item.activeSpriteId ?? added[0]?.id ?? null,
-              }
-            : item,
-        ),
-      }
-    })
-  },
-  addSpriteSangrando: (tokenId, file) => {
+  definirImagem: (tokenId, vaga, rotulo, file) => {
     void (async () => {
       try {
-        const sprite: TokenSprite = { id: crypto.randomUUID(), label: 'Sangrando', imageUrl: await fileToRoomImage(file) }
-        sendRoomCommand({ type: 'token:sprite:add', id: tokenId, sprite, sangrando: true })
+        const sprite: TokenSprite = { id: crypto.randomUUID(), label: rotulo, imageUrl: await fileToRoomImage(file) }
+        sendRoomCommand({ type: 'token:sprite:add', id: tokenId, sprite, vaga })
       } catch (error) {
         window.alert(error instanceof Error ? error.message : 'Não foi possível preparar a imagem.')
       }
     })()
-  },
-  renameTokenSprite: (tokenId, spriteId, label) => {
-    if (isRoomMode()) {
-      sendRoomCommand({ type: 'token:sprite:rename', id: tokenId, spriteId, label })
-      return
-    }
-    set((state) => ({
-      spritesByTokenId: {
-        ...state.spritesByTokenId,
-        [tokenId]: (state.spritesByTokenId[tokenId] ?? []).map((sprite) =>
-          sprite.id === spriteId ? { ...sprite, label } : sprite,
-        ),
-      },
-    }))
-  },
-  selectTokenSprite: (tokenId, spriteId) => {
-    if (isRoomMode()) {
-      useTokenStore
-        .getState()
-        .updateToken(tokenId, { activeSpriteId: spriteId })
-      return
-    }
-    set((state) => ({
-      tokens: state.tokens.map((token) =>
-        token.id === tokenId && token.spriteIds.includes(spriteId)
-          ? { ...token, activeSpriteId: spriteId }
-          : token,
-      ),
-    }))
   },
   removeTokenSprite: (tokenId, spriteId) => {
     if (isRoomMode()) {

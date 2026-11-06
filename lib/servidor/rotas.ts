@@ -463,7 +463,9 @@ rota('DELETE', '/api/fichas/:id', async ctx => {
 });
 
 rota('POST', '/api/fichas/:id/encerrar-cena', async ctx => {
-  await fichaEditavel(ctx.params.id, ctx.usuario);
+  const ficha = await fichaEditavel(ctx.params.id, ctx.usuario);
+  /* Em campanha, a cena é decisão do mestre. Fora dela, não há mestre, e quem cuida é o dono. */
+  if (ficha.campanhaId && !await mestreDaFicha(ficha, ctx.usuario)) throw new Erro(403, 'Só o mestre da campanha encerra a cena.');
   let mensagem = '';
   const f = await alterarFicha(ctx.params.id, l => {
     const r = R.aplicarFimDeCena(l.dados);

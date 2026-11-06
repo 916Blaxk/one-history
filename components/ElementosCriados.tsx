@@ -32,19 +32,14 @@ export default function ElementosCriados({ f, souMestre, editandoLimites, aoMuda
   const [origemB, setOrigemB] = useState<string>(R.GRUPOS.elementos[1][0]);
   const lista = f.elementosCriados;
 
-  function mudarTipo(novo: R.ElementoCriado['tipo']) {
-    setTipo(novo);
-    /* A variação só parte de elemento base: a origem escolhida para a fusão pode não existir na outra lista. */
-    if (novo === 'variacao' && !R.GRUPOS.elementos.some(([k]) => k === origemA)) setOrigemA(R.GRUPOS.elementos[0][0]);
-  }
   function remover(e: R.ElementoCriado) {
-    /* Sem a origem, a fusão deixaria de valer e sumiria da ficha junto, com o valor dela. */
-    const fusao = lista.find(o => o.origens.includes(e.id));
-    if (fusao) { toast.error(`${e.nome} faz parte de ${fusao.nome}. Remova ${fusao.nome} primeiro.`); return; }
+    /* Sem a origem, o elemento derivado deixaria de valer e sumiria da ficha junto, com o valor dele. */
+    const derivado = lista.find(o => o.origens.includes(e.id));
+    if (derivado) { toast.error(`${e.nome} faz parte de ${derivado.nome}. Remova ${derivado.nome} primeiro.`); return; }
     aoMudar(lista.filter(o => o.id !== e.id));
   }
   const opcoesBase = R.GRUPOS.elementos.map(([k, rotulo]) => <option key={k} value={k}>{rotulo}</option>);
-  const opcoesFusao = lista.length === 0 ? opcoesBase : (
+  const opcoesOrigem = lista.length === 0 ? opcoesBase : (
     <>
       <optgroup label="Elementos base">{opcoesBase}</optgroup>
       <optgroup label="Criados nesta ficha">{lista.map(e => <option key={e.id} value={e.id}>{e.nome}</option>)}</optgroup>
@@ -102,7 +97,7 @@ export default function ElementosCriados({ f, souMestre, editandoLimites, aoMuda
           </div>
           <div className="campo">
             <label className="rotulo" htmlFor="novo-elemento-tipo">Tipo</label>
-            <select id="novo-elemento-tipo" value={tipo} onChange={ev => mudarTipo(ev.target.value as R.ElementoCriado['tipo'])}>
+            <select id="novo-elemento-tipo" value={tipo} onChange={ev => setTipo(ev.target.value as R.ElementoCriado['tipo'])}>
               <option value="variacao">Variação de um elemento</option>
               <option value="fusao">Fusão de dois elementos</option>
             </select>
@@ -110,14 +105,14 @@ export default function ElementosCriados({ f, souMestre, editandoLimites, aoMuda
           <div className="campo">
             <label className="rotulo" htmlFor="novo-elemento-origem">{tipo === 'fusao' ? 'Primeiro elemento' : 'Elemento de origem'}</label>
             <select id="novo-elemento-origem" value={origemA} onChange={ev => setOrigemA(ev.target.value)}>
-              {tipo === 'fusao' ? opcoesFusao : opcoesBase}
+              {opcoesOrigem}
             </select>
           </div>
           {tipo === 'fusao' && (
             <div className="campo">
               <label className="rotulo" htmlFor="novo-elemento-origem-2">Segundo elemento</label>
               <select id="novo-elemento-origem-2" value={origemB} onChange={ev => setOrigemB(ev.target.value)}>
-                {opcoesFusao}
+                {opcoesOrigem}
               </select>
             </div>
           )}

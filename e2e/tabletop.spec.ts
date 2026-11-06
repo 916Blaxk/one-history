@@ -198,6 +198,7 @@ test('mesa: o mestre prepara o cenário oculto com névoa livre e mostra quando 
     return canvas.toDataURL('image/png').split(',')[1]!;
   });
   await mestre.locator('input[type=file]').first().setInputFiles({ name: 'caverna.png', mimeType: 'image/png', buffer: Buffer.from(imagem, 'base64') });
+  await mestre.getByRole('button', { name: 'Salvar', exact: true }).click();
   await expect(mestre.locator('.scene-status')).toHaveText('Oculto');
 
   /* O centro da tela é o centro do cenário. Os pontos fogem das linhas da grade. */
@@ -242,30 +243,6 @@ test('mesa: o mestre prepara o cenário oculto com névoa livre e mostra quando 
   await expect(mestre.locator('.range-control', { hasText: 'Altura' })).toContainText('3 células');
 });
 
-test('mesa: a ficha já tem token, com a foto dela, e ele acompanha a troca', async ({ browser }) => {
-  const { jogador, campanhaId, fichaId } = await montar(browser);
-  const fotoDaCor = (cor: string) => jogador.evaluate((c) => {
-    const canvas = document.createElement('canvas');
-    canvas.width = 64;
-    canvas.height = 64;
-    const contexto = canvas.getContext('2d')!;
-    contexto.fillStyle = c;
-    contexto.fillRect(0, 0, 64, 64);
-    return canvas.toDataURL('image/png');
-  }, cor);
-  await jogador.request.patch(`/api/fichas/${fichaId}`, { data: { foto: await fotoDaCor('#e02020') } });
-  await abrirMesa(jogador, campanhaId);
-
-  /* Ninguém criou token: é o da ficha, na primeira vaga. A imagem fica de pé sobre ele. */
-  const PONTO = { x: 540, y: 700 };
-  await expect.poll(async () => (await corNaTela(jogador, PONTO.x, PONTO.y)).r).toBeGreaterThan(180);
-
-  await jogador.request.patch(`/api/fichas/${fichaId}`, { data: { foto: await fotoDaCor('#2040e0') } });
-  await expect.poll(async () => (await corNaTela(jogador, PONTO.x, PONTO.y)).b).toBeGreaterThan(180);
-  expect((await corNaTela(jogador, PONTO.x, PONTO.y)).r).toBeLessThan(90);
-});
-
-
 test('mesa: mapa, névoa, combate, magia e ferramentas na mesma sessão', async ({ browser }) => {
   test.setTimeout(120_000);
   const { mestre, jogador, campanhaId, fichaId } = await montar(browser);
@@ -288,6 +265,7 @@ test('mesa: mapa, névoa, combate, magia e ferramentas na mesma sessão', async 
     return canvas.toDataURL('image/png').split(',')[1]!;
   });
   await mestre.locator('input[type=file]').first().setInputFiles({ name: 'salao.png', mimeType: 'image/png', buffer: Buffer.from(imagem, 'base64') });
+  await mestre.getByRole('button', { name: 'Salvar', exact: true }).click();
 
   /* Em 150%, o cenário alcança um ponto que antes ficava fora dele. */
   const BORDA = { x: 300, y: 512 };
@@ -347,7 +325,9 @@ test('mesa: mapa, névoa, combate, magia e ferramentas na mesma sessão', async 
   await expect(jogador.getByLabel('Fadiga mental (%)')).toHaveCount(0);
   await mestre.request.patch(`/api/fichas/${fichaId}`, { data: { fadiga: 60 } });
   await expect(jogador.locator('.mini-sheet-cena')).toContainText('60%');
-  await jogador.getByRole('button', { name: 'Encerrar cena' }).click();
+  /* A cena também é do mestre: o jogador nem vê o botão. */
+  await expect(jogador.getByRole('button', { name: 'Encerrar cena' })).toHaveCount(0);
+  await mestre.request.post(`/api/fichas/${fichaId}/encerrar-cena`, { data: {} });
   await expect.poll(async () => (await (await jogador.request.get(`/api/fichas/${fichaId}`)).json()).ficha.manaPerdida).toBeGreaterThan(0);
   /* O jogador não remove o token da ficha: a tecla nem pergunta. O mestre confirma e remove. */
   let perguntas = 0;
@@ -381,33 +361,72 @@ test('mesa: mapa, névoa, combate, magia e ferramentas na mesma sessão', async 
   expect(erros).toEqual([]);
 });
 
-test('mesa: o token troca para o sprite sangrando abaixo da metade da vida', async ({ browser }) => {
+test('mesa: o token tem três imagens, sem a foto da ficha e sem o fundo', async ({ browser }) => {
   const { jogador, campanhaId, fichaId } = await montar(browser);
-  const fotoDaCor = (cor: string) => jogador.evaluate((c) => {
+  /* Personagem colorido sobre fundo branco, para ver o fundo sair. */
+  const imagemDaCor = (cor: string) => jogador.evaluate((c) => {
     const canvas = document.createElement('canvas');
     canvas.width = 64;
     canvas.height = 64;
     const contexto = canvas.getContext('2d')!;
-    contexto.fillStyle = c;
+    contexto.fillStyle = '#ffffff';
     contexto.fillRect(0, 0, 64, 64);
+    contexto.fillStyle = c;
+    contexto.fillRect(4, 4, 56, 56);
     return canvas.toDataURL('image/png');
   }, cor);
-  await jogador.request.patch(`/api/fichas/${fichaId}`, { data: { foto: await fotoDaCor('#2040e0') } });
+  const colocar = async (vaga: string, cor: string) => {
+    const png = (await imagemDaCor(cor)).split(',')[1]!;
+    await jogador.getByLabel(`Arquivo da imagem ${vaga}`).setInputFiles({ name: `${vaga}.png`, mimeType: 'image/png', buffer: Buffer.from(png, 'base64') });
+    await expect(jogador.getByRole('dialog', { name: `Ajustar a imagem ${vaga}` })).toBeVisible();
+    await jogador.getByRole('button', { name: 'Salvar', exact: true }).click();
+    await expect(jogador.getByAltText(`Imagem ${vaga} atual`)).toBeVisible();
+  };
+
+  /* A foto da ficha fica na ficha: o token não usa. */
+  await jogador.request.patch(`/api/fichas/${fichaId}`, { data: { foto: await imagemDaCor('#e02020') } });
   await abrirMesa(jogador, campanhaId);
   const PONTO = { x: 540, y: 700 };
-  await expect.poll(async () => (await corNaTela(jogador, PONTO.x, PONTO.y)).b).toBeGreaterThan(180);
+  await jogador.waitForTimeout(1500);
+  expect((await corNaTela(jogador, PONTO.x, PONTO.y)).r).toBeLessThan(150);
 
   await jogador.mouse.click(525, 745);
-  await jogador.locator('.token-sprites-toggle').click({ timeout: 2000 }).catch(() => {});
-  await jogador.getByRole('button', { name: 'Sprite sangrando' }).click();
-  const vermelho = (await fotoDaCor('#e02020')).split(',')[1]!;
-  await jogador.getByLabel('Arquivo do sprite sangrando').setInputFiles({ name: 'ferido.png', mimeType: 'image/png', buffer: Buffer.from(vermelho, 'base64') });
-  await expect(jogador.getByAltText('Sprite sangrando atual')).toBeVisible();
+  await expect(jogador.getByRole('button', { name: 'Armado', exact: true })).toBeDisabled();
+  await colocar('Normal', '#2040e0');
+  await expect.poll(async () => (await corNaTela(jogador, PONTO.x, PONTO.y)).b).toBeGreaterThan(180);
 
-  /* Em cheio, continua o sprite normal. Abaixo da metade, troca, e volta ao curar. */
+  /* O fundo branco saiu, e o personagem ficou. */
+  const pixel = (x: number, y: number) => jogador.getByAltText('Imagem Normal atual').evaluate(async (el: HTMLImageElement, [x, y]) => {
+    await el.decode();
+    const c = document.createElement('canvas');
+    c.width = el.naturalWidth; c.height = el.naturalHeight;
+    const ctx = c.getContext('2d')!;
+    ctx.drawImage(el, 0, 0);
+    return [...ctx.getImageData(x!, y!, 1, 1).data];
+  }, [x, y]);
+  expect((await pixel(1, 1))[3]).toBe(0);
+  expect((await pixel(32, 32))[3]).toBe(255);
+
+  /* Em cheio, continua a normal. Abaixo da metade, troca, e volta ao curar. */
+  await colocar('Machucado', '#e02020');
   expect((await corNaTela(jogador, PONTO.x, PONTO.y)).b).toBeGreaterThan(180);
   await jogador.getByLabel('PV atual').fill('12');
   await expect.poll(async () => (await corNaTela(jogador, PONTO.x, PONTO.y)).r).toBeGreaterThan(180);
   await jogador.getByLabel('PV atual').fill('25');
   await expect.poll(async () => (await corNaTela(jogador, PONTO.x, PONTO.y)).b).toBeGreaterThan(180);
+
+  /* O botão Armado troca a imagem, mas o machucado vem na frente. */
+  await colocar('Armado', '#20c040');
+  expect((await corNaTela(jogador, PONTO.x, PONTO.y)).b).toBeGreaterThan(180);
+  await jogador.getByRole('button', { name: 'Armado', exact: true }).click();
+  await expect.poll(async () => (await corNaTela(jogador, PONTO.x, PONTO.y)).g).toBeGreaterThan(150);
+  await jogador.getByLabel('PV atual').fill('12');
+  await expect.poll(async () => (await corNaTela(jogador, PONTO.x, PONTO.y)).r).toBeGreaterThan(180);
+  await jogador.getByLabel('PV atual').fill('25');
+  await expect.poll(async () => (await corNaTela(jogador, PONTO.x, PONTO.y)).g).toBeGreaterThan(150);
+
+  /* Sem a imagem Armado, volta a normal e o botão desliga. */
+  await jogador.getByRole('button', { name: 'Remover imagem Armado' }).click();
+  await expect.poll(async () => (await corNaTela(jogador, PONTO.x, PONTO.y)).b).toBeGreaterThan(180);
+  await expect(jogador.getByRole('button', { name: 'Armado', exact: true })).toBeDisabled();
 });

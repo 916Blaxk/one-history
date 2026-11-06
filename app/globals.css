@@ -261,7 +261,7 @@ a.camp-linha:hover .rol-nome{color:var(--ouro)}
 .ajuste-foto::backdrop{background:rgb(0 0 0 / .7)}
 .ajuste-foto-dica{font-size:14px;line-height:1.3;color:var(--tinta-2)}
 /* O xadrez mostra o que fica vazio na foto. touch-action: sem isso, arrastar com o dedo rolaria a página. */
-.ajuste-foto-moldura{justify-self:center;width:min(100%,calc((100dvh - 290px) * .8));min-width:160px;aspect-ratio:4/5;cursor:grab;touch-action:none;outline:1px solid var(--ouro);background:repeating-conic-gradient(#ffffff14 0 25%,transparent 0 50%) 0 0/20px 20px var(--capitular-fundo)}
+.ajuste-foto-moldura{justify-self:center;max-width:100%;max-height:calc(100dvh - 330px);cursor:grab;touch-action:none;outline:1px solid var(--ouro);background:repeating-conic-gradient(#ffffff14 0 25%,transparent 0 50%) 0 0/20px 20px var(--capitular-fundo)}
 .ajuste-foto-moldura:active{cursor:grabbing}
 .ajuste-foto-zoom{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:10px;font-size:14px}
 .ajuste-foto .acoes{display:flex;flex-wrap:wrap;gap:8px}
