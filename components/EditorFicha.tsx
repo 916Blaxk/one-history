@@ -13,6 +13,9 @@ import type { Ficha, Mensagem } from '@/lib/tipos';
 import type { useChat } from '@/lib/useChat';
 import type { useFichaEditavel } from '@/lib/useFicha';
 
+/* Na ordem de `NUCLEOS`: o núcleo clareia de vermelho até branco conforme o personagem avança. */
+const COR_DO_NUCLEO = ['#7a1414', '#b3201c', '#e5443a', '#b34d0f', '#e8771c', '#f6a24b', '#a8860a', '#e3bd1f', '#f7e35d', '#8e99a8', '#c3ccd6', '#e9eef2', '#ffffff'];
+
 const CAMPOS_TEXTO = [
   ['player', 'Player', true], ['nome', 'Nome', true], ['idade', 'Idade', false], ['raca', 'Raça', false], ['estilo', 'Estilo de magia', true],
 ] as const;
@@ -261,6 +264,10 @@ export default function EditorFicha({ f, ed, chat }: {
             </div>
             <div className="bloco-nucleo">
               <div className="cab-grupo"><h2 className="titulo-grupo">Núcleo</h2></div>
+              <div className="nucleo-linha">
+                <span className="orbe" aria-hidden="true" style={{ '--orbe': COR_DO_NUCLEO[f.nucleo] } as React.CSSProperties} />
+                <span className="nucleo-nome">{R.NUCLEOS[f.nucleo].nome}</span>
+              </div>
               <div className="campo">
                 <label className="rotulo" htmlFor="c-nucleo">Estágio do núcleo</label>
                 <select id="c-nucleo" disabled={!souMestre} value={f.nucleo} onChange={ev => mudarComMaximos(c => { c.nucleo = R.inteiro(ev.target.value, 0, R.NUCLEOS.length - 1); }, c => ({ nucleo: c.nucleo }))}>

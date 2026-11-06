@@ -120,7 +120,7 @@ export function PixiMap({
       const pixi = new Application()
       app = pixi
       await pixi.init({
-        backgroundColor: 0x101114,
+        backgroundColor: 0x15101c,
         antialias: true,
         resolution: window.devicePixelRatio || 1,
         autoDensity: true,

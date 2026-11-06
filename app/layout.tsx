@@ -1,10 +1,10 @@
 import type { Metadata } from 'next';
-import { Alegreya_Sans, Alegreya_Sans_SC, Grenze_Gotisch } from 'next/font/google';
+import { Alegreya, Alegreya_SC, Almendra } from 'next/font/google';
 import { Toaster } from 'sonner';
 
-const grenze = Grenze_Gotisch({ subsets: ['latin'], weight: ['500', '700'], variable: '--font-grenze' });
-const alegreya = Alegreya_Sans({ subsets: ['latin'], weight: ['400', '500', '700'], style: ['normal', 'italic'], variable: '--font-alegreya' });
-const alegreyaSc = Alegreya_Sans_SC({ subsets: ['latin'], weight: ['500', '700'], variable: '--font-alegreya-sc' });
+const almendra = Almendra({ subsets: ['latin'], weight: ['400', '700'], variable: '--font-almendra' });
+const alegreya = Alegreya({ subsets: ['latin'], weight: ['400', '500', '700'], style: ['normal', 'italic'], variable: '--font-alegreya' });
+const alegreyaSc = Alegreya_SC({ subsets: ['latin'], weight: ['500', '700'], variable: '--font-alegreya-sc' });
 
 export const metadata: Metadata = {
   title: { default: 'One History', template: '%s · One History' },
@@ -13,10 +13,10 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt-BR" className={`${grenze.variable} ${alegreya.variable} ${alegreyaSc.variable}`}>
+    <html lang="pt-BR" className={`${almendra.variable} ${alegreya.variable} ${alegreyaSc.variable}`}>
       <body>
         {children}
-        <Toaster theme="system" position="bottom-center" richColors closeButton />
+        <Toaster theme="dark" position="bottom-center" richColors closeButton />
       </body>
     </html>
   );

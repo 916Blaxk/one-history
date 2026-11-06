@@ -1,26 +1,17 @@
-/* Conceito: fólio de manuscrito iluminado. Azul-lápis e ouro, iniciais capituladas no lugar de avatares,
-   e uma ficha em três colunas (quem é, do que é capaz, como está agora) que se deteriora com a fadiga mental. */
+/* Conceito: a forja do núcleo. Noite arcana, couro e latão, com a brasa só onde há ação.
+   O único elemento vistoso é o núcleo aceso, com a cor do estágio do personagem. A ficha em três colunas
+   (quem é, do que é capaz, como está agora) continua se deteriorando com a fadiga mental. */
 :root{
-  --pagina:#e7eaf4; --folha:#f5f6fc; --fundo-campo:#dde1f0; --tinta:#131a3d; --tinta-2:#474f76; --linha:#b8c0da;
-  --ouro:#856000; --lapis:#1f37a3; --sobre-lapis:#f5f6fc;
-  --capitular-fundo:#1a2c86; --capitular-letra:#efcd74;
-  --vida:#b3261e; --mana:#1d5fd1;
-  --fogo:#c8401a; --agua:#0e7ea8; --vento:#23845f; --terra:#8f6a1e; --cura:#b83f7c;
-  --e0:#474f76; --e20:#8a7400; --e40:#b06600; --e60:#c8401a; --e80:#b3163a; --e99:#7a0a3c; --e100:#131a3d;
-  --f-titulo:var(--font-grenze),"Palatino Linotype",Georgia,serif;
-  --f-texto:var(--font-alegreya),"Segoe UI",system-ui,sans-serif;
-  --f-rotulo:var(--font-alegreya-sc),var(--font-alegreya),"Segoe UI",system-ui,sans-serif;
-}
-@media (prefers-color-scheme:dark){
-  :root{
-    color-scheme:dark;
-    --pagina:#0c1130; --folha:#151c48; --fundo-campo:#0a0e28; --tinta:#ece8d8; --tinta-2:#a8adcd; --linha:#333c78;
-    --ouro:#dcb85f; --lapis:#3f5fe0; --sobre-lapis:#ffffff;
-    --capitular-fundo:#22339c; --capitular-letra:#efcd74;
-    --vida:#ef6b5e; --mana:#6ea8ff;
-    --fogo:#f0784a; --agua:#4cc3e6; --vento:#6fd6ac; --terra:#cfa54a; --cura:#ef86ba;
-    --e0:#a8adcd; --e20:#d9c04f; --e40:#eb9a35; --e60:#f0784a; --e80:#f0506e; --e99:#e0327e; --e100:#ece8d8;
-  }
+  color-scheme:dark;
+  --pagina:#15101c; --folha:#221a2c; --folha-alta:#2c2238; --fundo-campo:#100c16; --tinta:#f0e6d2; --tinta-2:#b9abbb; --linha:#4d3e52;
+  --ouro:#e0b458; --latao-escuro:#8a6a2c; --lapis:#b5431c; --sobre-lapis:#fff5e6;
+  --capitular-fundo:#3a1d2a; --capitular-letra:#f0c96e;
+  --vida:#ef5f52; --mana:#6aa5ff;
+  --fogo:#f0784a; --agua:#4cc3e6; --vento:#6fd6ac; --terra:#cfa54a; --cura:#ef86ba;
+  --e0:#b9abbb; --e20:#d9c04f; --e40:#eb9a35; --e60:#f0784a; --e80:#f0506e; --e99:#e0327e; --e100:#f0e6d2;
+  --f-titulo:var(--font-almendra),"Palatino Linotype",Georgia,serif;
+  --f-texto:var(--font-alegreya),"Palatino Linotype",Georgia,serif;
+  --f-rotulo:var(--font-alegreya-sc),var(--font-alegreya),Georgia,serif;
 }
 
 *{box-sizing:border-box}
@@ -109,8 +100,8 @@ a.rol-linha:hover .rol-nome{color:var(--ouro)}
 .rol-nome{display:block;font:500 28px/1.1 var(--f-titulo);overflow-wrap:anywhere}
 .rol-meta{display:block;margin-top:2px;font-size:14px;color:var(--tinta-2);overflow-wrap:anywhere}
 .rol-tier{font:700 18px/1 var(--f-rotulo);color:var(--tinta-2)}
-.rol-cab-acao{padding-right:calc(14px + 96px)}
-.rol-acao{flex:0 0 96px;display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;padding-right:10px;gap:6px}
+.rol-cab-acao{padding-right:calc(14px + 184px)}
+.rol-acao{flex:0 0 184px;display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;padding-right:10px;gap:6px}
 .rol-acao .btn{max-width:100%}
 .rol-oculto{grid-column:3 / -1;font-size:14px;color:var(--tinta-2)}
 .medida{display:grid;gap:4px;font-size:14px}
@@ -141,6 +132,7 @@ a.rol-linha:hover .rol-nome{color:var(--ouro)}
   .rol-oculto{grid-column:1 / -1}
   .medida-rot{display:inline;color:var(--tinta-2)}
   .rol-item-acao{flex-wrap:wrap}
+  .rol-cab-acao{padding-right:14px}
   .rol-item-acao .rol-linha{flex-basis:100%}
   .rol-acao{flex:1 1 100%;padding:0 14px 12px}
   .rol-acao:empty{display:none}
@@ -403,3 +395,93 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
   *{animation:none!important;transition:none!important}
   .ficha[data-estagio="60"] .retrato,.ficha[data-estagio="80"] .retrato{filter:blur(1.5px)}
 }
+
+/* ---------- A forja: o que dá a cara de RPG ao site ---------- */
+@property --orbe{syntax:"<color>";inherits:true;initial-value:#b3201c}
+body{background:radial-gradient(1100px 620px at 50% -180px,#4a1a1eb0,transparent 70%),radial-gradient(800px 500px at 100% 100%,#2b1a4a55,transparent 70%),var(--pagina);background-attachment:fixed;min-height:100dvh;line-height:1.5}
+
+/* O núcleo: a esfera de mana do personagem */
+.orbe{--orbe:#b3201c;position:relative;display:block;aspect-ratio:1;border-radius:50%;background:radial-gradient(circle at 50% 50%,color-mix(in srgb,var(--orbe) 30%,#fff) 0,color-mix(in srgb,var(--orbe) 75%,#fff) 16%,var(--orbe) 42%,color-mix(in srgb,var(--orbe) 62%,#000) 72%,color-mix(in srgb,var(--orbe) 25%,#000) 100%);box-shadow:0 0 26px color-mix(in srgb,var(--orbe) 85%,transparent),0 0 90px color-mix(in srgb,var(--orbe) 45%,transparent),inset 0 0 26px color-mix(in srgb,var(--orbe) 40%,#000)}
+.orbe::after{content:"";position:absolute;inset:-9%;border-radius:50%;border:1px solid var(--ouro);outline:1px dashed var(--latao-escuro);outline-offset:3px}
+@keyframes girar{to{transform:rotate(360deg)}}
+.orbe-entrada::after{animation:girar 90s linear infinite}
+@keyframes estagios{0%,100%{--orbe:#b3201c}25%{--orbe:#e8771c}50%{--orbe:#e3bd1f}75%{--orbe:#c3ccd6}88%{--orbe:#fff}}
+.orbe-entrada{width:clamp(110px,16vw,168px);margin:0 0 30px 8px;animation:estagios 28s ease-in-out infinite}
+.nucleo-linha{display:flex;align-items:center;gap:16px;padding:4px 2px 8px 6px}
+.nucleo-linha .orbe{flex:none;width:58px}
+.nucleo-nome{font:700 22px/1.1 var(--f-titulo);color:var(--tinta)}
+
+/* Painéis: couro com cantos de latão */
+.painel,.cartao-entrada,.fadiga,.chat-flutuante,.magia,.integracao{position:relative;background-color:var(--folha);background-image:linear-gradient(180deg,#ffffff0a,transparent 90px),url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18'%3E%3Cpath d='M1 17V1h16' fill='none' stroke='%23e0b458' stroke-width='1.5'/%3E%3Cpath d='M4 11V4h7' fill='none' stroke='%238a6a2c'/%3E%3Ccircle cx='4' cy='4' r='1.6' fill='%23e0b458'/%3E%3C/svg%3E"),url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18'%3E%3Cg transform='rotate(180 9 9)'%3E%3Cpath d='M1 17V1h16' fill='none' stroke='%23e0b458' stroke-width='1.5'/%3E%3Cpath d='M4 11V4h7' fill='none' stroke='%238a6a2c'/%3E%3Ccircle cx='4' cy='4' r='1.6' fill='%23e0b458'/%3E%3C/g%3E%3C/svg%3E");background-repeat:no-repeat;background-position:0 0,5px 5px,right 5px bottom 5px;background-size:auto,18px 18px,18px 18px;border:1px solid var(--latao-escuro);border-radius:4px;box-shadow:inset 0 0 0 1px #00000040,0 10px 26px #00000059}
+.painel,.cartao-entrada{padding:24px}
+.chat-flutuante{border-top:1px solid var(--ouro)}
+.fadiga{border-color:var(--estagio-cor)}
+.magia{background-image:none;box-shadow:none;border-color:var(--linha)}
+.integracao{background-image:none;box-shadow:none;border-color:var(--linha)}
+
+/* Topo */
+.topo{background:linear-gradient(180deg,#2c2238,#1b1423);border-bottom:1px solid var(--ouro);box-shadow:0 1px 0 #000,0 4px 0 -1px var(--latao-escuro),0 10px 24px #0007}
+.topo-marca{display:inline-flex;align-items:center;gap:10px;font-size:28px;color:var(--ouro);text-shadow:0 1px 0 #000}
+.topo-marca::before{content:"";width:30px;height:30px;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 1 29 8.5v15L16 31 3 23.500v-15z' fill='%233a1d2a' stroke='%23e0b458' stroke-width='1.5'/%3E%3Cpath d='M16 8 24 21H8zM16 1v7M3 8.500 16 8l13 .5M3 23.500 8 21 3 8.500M29 23.500 24 21l5-12.500M16 31l-8-10M16 31l8-10' fill='none' stroke='%23e0b458' stroke-width='1'/%3E%3C/svg%3E") center/contain no-repeat}
+.topo-link{font:700 16px/1.2 var(--f-rotulo);letter-spacing:.03em}
+.topo-sair{font:500 15px/1.2 var(--f-rotulo)}
+
+/* Títulos */
+.marca{color:var(--ouro);font-size:clamp(60px,9vw,104px);text-shadow:0 2px 0 #000,0 0 44px #b5431c66}
+.pag-topo{border-bottom:0;padding-bottom:18px;background:linear-gradient(90deg,var(--ouro),var(--latao-escuro) 30%,transparent) bottom/100% 1px no-repeat}
+.pag-titulo,.placa-nome{color:var(--tinta);text-shadow:0 2px 0 #000}
+.pag-titulo{font-size:clamp(38px,5.5vw,58px)}
+.placa-nome{font-size:clamp(40px,6vw,68px)}
+.titulo-grupo{font-size:16px;color:var(--ouro)}
+.rol-nome{font-size:25px}
+.cab-grupo{border-bottom:0;background:linear-gradient(90deg,var(--latao-escuro),transparent) bottom/100% 1px no-repeat}
+.entrada-texto{color:var(--tinta)}
+
+/* Botões: latão, e brasa para a ação principal */
+.btn{border-radius:3px;border-color:var(--latao-escuro);background:linear-gradient(180deg,#ffffff10,#00000026);font-weight:500;box-shadow:inset 0 1px 0 #ffffff14,0 1px 2px #0006;transition:border-color .15s,color .15s,box-shadow .15s}
+.btn:hover:not(:disabled){border-color:var(--ouro);color:var(--ouro);box-shadow:inset 0 1px 0 #ffffff14,0 0 12px #e0b45833}
+.btn-forte{background:linear-gradient(180deg,#d05a24,#a33813);border-color:#e88a4c;color:var(--sobre-lapis);font-weight:700;text-shadow:0 1px 0 #0006}
+.btn-forte:hover:not(:disabled){background:linear-gradient(180deg,#de6a30,#b5431c);border-color:#ffc07a;color:var(--sobre-lapis);box-shadow:inset 0 1px 0 #ffffff26,0 0 18px #e0642a80}
+.btn-perigo{background:transparent}
+.rolar{border-radius:3px;background:#e0b45814}
+.selo{border-radius:3px}
+
+/* Campos */
+.campo input,.campo textarea,.campo select,.busca,.link-convite,.campo-limite input,.perda-perm input,.bonus input{background:var(--fundo-campo);border-radius:3px;box-shadow:inset 0 1px 3px #000a}
+.campo input:focus,.campo textarea:focus,.campo select:focus,.busca:focus{border-color:var(--ouro);outline:none;box-shadow:inset 0 1px 3px #000a,0 0 0 1px var(--ouro)}
+.passo{background:var(--fundo-campo);border-radius:3px}
+.vital-botoes button,.dados-botoes button{background:linear-gradient(180deg,#ffffff0d,#00000026);border-radius:3px}
+.tiers{border-radius:3px;overflow:hidden}
+.tier{background:var(--fundo-campo)}
+
+/* Fichas e campanhas: cada linha é uma carta sobre a mesa */
+.rol-item{border:1px solid var(--linha);border-radius:4px;background:color-mix(in srgb,var(--folha) 80%,transparent);margin-bottom:8px;transition:border-color .15s}
+.rol-item:last-child{border-bottom:1px solid var(--linha)}
+.rol-item:hover{border-color:var(--ouro)}
+a.rol-linha:hover,a.camp-linha:hover{background:transparent}
+
+/* Retratos em medalhão */
+.capitular{background:radial-gradient(circle at 35% 25%,#5a2c3e,var(--capitular-fundo));outline:0;box-shadow:inset 0 0 0 2px var(--ouro),inset 0 0 0 4px #00000080}
+.rol-linha .capitular,.camp-linha .capitular,.msg-foto{border-radius:50%}
+.retrato{border-radius:4px;box-shadow:inset 0 0 0 2px var(--ouro),inset 0 0 0 5px #00000080,0 8px 22px #0008}
+.capitular img{position:relative;z-index:-1}
+.capitular{isolation:isolate}
+
+/* Barras como frascos */
+.barra{height:9px;background:var(--fundo-campo);border-color:var(--latao-escuro);border-radius:999px;box-shadow:inset 0 1px 2px #000c}
+.barra i{border-radius:999px;background:linear-gradient(180deg,color-mix(in srgb,var(--cor) 72%,#fff),var(--cor) 45%,color-mix(in srgb,var(--cor) 70%,#000));box-shadow:0 0 8px color-mix(in srgb,var(--cor) 60%,transparent)}
+.vital .barra{height:14px}
+
+/* Chat de dados */
+.msg-balao{border-radius:4px}
+.msg-minha .msg-balao{background:color-mix(in srgb,var(--lapis) 22%,var(--folha));border-color:color-mix(in srgb,var(--lapis) 60%,var(--linha))}
+.msg-total{text-shadow:0 0 14px #e0b45866}
+.chat-pilula{border-radius:3px;background:linear-gradient(180deg,#d05a24,#a33813);border-color:#e88a4c}
+.chat-pilula:hover{background:linear-gradient(180deg,#de6a30,#b5431c)}
+.chat-contagem{color:#1a1320}
+.chat-fechar{border-radius:3px}
+
+.vazio{border:1px dashed var(--latao-escuro);border-radius:4px;background:#ffffff05;padding:32px 24px}
+.ficha[data-estagio="100"] .placa{background:#000}
+.ficha[data-estagio="100"] .placa-nome,.ficha[data-estagio="100"] .placa-sub{color:var(--tinta);text-shadow:none}
+.ficha[data-estagio="100"] .retrato{background:#000;color:var(--tinta)}

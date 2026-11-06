@@ -15,6 +15,7 @@ export default async function PaginaEntrar({ searchParams }: { searchParams: Pro
   return (
     <main className="entrada">
       <div>
+        <span className="orbe orbe-entrada" aria-hidden="true" />
         <h1 className="marca">One History</h1>
         <p className="entrada-texto">Fichas e campanhas para a sua mesa de RPG, com vida, mana e fadiga mental calculadas pelas regras do sistema.</p>
         <ul className="entrada-lista">
