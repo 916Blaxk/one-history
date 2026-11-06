@@ -21,17 +21,17 @@
 - **Fusão e variação de elementos (6 de novembro de 2026):** partem de elementos base ou de elementos já criados na ficha. Um elemento usado em outro não pode ser removido antes dele.
 - **Encerrar cena (6 de novembro de 2026):** em campanha, só o mestre. Fora de campanha, o dono da ficha, como na fadiga.
 - **Imagens do token (6 de novembro de 2026):** o token não usa a foto da ficha. Tem três vagas: Normal, Machucado (abaixo da metade da vida) e Armado (por botão, do dono e do mestre). O machucado vem na frente do armado.
+- **Fichas antigas (6 de novembro de 2026):** não serão levadas. O site começa com o banco atual.
 - **Retirada de fundo (6 de novembro de 2026):** feita por cor, no navegador, nas imagens do token, com uma barra de força. Funciona melhor em fundo liso; foto com fundo complexo pediria um modelo de IA, cerca de 55 MB na primeira vez.
 
 ## Pendências
 
-- **Fichas antigas:** `dados/one-history.db` está em outro PC. Levar antes de os jogadores criarem contas, porque a cópia exige um banco vazio.
 - **Turso:** opcional, para ver e editar os dados com mais facilidade. O caminho está em [publicar.md](publicar.md).
 - **Backup externo:** as cópias diárias ficam no mesmo volume do banco. Baixar uma de vez em quando.
 - **Plano do Railway:** conferir preço e limite no painel.
 - **Verificação de saúde:** definir o caminho `/entrar` nas configurações do serviço no Railway.
 - **Google Doc do sistema:** renumerar as perícias e incluir Sorte.
-- **Sessão de teste:** jogar com 3 ou 4 pessoas em internet real.
+- **Sessão de teste:** jogar com 3 ou 4 pessoas em internet real. Será marcada quando o mestre e os jogadores se reunirem.
 - **Celular de verdade:** conferir o entalhe do iPhone, o teclado aberto e, na mesa, arrastar token, pintar névoa e usar a régua com o dedo.
 - **Lint:** restam erros do tipo `any` no código.
 - **Ferramentas opcionais:** `chrome-devtools-mcp` e `21st` não foram instalados.
