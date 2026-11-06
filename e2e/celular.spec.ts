@@ -30,7 +30,8 @@ test('celular: a ficha cabe na tela, em três partes, com botões para o dedo', 
   await p.getByRole('button', { name: 'Perfil', exact: true }).tap();
   await expect(p.getByLabel('Nome', { exact: true })).toBeVisible();
   await expect(p.locator('#v-vidaAtual')).toBeHidden();
-  await p.getByRole('button', { name: 'Habilidades', exact: true }).tap();
+  await p.getByRole('button', { name: 'Atributos', exact: true }).tap();
+  await p.getByLabel('Adicionar elemento').selectOption('fogo');
 
   const passo = await p.getByRole('button', { name: 'Aumentar Fogo' }).boundingBox();
   const rolar = await p.getByRole('button', { name: 'Rolar d20 mais Fogo' }).boundingBox();

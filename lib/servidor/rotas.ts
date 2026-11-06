@@ -18,7 +18,7 @@ const LIMITE_FICHAS = 200, LIMITE_CAMPANHAS = 50, LIMITE_MEMBROS = 60;
 const LIMITE_ROLAGENS = 500, PAGINA_CHAT = 50;
 const ALFABETO_CODIGO = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 const FOTO_VALIDA = /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/;
-const CAMPOS_FICHA = new Set(['player', 'nome', 'idade', 'raca', 'estilo', 'tier', 'inventario', 'notas', 'manaPerdida', 'fadiga', 'vidaAtual', 'manaAtual', 'magias', 'elementosCriados']);
+const CAMPOS_FICHA = new Set(['player', 'nome', 'idade', 'raca', 'estilo', 'tier', 'inventario', 'notas', 'manaPerdida', 'fadiga', 'vidaAtual', 'manaAtual', 'magias', 'elementosCriados', 'elementosAtivos', 'habilidades', 'periciasOutros']);
 /* O núcleo define os SP: se o jogador pudesse mudá-lo, o limite de SP não valeria nada. */
 const CAMPOS_MESTRE = new Set(['ajustes', 'limites', 'nucleo', 'publica']);
 const JANELA_MS = 15 * 60 * 1000;
@@ -503,8 +503,7 @@ rota('POST', '/api/fichas/:id/rolar', async ctx => {
     const item = lerAcao(R.normalizar(f.dados), String(ctx.corpo.atributo));
     if (!item) throw new Erro(400, 'Esse atributo não existe na ficha.');
     rotulo = item.rotulo;
-    const { valor } = item;
-    r = rolar(20, valor, item.grupo === 'pericias' ? R.dadoAdicional(valor) : 0);
+    r = rolar(20, item.valor, item.grupo === 'pericias' ? R.dadoAdicional(item.treino) : 0);
   } else {
     r = rolar(Number(ctx.corpo.lados), R.inteiro(ctx.corpo.bonus, -999, 999));
   }

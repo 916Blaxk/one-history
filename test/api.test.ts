@@ -542,6 +542,15 @@ describe('campanhas', () => {
     expect(r.limites).toEqual({});
   });
 
+  it('perícia rola com treino e outros, e o servidor lê os dois da ficha', async () => {
+    const { c } = await novaConta('Rolador');
+    const f = await novaFicha(c);
+    const salva = (await c('PATCH', `/api/fichas/${f.id}`, { pericias: { esquiva: 7 }, periciasOutros: { esquiva: 3 } })).corpo.ficha;
+    expect(salva.periciasOutros).toEqual({ esquiva: 3 });
+    const { rolagem } = (await c('POST', `/api/fichas/${f.id}/rolar`, { atributo: 'pericias.esquiva', bonus: 500 })).corpo;
+    expect(rolagem.det).toMatch(/^d20 \(\d+\) \+ d4 \(\d\) \+ 10$/);
+  });
+
   it('o jogador muda a vida máxima, e o cálculo continua somando', async () => {
     const { jog, c, codigo, f } = await mesa();
     await jog.c('POST', `/api/convites/${codigo}/entrar`);
@@ -585,7 +594,8 @@ describe('resumo da ficha', () => {
     expect(r.status).toBe(200);
     expect(r.corpo.nome).toBe('Rael');
     expect(r.corpo.recursos[0]).toEqual({ id: 'vida', rotulo: 'Vida', atual: 25, max: 25 });
-    expect(r.corpo.acoes).toHaveLength(69);
+    /* Sem elemento adicionado, os cinco elementos base não viram rolagem. */
+    expect(r.corpo.acoes).toHaveLength(64);
     expect(r.corpo.acoes.find((a: { id: string }) => a.id === 'corpo.destreza').expressao).toBe('1d20+7');
     expect((await mestre.c('GET', `/api/fichas/${f.id}/resumo`)).status).toBe(200);
     expect((await colega.c('GET', `/api/fichas/${f.id}/resumo`)).status).toBe(404);

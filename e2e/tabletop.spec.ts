@@ -121,7 +121,7 @@ test('mesa: mestre é GM, jogador usa a ficha, rola e a vida sincroniza nos dois
 
   /* A mesa usa só o próprio estilo, e o caminho de volta recarrega o do site. */
   const fundo = await mestre.evaluate(() => getComputedStyle(document.body).backgroundColor);
-  expect(fundo).toBe('rgb(13, 14, 36)');
+  expect(fundo).toBe('rgb(11, 14, 26)');
   await mestre.getByRole('link', { name: /Voltar para A Queda de Vael/ }).click();
   await expect(mestre.getByRole('heading', { name: 'A Queda de Vael' })).toBeVisible();
   const fundoSite = await mestre.evaluate(() => getComputedStyle(document.body).backgroundColor);

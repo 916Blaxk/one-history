@@ -813,7 +813,7 @@ async function handleCommand(socket: TableSocket, room: RoomState, player: RoomP
       const item = lerAcao(ficha.dados, message.acao)
       if (!item) return deny(socket)
       /* O bônus vem da ficha guardada: o navegador só diz qual atributo rolar. */
-      const expression = expressaoDaAcao(item.grupo, item.valor)
+      const expression = expressaoDaAcao(item.grupo, item.valor, item.treino)
       const roll = rollDice(expression)
       /* Todos da mesa veem a rolagem: o nome e o id entregariam a ficha privada. */
       const privada = R.fichaPrivada(ficha, room.mestreId)

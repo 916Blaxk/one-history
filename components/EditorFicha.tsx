@@ -2,13 +2,16 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useRef, useState } from 'react';
+import { Axe, Droplets, Feather, Flame, HeartPulse, Mountain, Sword, Wind, type LucideIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import AjusteFoto, { arquivoDeDataUrl, fotoDaTela } from '@/components/AjusteFoto';
 import { ChatFlutuante } from '@/components/Chat';
 import { BotaoConfirmar, CampoNumero, Capitular } from '@/components/comuns';
 import ElementosCriados from '@/components/ElementosCriados';
+import GraficoAtributos from '@/components/GraficoAtributos';
+import Habilidades from '@/components/Habilidades';
 import Magias from '@/components/Magias';
-import Pentagrama from '@/components/Pentagrama';
+import TabelaPericias from '@/components/TabelaPericias';
 import { api, dataCurta, mensagem, pct, virgula } from '@/lib/cliente';
 import { MOLDURA_FOTO, type Enquadramento } from '@/lib/enquadramento';
 import * as R from '@/lib/regras';
@@ -18,6 +21,10 @@ import type { useFichaEditavel } from '@/lib/useFicha';
 
 /* Na ordem de `NUCLEOS`: o núcleo clareia de vermelho até branco conforme o personagem avança. */
 const COR_DO_NUCLEO = ['#7a1414', '#b3201c', '#e5443a', '#b34d0f', '#e8771c', '#f6a24b', '#a8860a', '#e3bd1f', '#f7e35d', '#8e99a8', '#c3ccd6', '#e9eef2', '#ffffff'];
+
+const ICONES: Record<string, LucideIcon> = { fogo: Flame, agua: Droplets, vento: Wind, terra: Mountain, cura: HeartPulse, leves: Feather, medias: Sword, pesadas: Axe };
+/* Só para desenhar a barra: valores maiores continuam valendo. */
+const TETO_DA_BARRA = 20;
 
 const CAMPOS_TEXTO = [
   ['player', 'Player', true], ['nome', 'Nome', true], ['idade', 'Idade', false], ['raca', 'Raça', false], ['estilo', 'Estilo de magia', true],
@@ -30,9 +37,9 @@ export default function EditorFicha({ f, ed, chat }: {
   const entradaFoto = useRef<HTMLInputElement>(null);
   const [fotoEscolhida, setFotoEscolhida] = useState<{ arquivo: File; original?: string; ajuste?: Enquadramento | null } | null>(null);
   const [editandoLimites, setEditandoLimites] = useState(false);
-  const [aba, setAba] = useState<'atributos' | 'magias'>('atributos');
+  const [aba, setAba] = useState<'atributos' | 'magias' | 'habilidades'>('atributos');
   /* Só o celular usa: no computador, as três colunas ficam sempre à vista. */
-  const [secao, setSecao] = useState<'cena' | 'perfil' | 'habilidades'>('cena');
+  const [secao, setSecao] = useState<'cena' | 'perfil' | 'atributos'>('cena');
   const souMestre = f.contexto.souMestre;
   /* O servidor aplica a mesma regra: aqui é só para não oferecer o que não vai valer. */
   const podeMudarFadiga = souMestre || !f.contexto.campanha;
@@ -58,6 +65,15 @@ export default function EditorFicha({ f, ed, chat }: {
     mudarComMaximos(c => { c.ajustes[chave] = R.inteiro(v, -9999, 9999); }, c => ({ ajustes: { [chave]: c.ajustes[chave] } }));
   /* A pessoa digita o total, e a diferença para a fórmula vira o ajuste: subir vitalidade ou núcleo continua somando. */
   const mudarVidaMaxima = (v: unknown) => mudarAjuste('vida', R.inteiro(v, 0, 99999) - (vm - f.ajustes.vida));
+  const elementosDaFicha = R.elementosDaFicha(f);
+  function adicionarElemento(k: string) {
+    const elementosAtivos = [...f.elementosAtivos, k];
+    ed.definir({ ...f, elementosAtivos }, { elementosAtivos });
+  }
+  function removerElemento(k: string) {
+    const elementosAtivos = f.elementosAtivos.filter(o => o !== k);
+    ed.definir({ ...f, elementosAtivos, elementos: { ...f.elementos, [k]: 0 } }, { elementosAtivos, elementos: { [k]: 0 } });
+  }
   const mudarLimite = (chave: string, v: string) => {
     const limites = { ...f.limites };
     if (v === '') delete limites[chave];
@@ -134,15 +150,18 @@ export default function EditorFicha({ f, ed, chat }: {
     const idCampo = `a-${g}-${k}`;
     const chave = R.chaveLimite(g, k), limite = f.limites[chave];
     const travado = !souMestre && ((limite !== undefined && f[g][k] >= limite) || (g === 'pericias' && R.spGastos(f) >= R.spTotal(f)));
+    const Icone = ICONES[k];
     return (
-      <div className={`attr${cor ? ` c-${k}` : ''}`} key={k}>
-        <label htmlFor={idCampo}>{cor && <span className="ponto" />}{rotulo}{desc && <small>{desc}</small>}{limite !== undefined && !editandoLimites && <small>Máx. {limite}</small>}</label>
+      <div className={`attr${cor ? ` c-${k}` : ''}`} data-grupo={g} data-ativo={f[g][k] > 0} key={k}>
+        <label htmlFor={idCampo}>{Icone && <Icone className="attr-icone" aria-hidden="true" />}{rotulo}{desc && <small>{desc}</small>}{limite !== undefined && !editandoLimites && <small>Máx. {limite}</small>}</label>
         <div className="passo">
           <button type="button" aria-label={`Diminuir ${rotulo}`} onClick={() => mudarAttr(g, k, f[g][k] - 1)}>−</button>
           <CampoNumero id={idCampo} min={0} valor={f[g][k]} aoMudar={v => mudarAttr(g, k, v)} />
           <button type="button" disabled={travado} aria-label={`Aumentar ${rotulo}`} onClick={() => mudarAttr(g, k, f[g][k] + 1)}>+</button>
         </div>
         <button type="button" className="rolar" title={`Rolar d20${g === 'pericias' && R.dadoAdicional(f[g][k]) ? ` + d${R.dadoAdicional(f[g][k])}` : ''} + ${rotulo}`} aria-label={`Rolar d20 mais ${rotulo}`} onClick={() => rolar({ atributo: `${g}.${k}` })}>d20</button>
+        {cor && <span className="attr-barra" aria-hidden="true"><i style={{ width: `${Math.min(100, f[g][k] / TETO_DA_BARRA * 100)}%` }} /></span>}
+        {cor && <div className="elemento-remover"><BotaoConfirmar className="btn btn-pequeno" rotulo={`Remover ${rotulo}`} confirmar="Confirmar: remover" aoConfirmar={() => removerElemento(k)} /></div>}
         {souMestre && editandoLimites && (
           <label className="campo-limite">
             Limite de {rotulo}
@@ -167,7 +186,7 @@ export default function EditorFicha({ f, ed, chat }: {
     </div>
   );
 
-  const sub = [f.raca, f.estilo, `Tier ${f.tier}`, f.idade && `${f.idade} anos`].filter(Boolean).join(' · ');
+  const chips = [f.player, f.idade && `${f.idade} anos`, f.raca, f.estilo].filter(Boolean);
   const base = R.manaBase(f);
   const bonus = R.bonusNucleo(f.nucleo), spUsados = R.spGastos(f), spMax = R.spTotal(f);
   const parcelaAjuste = (v: number) => (v ? ` ${v > 0 ? '+' : '−'} ajuste ${Math.abs(v)}` : '');
@@ -192,9 +211,44 @@ export default function EditorFicha({ f, ed, chat }: {
         {f.contexto.souDono && <BotaoConfirmar rotulo="Apagar" confirmar="Confirmar: apagar para sempre" aoConfirmar={apagar} />}
       </div>
       <header className="placa">
-        <span className="orbe placa-orbe" aria-hidden="true" style={{ '--orbe': COR_DO_NUCLEO[f.nucleo] } as React.CSSProperties} />
-        <h1 className="placa-nome">{perdido ? '???' : f.nome || 'Sem nome'}</h1>
-        <p className="placa-sub">{perdido ? '???' : sub}</p>
+        <div className="bloco-foto">
+          {perdido ? <span className="capitular retrato">???</span> : <Capitular className="retrato" nome={f.nome} fichaId={f.id} fotoV={f.fotoV} />}
+          <div className="foto-botoes">
+            <button type="button" className="btn" onClick={() => entradaFoto.current?.click()}>Trocar foto</button>
+            {f.fotoV > 0 && <button type="button" className="btn" onClick={reajustarFoto}>Ajustar</button>}
+            {f.fotoV > 0 && <button type="button" className="btn" onClick={() => enviarFoto('')}>Remover</button>}
+          </div>
+          <input ref={entradaFoto} id="foto-arquivo" type="file" accept="image/*" hidden onChange={ev => {
+            const a = ev.target.files?.[0];
+            ev.target.value = '';
+            if (a) setFotoEscolhida({ arquivo: a });
+          }} />
+          {fotoEscolhida && (
+            <AjusteFoto
+              key={`${fotoEscolhida.arquivo.name}-${fotoEscolhida.arquivo.lastModified}`}
+              arquivo={fotoEscolhida.arquivo}
+              titulo="Ajustar a foto"
+              moldura={MOLDURA_FOTO}
+              comOriginal={!fotoEscolhida.original}
+              salvo={fotoEscolhida.ajuste}
+              aoCancelar={() => setFotoEscolhida(null)}
+              aoFalhar={() => { setFotoEscolhida(null); toast.error('Não consegui ler essa imagem. Use um arquivo JPG, PNG ou WebP.'); }}
+              aoSalvar={(tela, { ajuste, original }) => {
+                const foto = fotoDaTela(tela);
+                /* Ao reajustar, mantém o original que já existe: recomprimir a cada ajuste iria piorando a imagem. */
+                void enviarFoto(foto, { fotoOriginal: fotoEscolhida.original ?? original, fotoAjuste: ajuste });
+                setFotoEscolhida(null);
+              }}
+            />
+          )}
+        </div>
+        <div className="placa-texto">
+          <h1 className="placa-nome">{perdido ? '???' : f.nome || 'Sem nome'}</h1>
+          <ul className="placa-chips">
+            {perdido ? <li>???</li> : chips.map(c => <li key={c}>{c}</li>)}
+            {!perdido && <li className="chip-tier">Tier {f.tier}</li>}
+          </ul>
+        </div>
         <svg className="fenda" viewBox="0 0 1000 100" preserveAspectRatio="none" aria-hidden="true">
           <polyline points="0,62 90,48 170,71 260,38 330,55 430,20 490,64 590,44 650,78 760,30 840,58 920,36 1000,70" />
           <polyline points="430,20 462,0" />
@@ -203,43 +257,12 @@ export default function EditorFicha({ f, ed, chat }: {
       </header>
 
       <div className="ficha-secoes" role="group" aria-label="Parte da ficha">
-        {([['cena', 'Cena'], ['perfil', 'Perfil'], ['habilidades', 'Habilidades']] as const).map(([id, rotulo]) => (
+        {([['cena', 'Cena'], ['perfil', 'Perfil'], ['atributos', 'Atributos']] as const).map(([id, rotulo]) => (
           <button type="button" key={id} aria-pressed={secao === id} onClick={() => { setSecao(id); window.scrollTo({ top: 0 }); }}>{rotulo}</button>
         ))}
       </div>
       <div className="ficha-grade" data-secao={secao}>
         <section className="col-id" aria-label="Identidade">
-          <div className="bloco-foto">
-            {perdido ? <span className="capitular retrato">???</span> : <Capitular className="retrato" nome={f.nome} fichaId={f.id} fotoV={f.fotoV} />}
-            <div className="foto-botoes">
-              <button type="button" className="btn" onClick={() => entradaFoto.current?.click()}>Trocar foto</button>
-              {f.fotoV > 0 && <button type="button" className="btn" onClick={reajustarFoto}>Ajustar</button>}
-              {f.fotoV > 0 && <button type="button" className="btn" onClick={() => enviarFoto('')}>Remover</button>}
-            </div>
-            <input ref={entradaFoto} id="foto-arquivo" type="file" accept="image/*" hidden onChange={ev => {
-              const a = ev.target.files?.[0];
-              ev.target.value = '';
-              if (a) setFotoEscolhida({ arquivo: a });
-            }} />
-            {fotoEscolhida && (
-              <AjusteFoto
-                key={`${fotoEscolhida.arquivo.name}-${fotoEscolhida.arquivo.lastModified}`}
-                arquivo={fotoEscolhida.arquivo}
-                titulo="Ajustar a foto"
-                moldura={MOLDURA_FOTO}
-                comOriginal={!fotoEscolhida.original}
-                salvo={fotoEscolhida.ajuste}
-                aoCancelar={() => setFotoEscolhida(null)}
-                aoFalhar={() => { setFotoEscolhida(null); toast.error('Não consegui ler essa imagem. Use um arquivo JPG, PNG ou WebP.'); }}
-                aoSalvar={(tela, { ajuste, original }) => {
-                  const foto = fotoDaTela(tela);
-                  /* Ao reajustar, mantém o original que já existe: recomprimir a cada ajuste iria piorando a imagem. */
-                  void enviarFoto(foto, { fotoOriginal: fotoEscolhida.original ?? original, fotoAjuste: ajuste });
-                  setFotoEscolhida(null);
-                }}
-              />
-            )}
-          </div>
           <div className="campos">
             {CAMPOS_TEXTO.map(([k, rotulo, largo]) => (
               <div className={`campo${largo ? ' campo-largo' : ''}`} key={k}>
@@ -262,30 +285,41 @@ export default function EditorFicha({ f, ed, chat }: {
           <div className="abas" role="tablist" aria-label="Seções da ficha">
             <button type="button" role="tab" id="aba-atributos" aria-controls="painel-atributos" aria-selected={aba === 'atributos'} onClick={() => setAba('atributos')}>Atributos</button>
             <button type="button" role="tab" id="aba-magias" aria-controls="painel-magias" aria-selected={aba === 'magias'} onClick={() => setAba('magias')}>Magias ({f.magias.length})</button>
+            <button type="button" role="tab" id="aba-habilidades" aria-controls="painel-habilidades" aria-selected={aba === 'habilidades'} onClick={() => setAba('habilidades')}>Habilidades ({f.habilidades.length})</button>
           </div>
           {/* Fica montado e só escondido: trocar de aba não fecha as categorias de perícia já abertas. */}
           <div className="painel-aba" id="painel-atributos" role="tabpanel" aria-labelledby="aba-atributos" hidden={aba !== 'atributos'}>
             <div>
-              <div className="cab-grupo"><h2 className="titulo-grupo">Atributos</h2></div>
-              <div className="elementos-corpo">
-                <div className="pentagrama"><Pentagrama valores={f.elementos} /></div>
-                <div className="elementos-lista">{R.GRUPOS.elementos.map(i => linhaAttr('elementos', i, true))}</div>
-              </div>
+              <div className="cab-grupo"><h2 className="titulo-grupo">Elementos</h2></div>
+              <p className="grupo-desc">Afinidades mágicas: fogo, água, vento...</p>
+              {elementosDaFicha.length === 0 && f.elementosCriados.length === 0 && <p className="apagado">Nenhum elemento ainda. Adicione as afinidades do personagem.</p>}
+              <div className="elementos-lista">{elementosDaFicha.map(i => linhaAttr('elementos', i, true))}</div>
               <ElementosCriados
                 f={f} souMestre={souMestre} editandoLimites={editandoLimites}
                 aoMudar={elementosCriados => ed.definir({ ...f, elementosCriados }, { elementosCriados })}
                 aoMudarLimite={mudarLimite}
                 aoRolar={atributo => rolar({ atributo })}
               />
+              {elementosDaFicha.length < R.GRUPOS.elementos.length && (
+                <select className="elemento-adicionar" aria-label="Adicionar elemento" value="" onChange={ev => adicionarElemento(ev.target.value)}>
+                  <option value="" disabled>+ Adicionar elemento</option>
+                  {R.GRUPOS.elementos.filter(([k]) => !elementosDaFicha.some(([e]) => e === k)).map(([k, rotulo]) => <option key={k} value={k}>{rotulo}</option>)}
+                </select>
+              )}
             </div>
-            <div className="duas-col">
-              <div className="grupo-corpo">
-                <div className="cab-grupo"><h2 className="titulo-grupo">Corpo</h2></div>
-                {R.GRUPOS.corpo.map(i => linhaAttr('corpo', i))}
-              </div>
-              <div>
-                <div className="cab-grupo"><h2 className="titulo-grupo">Mente</h2></div>
-                {R.GRUPOS.mente.map(i => linhaAttr('mente', i))}
+            <div>
+              <div className="cab-grupo"><h2 className="titulo-grupo">Atributos</h2></div>
+              <p className="grupo-desc">Corpo e mente: tração, vitalidade, encanto...</p>
+              <div className="grafico-atributos"><GraficoAtributos corpo={f.corpo} mente={f.mente} /></div>
+              <div className="duas-col">
+                <div className="grupo-corpo">
+                  <h3 className="subtitulo-grupo">Corpo</h3>
+                  {R.GRUPOS.corpo.map(i => linhaAttr('corpo', i))}
+                </div>
+                <div className="grupo-mente">
+                  <h3 className="subtitulo-grupo">Mente</h3>
+                  {R.GRUPOS.mente.map(i => linhaAttr('mente', i))}
+                </div>
               </div>
             </div>
             <div>
@@ -314,12 +348,16 @@ export default function EditorFicha({ f, ed, chat }: {
                 <span className={`sp-saldo${spUsados > spMax ? ' sp-acima' : ''}`}>{spUsados} de {spMax} SP usados</span>
               </div>
               {campoBonus('sp', 'SP')}
-              {R.PERICIAS.map(c => (
-                <details className="categoria-pericia" key={c.categoria}>
-                  <summary>{c.categoria}</summary>
-                  <div className="lista-armas">{c.itens.map(i => linhaAttr('pericias', i))}</div>
-                </details>
-              ))}
+              <TabelaPericias
+                f={f} souMestre={souMestre} editandoLimites={editandoLimites}
+                aoMudarTreino={(k, v) => mudarAttr('pericias', k, v)}
+                aoMudarOutros={(k, v) => {
+                  const periciasOutros = { ...f.periciasOutros, [k]: R.inteiro(v, 0, 999) };
+                  ed.definir({ ...f, periciasOutros }, { periciasOutros });
+                }}
+                aoMudarLimite={mudarLimite}
+                aoRolar={k => rolar({ atributo: `pericias.${k}` })}
+              />
             </div>
             <div className="duas-col">
               {([['inventario', 'Inventário'], ['notas', 'Anotações']] as const).map(([k, rotulo]) => (
@@ -332,9 +370,12 @@ export default function EditorFicha({ f, ed, chat }: {
           </div>
           <div className="painel-aba" id="painel-magias" role="tabpanel" aria-labelledby="aba-magias" hidden={aba !== 'magias'}>
             <Magias
-              magias={f.magias} criados={f.elementosCriados} gastoUniversal={bonus.gasto}
+              magias={f.magias} criados={f.elementosCriados} elementos={elementosDaFicha} gastoUniversal={bonus.gasto}
               aoMudar={magias => ed.definir({ ...f, magias }, { magias })} aoConjurar={conjurar}
             />
+          </div>
+          <div className="painel-aba" id="painel-habilidades" role="tabpanel" aria-labelledby="aba-habilidades" hidden={aba !== 'habilidades'}>
+            <Habilidades habilidades={f.habilidades} aoMudar={habilidades => ed.definir({ ...f, habilidades }, { habilidades })} />
           </div>
         </section>
 

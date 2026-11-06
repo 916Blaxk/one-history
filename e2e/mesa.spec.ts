@@ -217,6 +217,83 @@ test('vida máxima: o jogador digita o total, e a vitalidade continua somando', 
   await expect(p.getByLabel('Vida máxima')).toHaveValue('50');
 });
 
+test('elementos: a ficha começa sem nenhum, e o jogador adiciona e remove os dele', async ({ browser }) => {
+  const p = await novaPessoa(browser, 'Ana');
+  await criarFicha(p, 'Maga');
+  await expect(p.getByText('Nenhum elemento ainda.')).toBeVisible();
+  await expect(p.locator('[data-grupo="elementos"]')).toHaveCount(0);
+  await p.getByLabel('Adicionar elemento').selectOption('agua');
+  await expect(p.getByRole('button', { name: 'Rolar d20 mais Água' })).toBeVisible();
+  await expect(p.getByRole('button', { name: 'Rolar d20 mais Fogo' })).toHaveCount(0);
+  await p.locator('#a-elementos-agua').fill('3');
+  await p.locator('#a-elementos-agua').press('Enter');
+  await expect(p.getByRole('status').filter({ hasText: 'Salvo' })).toBeVisible();
+  await p.reload();
+  await expect(p.locator('#a-elementos-agua')).toHaveValue('3');
+  await expect(p.getByLabel('Adicionar elemento').locator('option', { hasText: 'Água' })).toHaveCount(0);
+  await p.getByRole('button', { name: 'Remover Água' }).click();
+  await p.getByRole('button', { name: 'Confirmar: remover' }).click();
+  await expect(p.getByText('Nenhum elemento ainda.')).toBeVisible();
+  await expect(p.getByRole('status').filter({ hasText: 'Salvo' })).toBeVisible();
+  await p.reload();
+  await expect(p.getByText('Nenhum elemento ainda.')).toBeVisible();
+
+  /* O gráfico é de corpo e mente, nos atributos. */
+  await expect(p.getByRole('img', { name: /Gráfico de corpo e mente: Tração 0/ })).toBeVisible();
+});
+
+test('habilidades: a aba cria, guarda e remove', async ({ browser }) => {
+  const p = await novaPessoa(browser, 'Bob');
+  await criarFicha(p, 'Hábil');
+  await p.getByRole('tab', { name: /Habilidades/ }).click();
+  await expect(p.getByText('Nenhuma habilidade ainda.')).toBeVisible();
+  await p.getByRole('button', { name: 'Criar habilidade' }).click();
+  await p.getByLabel('Nome da habilidade').fill('Passo sombrio');
+  await p.getByLabel('O que ela faz').fill('Atravessa uma sombra próxima.');
+  await expect(p.getByRole('status').filter({ hasText: 'Salvo' })).toBeVisible();
+  await p.reload();
+  await p.getByRole('tab', { name: /Habilidades \(1\)/ }).click();
+  await expect(p.getByRole('button', { name: 'Passo sombrio' })).toBeVisible();
+  await expect(p.getByText('Atravessa uma sombra próxima.')).toBeVisible();
+  await p.getByRole('button', { name: 'Passo sombrio' }).click();
+  await p.getByRole('button', { name: 'Remover habilidade' }).click();
+  await p.getByRole('button', { name: 'Confirmar: remover habilidade' }).click();
+  await expect(p.getByText('Nenhuma habilidade ainda.')).toBeVisible();
+});
+
+test('perícias: existe a classe Magia, e as adicionais foram distribuídas', async ({ browser }) => {
+  const p = await novaPessoa(browser, 'Lua');
+  await criarFicha(p, 'Arcana');
+  await expect(p.getByText('Perícias adicionais')).toHaveCount(0);
+
+  /* Tabela única, em ordem alfabética, com o atributo de cada perícia. */
+  const nomes = await p.locator('.pericias .pericia-nome').allTextContents();
+  expect(nomes[0]).toBe('Acrobacia');
+  expect(nomes).toEqual([...nomes].sort((a, b) => a.localeCompare(b, 'pt-BR')));
+  await expect(p.locator('.pericia-linha').filter({ hasText: 'Aparar' }).locator('.pericia-dados')).toHaveText('( TRA )');
+  await expect(p.locator('.pericia-linha').filter({ hasText: 'Religião' }).locator('.pericia-dados')).toHaveText('( ONP )');
+
+  /* A classe Magia fica no filtro. */
+  await p.getByLabel('Filtrar perícias').selectOption('Magia');
+  await expect(p.locator('#a-pericias-encantar')).toBeVisible();
+  await expect(p.locator('#a-pericias-canalizacaoMagica')).toBeVisible();
+  await expect(p.locator('#a-pericias-esquiva')).toHaveCount(0);
+  await p.getByLabel('Filtrar perícias').selectOption('Todas');
+
+  /* Treino gasta SP e acende a linha; Outros não gasta, e os dois somam no bônus e na rolagem. */
+  const esquiva = p.locator('.pericia-linha').filter({ hasText: 'Esquiva' });
+  await p.locator('#a-pericias-esquiva').fill('7');
+  await p.locator('#a-pericias-esquiva').press('Enter');
+  await p.getByLabel('Outros de Esquiva').fill('3');
+  await p.getByLabel('Outros de Esquiva').press('Enter');
+  await expect(esquiva.locator('.pericia-bonus')).toHaveText('( 10 )');
+  await expect(esquiva).toHaveAttribute('data-dado', '4');
+  await expect(p.getByText('7 de 15 SP usados')).toBeVisible();
+  await expect(p.getByRole('status').filter({ hasText: 'Salvo' })).toBeVisible();
+  await p.getByRole('button', { name: 'Rolar d20 mais Esquiva' }).click();
+  await expect(p.locator('.chat-popup .msg-det')).toHaveText(/^d20 \(\d+\) \+ d4 \(\d\) \+ 10$/);
+});
+
 test('armas: a ficha traz as três categorias, sem as específicas', async ({ browser }) => {
   const p = await novaPessoa(browser, 'Rui');
   await criarFicha(p, 'Guerreiro');
@@ -244,7 +321,6 @@ test('só o mestre muda o núcleo, que soma na mana; perícia conta SP e continu
   await expect(p.getByText('Total até aqui: +7 de mana, −2 de gasto universal de mana, 32 SP')).toBeVisible();
   await expect(p.getByText(/\+ núcleo 7 = 37$/)).toBeVisible();
 
-  await p.getByText('Combate', { exact: true }).click();
   await p.locator('#a-pericias-esquiva').fill('4');
   await p.locator('#a-pericias-esquiva').press('Enter');
   await expect(p.getByText('4 de 32 SP usados')).toBeVisible();
@@ -265,12 +341,14 @@ test('mestre define bônus e limites; jogador para neles e nos SP', async ({ bro
   await jogador.reload();
   await expect(jogador.getByLabel('Bônus do mestre em SP')).toHaveCount(0);
   await expect(jogador.getByRole('button', { name: 'Definir limites' })).toHaveCount(0);
-  await jogador.getByText('Combate', { exact: true }).click();
   await jogador.locator('#a-pericias-esquiva').fill('40');
   await jogador.locator('#a-pericias-esquiva').press('Enter');
   await expect(jogador.locator('#a-pericias-esquiva')).toHaveValue('15');
   await expect(jogador.getByText('15 de 15 SP usados')).toBeVisible();
-  await expect(jogador.getByRole('button', { name: 'Aumentar Aparar' })).toBeDisabled();
+  /* Sem SP sobrando, o treino não sobe. */
+  await jogador.locator('#a-pericias-aparar').fill('3');
+  await jogador.locator('#a-pericias-aparar').press('Enter');
+  await expect(jogador.locator('#a-pericias-aparar')).toHaveValue('0');
   await expect(jogador.getByRole('status').filter({ hasText: 'Salvo' })).toBeVisible();
 
   await mestre.goto(`/fichas/${fichaId}`);
@@ -281,12 +359,10 @@ test('mestre define bônus e limites; jogador para neles e nos SP', async ({ bro
   await mestre.getByLabel('Bônus do mestre em SP').press('Enter');
   await expect(mestre.getByText('15 de 20 SP usados')).toBeVisible();
   await mestre.getByRole('button', { name: 'Definir limites' }).click();
-  await mestre.getByText('Combate', { exact: true }).click();
   await mestre.getByLabel('Limite de Aparar').fill('2');
   await expect(mestre.getByRole('status').filter({ hasText: 'Salvo' })).toBeVisible();
 
   await jogador.reload();
-  await jogador.getByText('Combate', { exact: true }).click();
   await expect(jogador.getByText('Máx. 2')).toBeVisible();
   await jogador.locator('#a-pericias-aparar').fill('9');
   await jogador.locator('#a-pericias-aparar').press('Enter');
@@ -301,7 +377,10 @@ test('magias: adicionar, conjurar com desconto de mana e continuar depois de rec
   await expect(p.getByText('Nenhuma magia ainda.')).toBeVisible();
   await p.getByRole('button', { name: 'Adicionar magia' }).click();
   await p.getByLabel('Nome da magia').fill('Faísca');
-  await p.getByLabel('Elemento').selectOption({ label: 'Fogo' });
+  await p.getByRole('tab', { name: /Atributos/ }).click();
+  await p.getByLabel('Adicionar elemento').selectOption('fogo');
+  await p.getByRole('tab', { name: /Magias/ }).click();
+  await p.getByLabel('Elemento', { exact: true }).selectOption({ label: 'Fogo' });
   await p.getByLabel('Custo de mana').fill('5');
   await p.getByLabel('Custo de mana').press('Enter');
   await p.getByLabel('Descrição').fill('Uma faísca pequena.');

@@ -13,6 +13,8 @@
 ## Decisões em aberto
 
 1. **Perícia acima de 25:** hoje, o dado adicional fica em 1d10. Aguarda a pessoa que criou o sistema, que decide as regras de dados.
+2. **Atributo na rolagem de perícia:** a ficha mostra o atributo de cada perícia, mas ele não soma. Também aguarda essa pessoa.
+3. **Sorte:** não veio na lista de atributos das perícias e aparece sem atributo.
 
 ## Decisões tomadas
 
@@ -23,7 +25,8 @@
 - **Imagens do token (6 de novembro de 2026):** o token não usa a foto da ficha. Tem três vagas: Normal, Machucado (abaixo da metade da vida) e Armado (por botão, do dono e do mestre). O machucado vem na frente do armado.
 - **Armas (6 de novembro de 2026):** a ficha tem Armas leves, Armas médias e Armas pesadas, sem as específicas. Valores das armas antigas não foram convertidos.
 - **Atributos e vida (6 de novembro de 2026):** Tenacidade saiu da ficha. O jogador pode mudar a vida máxima, e a diferença para a fórmula vira um ajuste, então vitalidade e núcleo continuam somando. Os limites que o mestre definir continuam valendo.
-- **Visual (6 de novembro de 2026):** azul e roxo, com clima de grimório. Vida, mana, elementos, fadiga e núcleo mantêm as próprias cores, porque elas têm significado no jogo.
+- **Ficha (6 de novembro de 2026):** a ficha começa sem elementos, e o jogador adiciona os dele. O gráfico mostra corpo e mente. Há uma aba de habilidades e uma classe de perícias Magia, e as perícias adicionais foram distribuídas.
+- **Visual (6 de novembro de 2026):** fantasia mágica moderna em azul e roxo, com Cinzel e Inter. Tema claro não foi feito, porque a mesa tem muitas cores próprias. Vida, mana, elementos, fadiga e núcleo mantêm as próprias cores, porque elas têm significado no jogo.
 - **Fichas antigas (6 de novembro de 2026):** não serão levadas. O site começa com o banco atual.
 - **Retirada de fundo (6 de novembro de 2026):** feita por cor, no navegador, nas imagens do token, com uma barra de força. Funciona melhor em fundo liso; foto com fundo complexo pediria um modelo de IA, cerca de 55 MB na primeira vez.
 

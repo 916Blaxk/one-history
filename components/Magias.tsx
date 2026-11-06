@@ -7,8 +7,8 @@ import { PontoElemento, origemDoElemento } from '@/components/ElementosCriados';
 const novoId = () => `m${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 
 /* A aba de feitiços da ficha. O custo mostrado já desconta o gasto universal do núcleo. */
-export default function Magias({ magias, criados, gastoUniversal, aoMudar, aoConjurar }: {
-  magias: R.Magia[]; criados: readonly R.ElementoCriado[]; gastoUniversal: number;
+export default function Magias({ magias, criados, elementos, gastoUniversal, aoMudar, aoConjurar }: {
+  magias: R.Magia[]; criados: readonly R.ElementoCriado[]; elementos: readonly (readonly string[])[]; gastoUniversal: number;
   aoMudar: (magias: R.Magia[]) => void; aoConjurar: (m: R.Magia) => void;
 }) {
   const [abertas, setAbertas] = useState<ReadonlySet<string>>(new Set());
@@ -56,7 +56,8 @@ export default function Magias({ magias, criados, gastoUniversal, aoMudar, aoCon
                     <label className="rotulo" htmlFor={`m-elemento-${m.id}`}>Elemento</label>
                     <select id={`m-elemento-${m.id}`} value={m.elemento} onChange={ev => mudar(m.id, { elemento: ev.target.value })}>
                       <option value="">Nenhum</option>
-                      {R.GRUPOS.elementos.map(([k, rotulo]) => <option key={k} value={k}>{rotulo}</option>)}
+                      {/* A magia salva com um elemento que saiu da ficha continua mostrando esse elemento. */}
+                      {R.GRUPOS.elementos.filter(([k]) => k === m.elemento || elementos.some(([e]) => e === k)).map(([k, rotulo]) => <option key={k} value={k}>{rotulo}</option>)}
                       {criados.map(e => <option key={e.id} value={e.id}>{e.nome} ({origemDoElemento(e, criados)})</option>)}
                     </select>
                   </div>

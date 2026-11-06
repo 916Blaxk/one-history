@@ -15,7 +15,7 @@ export function fotoDaTela(tela: HTMLCanvasElement) {
   const copia = document.createElement('canvas');
   copia.width = tela.width; copia.height = tela.height;
   const ctx = copia.getContext('2d')!;
-  ctx.fillStyle = '#261a5c';
+  ctx.fillStyle = '#1c2440';
   ctx.fillRect(0, 0, copia.width, copia.height);
   ctx.drawImage(tela, 0, 0);
   return copia.toDataURL('image/jpeg', .82);

@@ -1,10 +1,9 @@
 import type { Metadata, Viewport } from 'next';
-import { Alegreya, Alegreya_SC, Almendra } from 'next/font/google';
+import { Cinzel, Inter } from 'next/font/google';
 import { Toaster } from 'sonner';
 
-const almendra = Almendra({ subsets: ['latin'], weight: ['400', '700'], variable: '--font-almendra' });
-const alegreya = Alegreya({ subsets: ['latin'], weight: ['400', '500', '700'], style: ['normal', 'italic'], variable: '--font-alegreya' });
-const alegreyaSc = Alegreya_SC({ subsets: ['latin'], weight: ['500', '700'], variable: '--font-alegreya-sc' });
+const cinzel = Cinzel({ subsets: ['latin'], weight: ['500', '600', '700'], variable: '--font-cinzel' });
+const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
 export const metadata: Metadata = {
   title: { default: 'One History', template: '%s · One History' },
@@ -12,11 +11,11 @@ export const metadata: Metadata = {
 };
 
 /* `cover` libera a área do entalhe do celular: os estilos já respeitam as margens seguras. */
-export const viewport: Viewport = { themeColor: '#0d0e24', viewportFit: 'cover' };
+export const viewport: Viewport = { themeColor: '#0b0e1a', viewportFit: 'cover' };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt-BR" className={`${almendra.variable} ${alegreya.variable} ${alegreyaSc.variable}`}>
+    <html lang="pt-BR" className={`${cinzel.variable} ${inter.variable}`}>
       <body>
         {children}
         <Toaster theme="dark" position="bottom-center" richColors closeButton />

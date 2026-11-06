@@ -9,7 +9,7 @@ export interface ResumoDaFicha {
   recursos: Recurso[]; acoes: AcaoRolagem[]; magias: MagiaResumo[]; fadiga: number;
 }
 
-const NOME_GRUPO: Record<R.Grupo, string> = { elementos: 'Atributos', armas: 'Armas', corpo: 'Corpo', mente: 'Mente', pericias: 'Perícias' };
+const NOME_GRUPO: Record<R.Grupo, string> = { elementos: 'Elementos', armas: 'Armas', corpo: 'Corpo', mente: 'Mente', pericias: 'Perícias' };
 const CATEGORIA_PERICIA = new Map(R.PERICIAS.flatMap(c => c.itens.map(([k]) => [k, c.categoria] as const)));
 
 /* A rolagem de atributo é sempre d20 + o valor guardado na ficha. */
@@ -19,8 +19,8 @@ export function expressaoAtributo(valor: number) {
 }
 
 /* Só perícia tem dado adicional: atributos, armas, corpo e mente continuam em d20 + valor. */
-export function expressaoDaAcao(grupo: R.Grupo, valor: number) {
-  const dado = grupo === 'pericias' ? R.dadoAdicional(valor) : 0;
+export function expressaoDaAcao(grupo: R.Grupo, valor: number, treino = valor) {
+  const dado = grupo === 'pericias' ? R.dadoAdicional(treino) : 0;
   return dado ? `1d20+1d${dado}+${valor}` : expressaoAtributo(valor);
 }
 
@@ -36,21 +36,27 @@ export function itemDaAcao(acao: string) {
 export function lerAcao(d: R.DadosFicha, acao: string) {
   if (acao.startsWith('criados.')) {
     const criado = d.elementosCriados.find(e => R.chaveCriado(e.id) === acao);
-    return criado ? { grupo: 'elementos' as const, rotulo: criado.nome, valor: criado.valor } : null;
+    return criado ? { grupo: 'elementos' as const, rotulo: criado.nome, valor: criado.valor, treino: criado.valor } : null;
   }
   const item = itemDaAcao(acao);
-  return item ? { grupo: item.grupo, rotulo: item.rotulo, valor: d[item.grupo][item.chave] } : null;
+  if (!item) return null;
+  /* `valor` é o que soma na rolagem; o dado adicional vem só do treino. */
+  const treino = d[item.grupo][item.chave]!;
+  return { grupo: item.grupo, rotulo: item.rotulo, valor: treino + (item.grupo === 'pericias' ? d.periciasOutros[item.chave] ?? 0 : 0), treino };
 }
 
 export function acoesDeRolagem(d: R.DadosFicha): AcaoRolagem[] {
   const criados = d.elementosCriados.map(e => ({
     id: R.chaveCriado(e.id), grupo: 'elementos' as const, categoria: NOME_GRUPO.elementos, rotulo: e.nome, valor: e.valor, expressao: expressaoAtributo(e.valor),
   }));
-  return [...criados, ...R.NOMES_GRUPOS.flatMap(g => R.GRUPOS[g].map(item => {
+  /* Elemento que o personagem não tem não vira rolagem na mesa. */
+  const itensDe = (g: R.Grupo): readonly (readonly string[])[] => (g === 'elementos' ? R.elementosDaFicha(d) : R.GRUPOS[g]);
+  return [...criados, ...R.NOMES_GRUPOS.flatMap(g => itensDe(g).map(item => {
     const [k, rotulo] = item;
+    const treino = d[g][k]!, valor = treino + (g === 'pericias' ? d.periciasOutros[k] ?? 0 : 0);
     return {
       id: `${g}.${k}`, grupo: g, categoria: g === 'pericias' ? CATEGORIA_PERICIA.get(k) ?? NOME_GRUPO[g] : NOME_GRUPO[g],
-      rotulo, valor: d[g][k], expressao: expressaoDaAcao(g, d[g][k]),
+      rotulo, valor, expressao: expressaoDaAcao(g, valor, treino),
     };
   }))];
 }

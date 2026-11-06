@@ -1,4 +1,4 @@
-import { expressaoDaAcao } from '../lib/resumoFicha';
+import { expressaoDaAcao, lerAcao } from '../lib/resumoFicha';
 import { describe, expect, it } from 'vitest';
 import * as R from '../lib/regras';
 
@@ -129,6 +129,47 @@ describe('regras do sistema', () => {
     expect(R.basesDoElemento('e3', lista)).toEqual(['fogo', 'terra', 'agua']);
     expect(R.basesDoElemento('e2', lista)).toEqual(['fogo', 'terra', 'agua']);
     expect(R.basesDoElemento('fogo', lista)).toEqual(['fogo']);
+  });
+
+  it('a ficha mostra só os elementos adicionados ou que já têm valor', () => {
+    const nomes = (o: object) => R.elementosDaFicha(R.normalizar(o)).map(([k]) => k);
+    expect(nomes({})).toEqual([]);
+    expect(nomes({ elementosAtivos: ['agua', 'inventado', 'agua'] })).toEqual(['agua']);
+    /* Ficha antiga, sem a lista: quem tem valor continua à vista. */
+    expect(nomes({ elementos: { fogo: 3 } })).toEqual(['fogo']);
+  });
+
+  it('as perícias adicionais foram distribuídas, sem perder nenhuma', () => {
+    const categorias = R.PERICIAS.map(c => c.categoria);
+    expect(categorias).toContain('Magia');
+    expect(categorias).not.toContain('Perícias adicionais');
+    const chaves = R.GRUPOS.pericias.map(([k]) => k);
+    expect(new Set(chaves).size).toBe(chaves.length);
+    for (const k of ['encantar', 'tecnologia', 'extracaoNucleo', 'metalurgica', 'sorte']) expect(chaves).toContain(k);
+    expect(chaves).toHaveLength(55);
+  });
+
+  it('cada perícia tem o atributo da lista do sistema, menos Sorte', () => {
+    const semAtributo = R.GRUPOS.pericias.map(([k]) => k).filter(k => !R.ATRIBUTO_DA_PERICIA[k]);
+    expect(semAtributo).toEqual(['sorte']);
+    expect(R.ATRIBUTO_DA_PERICIA.aparar).toBe('tracao');
+    expect(R.ATRIBUTO_DA_PERICIA.religiao).toBe('onipotencia');
+    expect(R.ATRIBUTO_DA_PERICIA.seducao).toBe('encanto');
+  });
+
+  it('outros soma na rolagem, mas o dado adicional e os SP vêm do treino', () => {
+    const f = R.normalizar({ pericias: { esquiva: 7 }, periciasOutros: { esquiva: 3, inventada: 9, aparar: -4 } });
+    expect(f.periciasOutros).toEqual({ esquiva: 3 });
+    expect(R.spGastos(f)).toBe(7);
+    expect(lerAcao(f, 'pericias.esquiva')).toMatchObject({ valor: 10, treino: 7 });
+    expect(expressaoDaAcao('pericias', 10, 7)).toBe('1d20+1d4+10');
+  });
+
+  it('habilidades são limpas: só nome e descrição, com id único', () => {
+    const { habilidades } = R.normalizar({ habilidades: [{ id: 'a', nome: 'Golpe', descricao: 'Forte.', hack: 1 }, { id: 'a', nome: 7 }, 'lixo'] });
+    expect(habilidades).toHaveLength(3);
+    expect(habilidades[0]).toEqual({ id: 'a', nome: 'Golpe', descricao: 'Forte.' });
+    expect(new Set(habilidades.map(h => h.id)).size).toBe(3);
   });
 
   it('normalizar descarta campos desconhecidos e trava os limites', () => {
