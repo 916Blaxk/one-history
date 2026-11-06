@@ -6,7 +6,8 @@ export default defineConfig({
   timeout: 60000,
   fullyParallel: false,
   workers: 1,
-  reporter: 'line',
+  /* No CI, as falhas viram anotações, que dá para ler sem baixar o log. */
+  reporter: process.env.CI ? [['github'], ['line']] : 'line',
   use: {
     baseURL: 'http://127.0.0.1:3458',
     channel: 'msedge',
