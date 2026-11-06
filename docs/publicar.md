@@ -1,6 +1,6 @@
 # Publicar o One History
 
-O site roda como um único serviço Node. Cada envio para a branch `main` publica o site sozinho.
+O site roda como um único serviço Node. Para publicar, rode `railway up` na raiz do projeto. O envio para o GitHub só publica sozinho depois de instalar o app do Railway no GitHub.
 
 **Situação atual:** no ar em https://one-history-production.up.railway.app, com banco em volume do Railway montado em `/data`. O Turso abaixo é o próximo passo opcional, para ver e editar os dados com mais facilidade.
 
@@ -27,7 +27,7 @@ Se não houver dados para levar, pule este passo: as tabelas são criadas ao ini
 ## 3. Site no Railway
 
 1. Crie uma conta em [railway.com](https://railway.com) e autorize o acesso ao repositório `916Blaxk/one-history`.
-2. Crie um projeto a partir desse repositório, usando a branch `main`. Os comandos de build e início já estão em `railway.json`.
+2. Crie um projeto a partir desse repositório, usando a branch `main`. O Railway detecta sozinho os comandos de build e início.
 3. Defina as variáveis:
 
 | Variável | Valor |
@@ -50,7 +50,7 @@ Se o indicador não conectar, confira se a hospedagem aceita WebSocket. Sem isso
 
 ## Atualizar depois
 
-Envie o código para a `main`. O Railway recompila e publica em alguns minutos. Migrações novas rodam ao iniciar, antes de o site abrir.
+Rode `railway up`, ou envie o código para a `main` se o app do Railway estiver instalado no GitHub. O Railway recompila e publica em alguns minutos. Migrações novas rodam ao iniciar, antes de o site abrir.
 
 Evite publicar durante uma sessão: o site fica fora por alguns instantes, e a mesa reconecta sozinha ao voltar.
 
