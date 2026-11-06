@@ -240,3 +240,29 @@ test('mesa: o mestre prepara o cenário oculto com névoa livre e mostra quando 
   await expect(mestre.locator('.range-control', { hasText: 'Largura' })).toContainText('1,5 células');
   await expect(mestre.locator('.range-control', { hasText: 'Altura' })).toContainText('3 células');
 });
+
+test('mesa: token vinculado mostra a foto da ficha e acompanha a troca', async ({ browser }) => {
+  const { jogador, campanhaId, fichaId } = await montar(browser);
+  const fotoDaCor = (cor: string) => jogador.evaluate((c) => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 64;
+    canvas.height = 64;
+    const contexto = canvas.getContext('2d')!;
+    contexto.fillStyle = c;
+    contexto.fillRect(0, 0, 64, 64);
+    return canvas.toDataURL('image/png');
+  }, cor);
+  await jogador.request.patch(`/api/fichas/${fichaId}`, { data: { foto: await fotoDaCor('#e02020') } });
+  await abrirMesa(jogador, campanhaId);
+  await jogador.getByRole('button', { name: 'Novo token' }).first().click();
+  await jogador.getByRole('button', { name: 'Vincular ficha' }).click();
+  await expect(jogador.getByLabel('PV atual')).toHaveValue('25');
+
+  /* A imagem fica de pé sobre o token: o ponto é logo acima do centro da tela. */
+  const PONTO = { x: 712, y: 470 };
+  await expect.poll(async () => (await corNaTela(jogador, PONTO.x, PONTO.y)).r).toBeGreaterThan(180);
+
+  await jogador.request.patch(`/api/fichas/${fichaId}`, { data: { foto: await fotoDaCor('#2040e0') } });
+  await expect.poll(async () => (await corNaTela(jogador, PONTO.x, PONTO.y)).b).toBeGreaterThan(180);
+  expect((await corNaTela(jogador, PONTO.x, PONTO.y)).r).toBeLessThan(90);
+});

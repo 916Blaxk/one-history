@@ -234,6 +234,56 @@ describe('papéis vêm do banco', () => {
     expect((await entrar(mestre, id)).snapshot.nevoa.prep).toHaveLength(3);
   });
 
+  it('token vinculado acompanha a foto e os status da ficha', async () => {
+    const { mestre, jogador, ficha, id } = await mesaCompleta();
+    const m = await entrar(mestre, id);
+    const j = await entrar(jogador, id);
+    const t = await criarToken(j, { name: 'Kael' });
+    j.comando({ type: 'token:update', id: t, changes: { characterId: ficha.id } });
+    await ate(() => m.ultimoToken(t)?.characterId === ficha.id);
+    expect(m.ultimoToken(t).fotoFichaV).toBe(0);
+
+    await jogador.c('PATCH', `/api/fichas/${ficha.id}`, { foto: PIXEL, vidaAtual: 5, manaAtual: 7 });
+    const comFoto = await ate(() => { const k = m.ultimoToken(t); return k.fotoFichaV > 0 && k; });
+    expect(comFoto).toMatchObject({ hpCurrent: 5, manaCurrent: 7 });
+    await ate(() => j.ultimoToken(t).fotoFichaV === comFoto.fotoFichaV);
+
+    /* A versão vem da ficha: quem está na mesa não escolhe a foto. */
+    j.comando({ type: 'token:update', id: t, changes: { fotoFichaV: 1 } });
+    await ate(() => j.eventos.some(e => e.type === 'permission:error'));
+    m.comando({ type: 'token:create', token: { id: 'forjado', name: 'F', x: 0, y: 0, size: 1, rotation: 0, spriteIds: [], activeSpriteId: null, flipX: false, color: '#806240', ownerIds: [], hidden: false, fotoFichaV: 5 }, sprites: [] });
+    await ate(() => m.ultimoToken('forjado'));
+    expect(m.ultimoToken('forjado').fotoFichaV).toBeUndefined();
+
+    await jogador.c('PATCH', `/api/fichas/${ficha.id}`, { foto: '' });
+    await ate(() => m.ultimoToken(t).fotoFichaV === 0);
+    j.comando({ type: 'token:update', id: t, changes: { characterId: null } });
+    await ate(() => m.ultimoToken(t).characterId === undefined);
+    expect(m.ultimoToken(t).fotoFichaV).toBeUndefined();
+    expect(m.ultimoToken(t).hpCurrent).toBeUndefined();
+  });
+
+  it('jogador só recebe a foto de token com ficha do mestre quando ela é pública', async () => {
+    const { mestre, jogador, id } = await mesaCompleta();
+    const npc = (await mestre.c('POST', '/api/fichas', { dados: { nome: 'Vilão' } })).corpo.ficha;
+    await mestre.c('POST', `/api/campanhas/${id}/fichas`, { fichaId: npc.id });
+    await mestre.c('PATCH', `/api/fichas/${npc.id}`, { foto: PIXEL });
+    const m = await entrar(mestre, id);
+    const j = await entrar(jogador, id);
+    const t = await criarToken(m, { name: 'Sombra' });
+    await ate(() => j.ultimoToken(t));
+    m.comando({ type: 'token:update', id: t, changes: { characterId: npc.id } });
+    await ate(() => m.ultimoToken(t).fotoFichaV > 0);
+    await ate(() => j.ultimoToken(t).characterId === npc.id);
+    expect(j.ultimoToken(t).fotoFichaV).toBeUndefined();
+    expect(j.ultimoToken(t).fotoFichaPrivada).toBeUndefined();
+
+    await mestre.c('PATCH', `/api/fichas/${npc.id}`, { publica: true });
+    await ate(() => j.ultimoToken(t).fotoFichaV > 0);
+    await mestre.c('PATCH', `/api/fichas/${npc.id}`, { publica: false });
+    await ate(() => j.ultimoToken(t).fotoFichaV === undefined);
+  });
+
   it('rolagem de ficha privada do mestre aparece na mesa como Mestre', async () => {
     const { mestre, jogador, id } = await mesaCompleta();
     const npc = (await mestre.c('POST', '/api/fichas', { dados: { nome: 'Vilão', corpo: { destreza: 3 } } })).corpo.ficha;

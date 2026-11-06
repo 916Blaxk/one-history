@@ -314,6 +314,9 @@ export function TokenProperties({
             </button>
             <div className="token-sprites-content">
               <span className="token-sprites-title">Sprites</span>
+              {linked && Boolean(selectedToken.fotoFichaV) && (
+                <p className="mini-sheet-note">O token usa a foto da ficha. Os sprites voltam se a foto for removida ou a ficha, desvinculada.</p>
+              )}
               <label className="token-field">
                 Sprite ativo
                 <select

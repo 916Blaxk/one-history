@@ -16,6 +16,10 @@ export type Token = {
   manaCurrent?: number
   manaMax?: number
   characterId?: string
+  /* Versão da foto da ficha vinculada. Só o servidor preenche, e 0 é ficha sem foto. */
+  fotoFichaV?: number
+  /* O jogador não recebe a foto de ficha privada do mestre. */
+  fotoFichaPrivada?: boolean
   ownerIds: string[]
   hidden: boolean
   createdByPlayerKey?: string
@@ -72,3 +76,11 @@ export type TokenPosition = Pick<Token, 'x' | 'y'>
 export const TAMANHO_MINIMO = 0.25
 export const TAMANHO_MAXIMO = 10
 export const alturaDoToken = (token: Pick<Token, 'size' | 'altura'>) => token.altura ?? token.size
+
+/* Com a ficha vinculada, a foto dela é a imagem do token. Sem foto, valem os sprites do próprio token. */
+export function spriteDoToken(token: Token, sprites: readonly TokenSprite[] = []): TokenSprite | undefined {
+  if (token.characterId && token.fotoFichaV) {
+    return { id: `ficha-${token.characterId}-${token.fotoFichaV}`, label: 'Foto da ficha', imageUrl: `/api/fichas/${token.characterId}/foto?v=${token.fotoFichaV}` }
+  }
+  return token.activeSpriteId ? sprites.find((sprite) => sprite.id === token.activeSpriteId) : undefined
+}

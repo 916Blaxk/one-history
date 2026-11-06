@@ -88,7 +88,9 @@ function validToken(value: unknown, sprites: TokenSprite[]): value is Token {
     (typeof value.activeSpriteId === 'string' && ids.includes(value.activeSpriteId))) && typeof value.flipX === 'boolean' &&
     typeof value.color === 'string' && /^#[0-9a-f]{6}$/i.test(value.color) &&
     (value.characterId === undefined || (typeof value.characterId === 'string' && value.characterId.length <= 80)) &&
-    resource(value.hpCurrent) && resource(value.hpMax) && resource(value.manaCurrent) && resource(value.manaMax)
+    resource(value.hpCurrent) && resource(value.hpMax) && resource(value.manaCurrent) && resource(value.manaMax) &&
+    (value.fotoFichaV === undefined || (typeof value.fotoFichaV === 'number' && Number.isFinite(value.fotoFichaV) && value.fotoFichaV >= 0)) &&
+    (value.fotoFichaPrivada === undefined || typeof value.fotoFichaPrivada === 'boolean')
     && Array.isArray(value.ownerIds) && value.ownerIds.length <= 100 &&
     value.ownerIds.every((id) => typeof id === 'string' && id.length <= 100) &&
     typeof value.hidden === 'boolean' &&
@@ -185,6 +187,8 @@ function visaoDoToken(room: RoomState, token: Token, player: RoomPlayer): Token 
   if (!token.characterId || player.role === 'gm' || room.donosFicha.get(token.characterId) === player.id) return token
   const visao = { ...token }
   delete visao.hpCurrent; delete visao.hpMax; delete visao.manaCurrent; delete visao.manaMax
+  if (token.fotoFichaPrivada) delete visao.fotoFichaV
+  delete visao.fotoFichaPrivada
   return visao
 }
 
@@ -289,12 +293,17 @@ function enfileirar<T>(room: RoomState, tarefa: () => Promise<T> | T) {
   return proxima
 }
 
-function valoresDaFicha(dados: R.DadosFicha) {
-  return { hpCurrent: dados.vidaAtual, hpMax: R.vidaMax(dados), manaCurrent: dados.manaAtual, manaMax: R.manaMax(dados) }
+function valoresDaFicha(room: RoomState, ficha: NonNullable<Awaited<ReturnType<typeof lerFicha>>>) {
+  const { dados } = ficha
+  return {
+    hpCurrent: dados.vidaAtual, hpMax: R.vidaMax(dados), manaCurrent: dados.manaAtual, manaMax: R.manaMax(dados),
+    fotoFichaV: ficha.fotoV, fotoFichaPrivada: R.fichaPrivada(ficha, room.mestreId),
+  }
 }
 function desvincular(room: RoomState, token: Token) {
   const atualizado = { ...token }
   delete atualizado.characterId; delete atualizado.hpCurrent; delete atualizado.hpMax; delete atualizado.manaCurrent; delete atualizado.manaMax
+  delete atualizado.fotoFichaV; delete atualizado.fotoFichaPrivada
   room.tokens.set(token.id, atualizado)
   broadcastVisible(room, { type: 'token:updated', token: atualizado, sprites: room.sprites.get(token.id) ?? [] }, atualizado)
   marcarSuja(room)
@@ -310,9 +319,10 @@ async function sincronizarFicha(room: RoomState, fichaId: string) {
     return
   }
   room.donosFicha.set(fichaId, ficha.donoId)
-  const valores = valoresDaFicha(ficha.dados)
+  const valores = valoresDaFicha(room, ficha)
   for (const token of tokens) {
-    if (token.hpCurrent === valores.hpCurrent && token.hpMax === valores.hpMax && token.manaCurrent === valores.manaCurrent && token.manaMax === valores.manaMax) continue
+    if (token.hpCurrent === valores.hpCurrent && token.hpMax === valores.hpMax && token.manaCurrent === valores.manaCurrent && token.manaMax === valores.manaMax &&
+      token.fotoFichaV === valores.fotoFichaV && token.fotoFichaPrivada === valores.fotoFichaPrivada) continue
     const atualizado = { ...token, ...valores }
     room.tokens.set(token.id, atualizado)
     broadcastVisible(room, { type: 'token:updated', token: atualizado, sprites: room.sprites.get(token.id) ?? [] }, atualizado)
@@ -339,7 +349,7 @@ async function handleCommand(socket: TableSocket, room: RoomState, player: RoomP
         createdByPlayerKey: player.id,
       }
       /* O vínculo com a ficha passa sempre pela checagem de token:update. */
-      delete token.characterId
+      delete token.characterId; delete token.fotoFichaV; delete token.fotoFichaPrivada
       if (!validToken(token, message.sprites)) return
       room.tokens.set(token.id, token); room.sprites.set(token.id, message.sprites)
       broadcastVisible(room, { type: 'token:added', token, sprites: message.sprites, playerId: socket.id }, token); return
@@ -359,12 +369,13 @@ async function handleCommand(socket: TableSocket, room: RoomState, player: RoomP
         const ficha = await lerFicha(vinculoNovo)
         if (!ficha || ficha.campanhaId !== room.code || (player.role !== 'gm' && ficha.donoId !== player.id)) return deny(socket)
         room.donosFicha.set(ficha.id, ficha.donoId)
-        Object.assign(changes, valoresDaFicha(ficha.dados))
+        Object.assign(changes, valoresDaFicha(room, ficha))
         /* Quem é dono da ficha precisa poder mexer no token dela. */
         const donos = (changes.ownerIds as string[] | undefined) ?? current.ownerIds
         if (!donos.includes(ficha.donoId)) changes.ownerIds = [...donos, ficha.donoId]
       } else if (vinculoNovo === null) {
         changes.hpCurrent = null; changes.hpMax = null; changes.manaCurrent = null; changes.manaMax = null
+        changes.fotoFichaV = null; changes.fotoFichaPrivada = null
       } else if (fichaId) {
         /* Token vinculado: a ficha manda. O máximo não muda por aqui, e o valor atual é gravado nela. */
         if ('hpMax' in changes || 'manaMax' in changes) return deny(socket)

@@ -6,7 +6,7 @@ import { useUiStore } from '@mesa/stores/ui-store'
 import { useTokenStore } from '@mesa/features/tokens/token-store'
 import { isRoomMode, sendRoomMove } from '@mesa/features/rooms/room-commands'
 import { useRoomStore } from '@mesa/features/rooms/room-store'
-import type { TokenSprite } from '@mesa/features/tokens/token-types'
+import { spriteDoToken, type TokenSprite } from '@mesa/features/tokens/token-types'
 import type { OpNevoa, RoomScene } from '@mesa/shared/room-protocol'
 import { CAMADA_MUNDO, limitesDaOp } from '@mesa/shared/nevoa'
 import { CamadaNevoa, type Limites } from '@mesa/features/map/camada-nevoa'
@@ -156,11 +156,7 @@ export function PixiMap({
           }
         }
         for (const token of tokenState.tokens) {
-          const activeSprite = token.activeSpriteId
-            ? (tokenState.spritesByTokenId[token.id] ?? []).find(
-                (sprite) => sprite.id === token.activeSpriteId,
-              )
-            : undefined
+          const activeSprite = spriteDoToken(token, tokenState.spritesByTokenId[token.id])
           let view = tokenViews.get(token.id)
           if (!view) {
             view = createTokenView()
@@ -218,11 +214,7 @@ export function PixiMap({
           const currentToken = useTokenStore
             .getState()
             .tokens.find((token) => token.id === tokenId)
-          const currentSprite = currentToken?.activeSpriteId
-            ? (useTokenStore.getState().spritesByTokenId[tokenId] ?? []).find(
-                (item) => item.id === currentToken.activeSpriteId,
-              )
-            : undefined
+          const currentSprite = currentToken && spriteDoToken(currentToken, useTokenStore.getState().spritesByTokenId[tokenId])
           if (
             !currentToken ||
             currentSprite?.id !== sprite?.id ||
@@ -511,11 +503,7 @@ export function PixiMap({
         const hitToken =
           canSelect && !spaceDown
             ? [...tokenState.tokens].reverse().find((token) => {
-                const sprite = token.activeSpriteId
-                  ? (tokenState.spritesByTokenId[token.id] ?? []).find(
-                      (item) => item.id === token.activeSpriteId,
-                    )
-                  : undefined
+                const sprite = spriteDoToken(token, tokenState.spritesByTokenId[token.id])
                 return tokenHitTest(
                   tokenViews.get(token.id),
                   token,

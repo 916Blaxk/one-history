@@ -30,7 +30,7 @@ export async function campanhaExiste(campanhaId: string) {
 }
 
 export async function lerFicha(fichaId: string) {
-  const [f] = await db.select({ id: fichas.id, donoId: fichas.donoId, campanhaId: fichas.campanhaId, dados: fichas.dados }).from(fichas).where(eq(fichas.id, fichaId))
+  const [f] = await db.select({ id: fichas.id, donoId: fichas.donoId, campanhaId: fichas.campanhaId, dados: fichas.dados, fotoV: fichas.fotoV }).from(fichas).where(eq(fichas.id, fichaId))
   return f ? { ...f, dados: R.normalizar(f.dados) } : null
 }
 
