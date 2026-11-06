@@ -1,0 +1,45 @@
+# Próximos passos
+
+Última atualização: 5 de novembro de 2026.
+
+## Situação
+
+- **Site:** https://one-history-production.up.railway.app
+- **Publicação:** cada envio para a branch `main` publica sozinho no Railway. Veja [publicar.md](publicar.md).
+- **Banco:** SQLite em volume do Railway, montado em `/data`, com 500 MB.
+- **Forma de trabalho:** direto na `main`, com commit e envio ao terminar cada tarefa, depois dos testes.
+- **Regras e perícias:** decisões em [pericias.md](pericias.md).
+
+## Decisões em aberto
+
+1. **Brecha da fadiga:** o jogador pode tirar a ficha da campanha, mudar a fadiga e colocá-la de volta. A sugestão é travar isso.
+2. **Quem cria elemento:** hoje, o dono da ficha e o mestre.
+3. **Fusão de elementos:** hoje, só combina os cinco elementos base.
+4. **Encerrar cena:** hoje, o jogador também pode encerrar a cena da própria ficha.
+5. **Perícia acima de 25:** hoje, o dado adicional fica em 1d10.
+
+## Pendências
+
+- **Fichas antigas:** `dados/one-history.db` está em outro PC. Levar antes de os jogadores criarem contas, porque a cópia exige um banco vazio.
+- **Turso:** opcional, para ver e editar os dados com mais facilidade. O caminho está em [publicar.md](publicar.md).
+- **Backup externo:** as cópias diárias ficam no mesmo volume do banco. Baixar uma de vez em quando.
+- **Plano do Railway:** conferir preço e limite no painel.
+- **Verificação de saúde:** definir o caminho `/entrar` nas configurações do serviço no Railway.
+- **Google Doc do sistema:** renumerar as perícias e incluir Sorte.
+- **Sessão de teste:** jogar com 3 ou 4 pessoas em internet real.
+- **Celular de verdade:** conferir o entalhe do iPhone, o teclado aberto e, na mesa, arrastar token, pintar névoa e usar a régua com o dedo.
+- **Lint:** restam erros do tipo `any` no código.
+- **Ferramentas opcionais:** `chrome-devtools-mcp` e `21st` não foram instalados.
+- **Depois da sessão de teste:** avaliar rolar o dano da magia e o que mais fizer falta.
+
+## Para continuar em outro PC
+
+```bash
+git clone https://github.com/916Blaxk/one-history.git
+cd one-history
+npm install
+npx next build
+node scripts/servidor-teste.mjs 3457
+```
+
+Depois, abra http://localhost:3457. Esse comando usa um banco temporário e não toca em dados reais.
