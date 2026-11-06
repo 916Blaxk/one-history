@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useRef, useState } from 'react';
 import { toast } from 'sonner';
+import AjusteFoto from '@/components/AjusteFoto';
 import { ChatFlutuante } from '@/components/Chat';
 import { BotaoConfirmar, CampoNumero, Capitular } from '@/components/comuns';
 import ElementosCriados from '@/components/ElementosCriados';
@@ -21,27 +22,12 @@ const CAMPOS_TEXTO = [
   ['player', 'Player', true], ['nome', 'Nome', true], ['idade', 'Idade', false], ['raca', 'Raça', false], ['estilo', 'Estilo de magia', true],
 ] as const;
 
-function reduzirFoto(arquivo: File): Promise<string> {
-  return new Promise((ok, falha) => {
-    const url = URL.createObjectURL(arquivo), img = new Image();
-    img.onload = () => {
-      const L = 320, A = 400, c = document.createElement('canvas');
-      c.width = L; c.height = A;
-      const e = Math.max(L / img.width, A / img.height), w = img.width * e, h = img.height * e;
-      c.getContext('2d')!.drawImage(img, (L - w) / 2, (A - h) / 2, w, h);
-      URL.revokeObjectURL(url);
-      ok(c.toDataURL('image/jpeg', .82));
-    };
-    img.onerror = () => { URL.revokeObjectURL(url); falha(new Error('imagem')); };
-    img.src = url;
-  });
-}
-
 export default function EditorFicha({ f, ed, chat }: {
   f: Ficha; ed: ReturnType<typeof useFichaEditavel>; chat: ReturnType<typeof useChat>;
 }) {
   const router = useRouter();
   const entradaFoto = useRef<HTMLInputElement>(null);
+  const [fotoEscolhida, setFotoEscolhida] = useState<File | null>(null);
   const [editandoLimites, setEditandoLimites] = useState(false);
   const [aba, setAba] = useState<'atributos' | 'magias'>('atributos');
   /* Só o celular usa: no computador, as três colunas ficam sempre à vista. */
@@ -91,13 +77,13 @@ export default function EditorFicha({ f, ed, chat }: {
   }
 
   async function rolar(corpo: Record<string, unknown>) {
-    /* Abre antes da resposta: o chat já está na tela quando o resultado chega e gira. */
-    chat.setAberto(true);
     try {
       /* A rolagem de atributo usa o valor guardado no servidor: salva antes o que ainda está pendente. */
       await ed.salvarAgora();
       const r = await api<{ rolagem: Mensagem }>('POST', `${url}/rolar`, corpo);
       chat.receber(r.rolagem);
+      /* Com o chat aberto, o resultado já aparece nele. */
+      if (!chat.aberto) chat.setDestaque(r.rolagem);
     } catch (err) { toast.error(mensagem(err)); }
   }
   async function encerrarCena() {
@@ -219,13 +205,20 @@ export default function EditorFicha({ f, ed, chat }: {
               <button type="button" className="btn" onClick={() => entradaFoto.current?.click()}>Trocar foto</button>
               {f.fotoV > 0 && <button type="button" className="btn" onClick={() => enviarFoto('')}>Remover</button>}
             </div>
-            <input ref={entradaFoto} id="foto-arquivo" type="file" accept="image/*" hidden onChange={async ev => {
+            <input ref={entradaFoto} id="foto-arquivo" type="file" accept="image/*" hidden onChange={ev => {
               const a = ev.target.files?.[0];
               ev.target.value = '';
-              if (!a) return;
-              try { await enviarFoto(await reduzirFoto(a)); }
-              catch { toast.error('Não consegui ler essa imagem. Use um arquivo JPG, PNG ou WebP.'); }
+              if (a) setFotoEscolhida(a);
             }} />
+            {fotoEscolhida && (
+              <AjusteFoto
+                key={`${fotoEscolhida.name}-${fotoEscolhida.lastModified}`}
+                arquivo={fotoEscolhida}
+                aoCancelar={() => setFotoEscolhida(null)}
+                aoFalhar={() => { setFotoEscolhida(null); toast.error('Não consegui ler essa imagem. Use um arquivo JPG, PNG ou WebP.'); }}
+                aoSalvar={foto => { setFotoEscolhida(null); void enviarFoto(foto); }}
+              />
+            )}
           </div>
           <div className="campos">
             {CAMPOS_TEXTO.map(([k, rotulo, largo]) => (

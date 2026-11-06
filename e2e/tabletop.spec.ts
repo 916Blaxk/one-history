@@ -161,7 +161,7 @@ test('a ficha continua igual fora da mesa, com rolagem e chat do site', async ({
   const { jogador, fichaId } = await montar(browser);
   await jogador.goto(`/fichas/${fichaId}`);
   await jogador.getByRole('button', { name: 'Rolar d20 mais Destreza' }).click();
-  await expect(jogador.locator('.chat-flutuante')).toBeVisible();
+  await expect(jogador.locator('.chat-popup')).toBeVisible();
   await expect(jogador.locator('.msg').first().locator('.msg-det')).toHaveText(/^d20 \(\d+\) \+ 7$/);
 });
 
@@ -348,7 +348,7 @@ test('mesa: mapa, névoa, combate, magia e ferramentas na mesma sessão', async 
   await mestre.request.patch(`/api/fichas/${fichaId}`, { data: { fadiga: 60 } });
   await expect(jogador.locator('.mini-sheet-cena')).toContainText('60%');
   await jogador.getByRole('button', { name: 'Encerrar cena' }).click();
-  await expect.poll(async () => (await (await jogador.request.get(`/api/fichas/${fichaId}`)).json()).ficha.manaPerdida).toBeGreaterThan(0);
+  await expect.poll(async () => (await (await jogador.request.get(`/api/fichas/${fichaId}`)).json()).ficha.manaPerdida).toBeGreaterThan(0);
   /* O jogador não remove o token da ficha: a tecla nem pergunta. O mestre confirma e remove. */
   let perguntas = 0;
   jogador.on('dialog', () => { perguntas += 1; });

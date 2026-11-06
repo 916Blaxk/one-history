@@ -113,6 +113,22 @@ describe('regras do sistema', () => {
     expect(f.limites).toEqual({ 'corpo.tracao': 3 });
   });
 
+  it('fusão aceita elemento criado antes dela; variação, só elemento base', () => {
+    const lava = { id: 'e1', nome: 'Lava', tipo: 'fusao', origens: ['fogo', 'terra'], valor: 0 };
+    const obsidiana = { id: 'e2', nome: 'Obsidiana', tipo: 'fusao', origens: ['e1', 'agua'], valor: 0 };
+    const criados = (lista: unknown[]) => R.normalizar({ elementosCriados: lista }).elementosCriados.map(e => e.nome);
+    expect(criados([lava, obsidiana])).toEqual(['Lava', 'Obsidiana']);
+    /* Sem origem anterior não há ciclo: nem a si mesmo, nem a quem vem depois. */
+    expect(criados([obsidiana, lava])).toEqual(['Lava']);
+    expect(criados([{ ...lava, origens: ['e1', 'fogo'] }])).toEqual([]);
+    /* Quem dependia de um elemento inválido cai junto. */
+    expect(criados([{ ...lava, origens: ['fogo', 'fogo'] }, obsidiana])).toEqual([]);
+    expect(criados([lava, { id: 'e3', nome: 'Magma', tipo: 'variacao', origens: ['e1'] }])).toEqual(['Lava']);
+    const lista = R.normalizar({ elementosCriados: [lava, obsidiana] }).elementosCriados;
+    expect(R.basesDoElemento('e2', lista)).toEqual(['fogo', 'terra', 'agua']);
+    expect(R.basesDoElemento('fogo', lista)).toEqual(['fogo']);
+  });
+
   it('normalizar descarta campos desconhecidos e trava os limites', () => {
     const f = R.normalizar({ hack: 1, fadiga: 500, tier: 9, corpo: { tracao: -3 }, nome: 5 }) as unknown as Record<string, any>;
     expect(f.hack).toBeUndefined();

@@ -12,7 +12,7 @@ import { campanhas, chavesIntegracao, fichas, membros, mensagensMesa, mesaImagen
 import { apagarSessoes, conferirHash, COOKIE, criarSessao, gerarHash, hashToken, SESSAO_S, usuarioDoToken } from './sessao';
 
 const LIMITE_CORPO = 512 * 1024;
-const LIMITE_FICHAS = 200, LIMITE_CAMPANHAS = 50, LIMITE_MEMBROS = 60, LIMITE_FOTO = 200_000;
+const LIMITE_FICHAS = 200, LIMITE_CAMPANHAS = 50, LIMITE_MEMBROS = 60;
 /* Cada chat guarda as 500 rolagens mais recentes e entrega 50 por vez. */
 const LIMITE_ROLAGENS = 500, PAGINA_CHAT = 50;
 const ALFABETO_CODIGO = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
@@ -392,7 +392,7 @@ function respostaFoto(foto: string, cache: string) {
 }
 function fotoDaEntrada(foto: unknown) {
   if (foto === '' || foto === undefined || foto === null) return null;
-  if (typeof foto !== 'string' || foto.length > LIMITE_FOTO || !FOTO_VALIDA.test(foto)) throw new Erro(400, 'Essa foto não pôde ser salva. Use um JPG, PNG ou WebP menor.');
+  if (typeof foto !== 'string' || foto.length > R.LIMITE_FOTO || !FOTO_VALIDA.test(foto)) throw new Erro(400, 'Essa foto não pôde ser salva. Use um JPG, PNG ou WebP menor.');
   return foto;
 }
 

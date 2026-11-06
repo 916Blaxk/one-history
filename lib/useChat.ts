@@ -14,6 +14,7 @@ export function useChat(url: string) {
   const [temMaisAntigas, setTemMaisAntigas] = useState<boolean | null>(null);
   const [carregandoAntigas, setCarregandoAntigas] = useState(false);
   const [aberto, setAberto] = useState(false);
+  const [destaque, setDestaque] = useState<Mensagem | null>(null);
 
   /* A ficha entrou ou saiu de uma campanha: é outro chat. */
   const [urlAtual, setUrlAtual] = useState(url);
@@ -22,6 +23,7 @@ export function useChat(url: string) {
     setAntigas([]);
     setProprias([]);
     setTemMaisAntigas(null);
+    setDestaque(null);
   }
 
   const mensagens = useMemo(() => {
@@ -51,7 +53,7 @@ export function useChat(url: string) {
   }, [mensagens, url]);
 
   return {
-    mensagens, receber, carregarAnteriores, carregandoAntigas, aberto, setAberto,
+    mensagens, receber, carregarAnteriores, carregandoAntigas, aberto, setAberto, destaque, setDestaque,
     carregando: isLoading,
     temMais: temMaisAntigas ?? data?.temMais ?? false,
   };

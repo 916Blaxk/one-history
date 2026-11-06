@@ -5,16 +5,18 @@ import { BotaoConfirmar, CampoNumero } from '@/components/comuns';
 import * as R from '@/lib/regras';
 
 const novoId = () => `e${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
-const nomeBase = (k: string) => R.GRUPOS.elementos.find(([e]) => e === k)?.[1] ?? '';
+const nomeOrigem = (k: string, criados: readonly R.ElementoCriado[]) =>
+  R.GRUPOS.elementos.find(([e]) => e === k)?.[1] ?? criados.find(e => e.id === k)?.nome ?? '';
 
-/* A cor conta de onde o elemento veio: a variação herda a da origem, e a fusão mistura as duas. */
-export function PontoElemento({ origens }: { origens: readonly string[] }) {
-  const [a, b] = origens;
-  return <span className="ponto" style={{ background: b ? `linear-gradient(135deg,var(--${a}) 50%,var(--${b}) 50%)` : `var(--${a})` }} />;
+/* A cor conta de onde o elemento veio: a variação herda a da origem, e a fusão mistura os elementos base por trás dela. */
+export function PontoElemento({ e, criados }: { e: R.ElementoCriado; criados: readonly R.ElementoCriado[] }) {
+  const cores = R.basesDoElemento(e.id, criados);
+  const faixas = cores.map((c, i) => `var(--${c}) ${i / cores.length * 100}% ${(i + 1) / cores.length * 100}%`);
+  return <span className="ponto" style={{ background: cores.length > 1 ? `linear-gradient(135deg,${faixas.join(',')})` : `var(--${cores[0]})` }} />;
 }
 
-export function origemDoElemento(e: Pick<R.ElementoCriado, 'tipo' | 'origens'>) {
-  return e.tipo === 'fusao' ? `Fusão de ${nomeBase(e.origens[0]!)} e ${nomeBase(e.origens[1]!)}` : `Variação de ${nomeBase(e.origens[0]!)}`;
+export function origemDoElemento(e: Pick<R.ElementoCriado, 'tipo' | 'origens'>, criados: readonly R.ElementoCriado[]) {
+  return e.tipo === 'fusao' ? `Fusão de ${nomeOrigem(e.origens[0]!, criados)} e ${nomeOrigem(e.origens[1]!, criados)}` : `Variação de ${nomeOrigem(e.origens[0]!, criados)}`;
 }
 
 export default function ElementosCriados({ f, souMestre, editandoLimites, aoMudar, aoMudarLimite, aoRolar }: {
@@ -29,6 +31,25 @@ export default function ElementosCriados({ f, souMestre, editandoLimites, aoMuda
   const [origemA, setOrigemA] = useState<string>(R.GRUPOS.elementos[0][0]);
   const [origemB, setOrigemB] = useState<string>(R.GRUPOS.elementos[1][0]);
   const lista = f.elementosCriados;
+
+  function mudarTipo(novo: R.ElementoCriado['tipo']) {
+    setTipo(novo);
+    /* A variação só parte de elemento base: a origem escolhida para a fusão pode não existir na outra lista. */
+    if (novo === 'variacao' && !R.GRUPOS.elementos.some(([k]) => k === origemA)) setOrigemA(R.GRUPOS.elementos[0][0]);
+  }
+  function remover(e: R.ElementoCriado) {
+    /* Sem a origem, a fusão deixaria de valer e sumiria da ficha junto, com o valor dela. */
+    const fusao = lista.find(o => o.origens.includes(e.id));
+    if (fusao) { toast.error(`${e.nome} faz parte de ${fusao.nome}. Remova ${fusao.nome} primeiro.`); return; }
+    aoMudar(lista.filter(o => o.id !== e.id));
+  }
+  const opcoesBase = R.GRUPOS.elementos.map(([k, rotulo]) => <option key={k} value={k}>{rotulo}</option>);
+  const opcoesFusao = lista.length === 0 ? opcoesBase : (
+    <>
+      <optgroup label="Elementos base">{opcoesBase}</optgroup>
+      <optgroup label="Criados nesta ficha">{lista.map(e => <option key={e.id} value={e.id}>{e.nome}</option>)}</optgroup>
+    </>
+  );
 
   function criar(ev: React.FormEvent) {
     ev.preventDefault();
@@ -54,7 +75,7 @@ export default function ElementosCriados({ f, souMestre, editandoLimites, aoMuda
         const chave = R.chaveCriado(e.id), limite = f.limites[chave], idCampo = `a-criado-${e.id}`;
         return (
           <div className="attr" key={e.id}>
-            <label htmlFor={idCampo}><PontoElemento origens={e.origens} />{e.nome}<small>{origemDoElemento(e)}</small>{limite !== undefined && !editandoLimites && <small>Máx. {limite}</small>}</label>
+            <label htmlFor={idCampo}><PontoElemento e={e} criados={lista} />{e.nome}<small>{origemDoElemento(e, lista)}</small>{limite !== undefined && !editandoLimites && <small>Máx. {limite}</small>}</label>
             <div className="passo">
               <button type="button" aria-label={`Diminuir ${e.nome}`} onClick={() => mudarValor(e, e.valor - 1)}>−</button>
               <CampoNumero id={idCampo} min={0} valor={e.valor} aoMudar={v => mudarValor(e, v)} />
@@ -62,7 +83,7 @@ export default function ElementosCriados({ f, souMestre, editandoLimites, aoMuda
             </div>
             <button type="button" className="rolar" title={`Rolar d20 + ${e.nome}`} aria-label={`Rolar d20 mais ${e.nome}`} onClick={() => aoRolar(`criados.${e.id}`)}>d20</button>
             <div className="elemento-remover">
-              <BotaoConfirmar className="btn btn-pequeno" rotulo={`Remover ${e.nome}`} confirmar="Confirmar: remover" aoConfirmar={() => aoMudar(lista.filter(o => o.id !== e.id))} />
+              <BotaoConfirmar className="btn btn-pequeno" rotulo={`Remover ${e.nome}`} confirmar="Confirmar: remover" aoConfirmar={() => remover(e)} />
             </div>
             {souMestre && editandoLimites && (
               <label className="campo-limite">
@@ -81,7 +102,7 @@ export default function ElementosCriados({ f, souMestre, editandoLimites, aoMuda
           </div>
           <div className="campo">
             <label className="rotulo" htmlFor="novo-elemento-tipo">Tipo</label>
-            <select id="novo-elemento-tipo" value={tipo} onChange={ev => setTipo(ev.target.value as R.ElementoCriado['tipo'])}>
+            <select id="novo-elemento-tipo" value={tipo} onChange={ev => mudarTipo(ev.target.value as R.ElementoCriado['tipo'])}>
               <option value="variacao">Variação de um elemento</option>
               <option value="fusao">Fusão de dois elementos</option>
             </select>
@@ -89,14 +110,14 @@ export default function ElementosCriados({ f, souMestre, editandoLimites, aoMuda
           <div className="campo">
             <label className="rotulo" htmlFor="novo-elemento-origem">{tipo === 'fusao' ? 'Primeiro elemento' : 'Elemento de origem'}</label>
             <select id="novo-elemento-origem" value={origemA} onChange={ev => setOrigemA(ev.target.value)}>
-              {R.GRUPOS.elementos.map(([k, rotulo]) => <option key={k} value={k}>{rotulo}</option>)}
+              {tipo === 'fusao' ? opcoesFusao : opcoesBase}
             </select>
           </div>
           {tipo === 'fusao' && (
             <div className="campo">
               <label className="rotulo" htmlFor="novo-elemento-origem-2">Segundo elemento</label>
               <select id="novo-elemento-origem-2" value={origemB} onChange={ev => setOrigemB(ev.target.value)}>
-                {R.GRUPOS.elementos.map(([k, rotulo]) => <option key={k} value={k}>{rotulo}</option>)}
+                {opcoesFusao}
               </select>
             </div>
           )}

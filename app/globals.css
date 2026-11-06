@@ -50,7 +50,7 @@ button:disabled{cursor:default;opacity:.6}
 
 /* Capitular: a inicial iluminada que substitui a foto quando não há uma */
 .capitular{display:grid;place-items:center;aspect-ratio:1;background:var(--capitular-fundo);color:var(--capitular-letra);font-family:var(--f-titulo);font-weight:700;outline:1px solid var(--capitular-letra);outline-offset:-4px;overflow:hidden}
-.capitular img{width:100%;height:100%;object-fit:cover;display:block}
+.capitular img{width:100%;height:100%;object-fit:contain;display:block}
 
 /* ---------- Navegação ---------- */
 .topo{background:var(--folha);border-bottom:3px double var(--ouro)}
@@ -201,6 +201,11 @@ a.camp-linha:hover .rol-nome{color:var(--ouro)}
 .chat-escopo{margin-top:2px;font-size:13px;line-height:1.25;color:var(--tinta-2);overflow-wrap:anywhere}
 .chat-fechar{flex:none;width:32px;height:32px;padding:0;background:transparent;border:1px solid var(--linha);border-radius:2px;font-size:20px;line-height:1;color:var(--tinta-2)}
 .chat-fechar:hover{border-color:var(--ouro);color:var(--ouro)}
+/* Fica logo acima da pílula, que continua à mão para abrir o chat inteiro. */
+.chat-popup{position:fixed;z-index:10;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(70px + env(safe-area-inset-bottom,0px));width:300px;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;gap:8px;padding:10px;background:var(--folha);border:1px solid var(--ouro);box-shadow:0 8px 28px rgb(0 0 0 / .32)}
+.chat-popup ul{grid-column:1;grid-row:1;list-style:none}
+.chat-popup .chat-fechar{grid-column:2;grid-row:1}
+.chat-popup .msg-balao{width:100%;max-width:none}
 @media (max-width:859px){
   /* No celular vira uma folha inferior, e a página ganha folga para nada ficar preso atrás dela. */
   .chat-flutuante{left:max(8px,env(safe-area-inset-left,0px));right:max(8px,env(safe-area-inset-right,0px));bottom:calc(8px + env(safe-area-inset-bottom,0px));width:auto;height:min(52dvh,460px)}
@@ -251,6 +256,16 @@ a.camp-linha:hover .rol-nome{color:var(--ouro)}
 .retrato{width:100%;aspect-ratio:4/5;font-size:150px;line-height:1;position:relative}
 .ficha[data-estagio="100"] .retrato{font-size:48px}
 .bloco-foto{display:grid;gap:8px}
+.ajuste-foto{width:min(360px,calc(100vw - 32px));max-height:calc(100dvh - 32px);margin:auto;padding:16px;overflow:auto;background:var(--folha);color:var(--tinta);border:1px solid var(--ouro);box-shadow:0 8px 28px rgb(0 0 0 / .5)}
+.ajuste-foto[open]{display:grid;gap:10px}
+.ajuste-foto::backdrop{background:rgb(0 0 0 / .7)}
+.ajuste-foto-dica{font-size:14px;line-height:1.3;color:var(--tinta-2)}
+/* O xadrez mostra o que fica vazio na foto. touch-action: sem isso, arrastar com o dedo rolaria a página. */
+.ajuste-foto-moldura{justify-self:center;width:min(100%,calc((100dvh - 290px) * .8));min-width:160px;aspect-ratio:4/5;cursor:grab;touch-action:none;outline:1px solid var(--ouro);background:repeating-conic-gradient(#ffffff14 0 25%,transparent 0 50%) 0 0/20px 20px var(--capitular-fundo)}
+.ajuste-foto-moldura:active{cursor:grabbing}
+.ajuste-foto-zoom{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:10px;font-size:14px}
+.ajuste-foto .acoes{display:flex;flex-wrap:wrap;gap:8px}
+.ajuste-foto .acoes .btn{flex:1 1 auto}
 @media (max-width:859px){
   .bloco-foto{max-width:180px}
   .retrato{font-size:96px}
@@ -578,6 +593,8 @@ a.rol-linha:hover,a.camp-linha:hover{background:transparent}
   .chat-pilula::before{content:"";width:32px;height:32px;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 1 29 8.5v15L16 31 3 23.500v-15z' fill='%233a1d2a' stroke='%23e0b458' stroke-width='1.5'/%3E%3Cpath d='M16 8 24 21H8zM16 1v7M3 8.500 16 8l13 .5M3 23.500 8 21 3 8.500M29 23.500 24 21l5-12.500M16 31l-8-10M16 31l8-10' fill='none' stroke='%23e0b458' stroke-width='1'/%3E%3C/svg%3E") center/contain no-repeat}
   .chat-contagem{position:absolute;top:-4px;right:-4px;font-size:12px;border-radius:999px}
   .chat-flutuante{bottom:calc(var(--barra-inferior) + 6px);z-index:10}
+  .chat-popup{left:8px;right:8px;bottom:calc(var(--barra-inferior) + 70px);width:auto}
+  body:has(.chat-popup) .folio{padding-bottom:220px}
   .ficha-grade{padding-bottom:64px}
 }
 @media (max-width:360px){

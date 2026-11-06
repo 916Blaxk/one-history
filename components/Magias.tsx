@@ -40,7 +40,7 @@ export default function Magias({ magias, criados, gastoUniversal, aoMudar, aoCon
             <li className={`magia${m.elemento && !criado ? ` c-${m.elemento}` : ''}`} key={m.id}>
               <div className="magia-topo">
                 <button type="button" className="magia-nome" aria-expanded={aberta} onClick={() => alternar(m.id)}>
-                  {criado ? <PontoElemento origens={criado.origens} /> : m.elemento && <span className="ponto" />}{nome}
+                  {criado ? <PontoElemento e={criado} criados={criados} /> : m.elemento && <span className="ponto" />}{nome}
                   {elemento && <small>{elemento}</small>}
                 </button>
                 <span className="magia-custo">{gastoUniversal > 0 && m.custo > 0 ? `${m.custo} − ${gastoUniversal} = ` : ''}<b>{custo}</b> de mana{m.dano && <small>Dano: <b>{m.dano}</b></small>}</span>
@@ -57,7 +57,7 @@ export default function Magias({ magias, criados, gastoUniversal, aoMudar, aoCon
                     <select id={`m-elemento-${m.id}`} value={m.elemento} onChange={ev => mudar(m.id, { elemento: ev.target.value })}>
                       <option value="">Nenhum</option>
                       {R.GRUPOS.elementos.map(([k, rotulo]) => <option key={k} value={k}>{rotulo}</option>)}
-                      {criados.map(e => <option key={e.id} value={e.id}>{e.nome} ({origemDoElemento(e)})</option>)}
+                      {criados.map(e => <option key={e.id} value={e.id}>{e.nome} ({origemDoElemento(e, criados)})</option>)}
                     </select>
                   </div>
                   <div className="campo">

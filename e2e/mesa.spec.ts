@@ -118,9 +118,69 @@ test('rolar atributo mostra d20 + valor', async ({ browser }) => {
   await p.locator('#a-corpo-destreza').fill('7');
   await p.locator('#a-corpo-destreza').press('Enter');
   await p.getByRole('button', { name: 'Rolar d20 mais Destreza' }).click();
-  await expect(p.locator('.chat-flutuante')).toBeVisible();
+  await expect(p.locator('.chat-popup')).toBeVisible();
   await expect(p.locator('.msg').first().locator('.msg-rotulo')).toHaveText('Destreza');
   await expect(p.locator('.msg').first().locator('.msg-det')).toHaveText(/^d20 \(\d+\) \+ 7$/);
+});
+
+test('foto: entra inteira, sem corte, e o ajuste escolhe o trecho', async ({ browser }) => {
+  const p = await novaPessoa(browser, 'Lia');
+  await criarFicha(p, 'Retrato');
+
+  /* Imagem larga: metade vermelha, metade azul. Um corte automático perderia as duas pontas. */
+  const png = await p.evaluate(() => {
+    const c = document.createElement('canvas');
+    c.width = 800; c.height = 200;
+    const ctx = c.getContext('2d')!;
+    ctx.fillStyle = '#ff0000'; ctx.fillRect(0, 0, 400, 200);
+    ctx.fillStyle = '#0000ff'; ctx.fillRect(400, 0, 400, 200);
+    return c.toDataURL('image/png').split(',')[1]!;
+  });
+  const escolher = () => p.locator('#foto-arquivo').setInputFiles({ name: 'larga.png', mimeType: 'image/png', buffer: Buffer.from(png, 'base64') });
+  const pixel = (x: number, y: number) => p.locator('.retrato img').evaluate(async (el: HTMLImageElement, [x, y]) => {
+    await el.decode();
+    const c = document.createElement('canvas');
+    c.width = el.naturalWidth; c.height = el.naturalHeight;
+    const ctx = c.getContext('2d')!;
+    ctx.drawImage(el, 0, 0);
+    return [...ctx.getImageData(x!, y!, 1, 1).data];
+  }, [x, y]);
+  const vermelho = ([r, g, b, a]: number[]) => r! > 200 && g! < 60 && b! < 60 && a! > 200;
+  const azul = ([r, g, b, a]: number[]) => b! > 200 && r! < 60 && g! < 60 && a! > 200;
+
+  /* Cancelar não muda nada. */
+  await escolher();
+  await expect(p.getByRole('dialog', { name: 'Ajustar a foto' })).toBeVisible();
+  await p.getByRole('button', { name: 'Cancelar' }).click();
+  await expect(p.getByRole('dialog')).toHaveCount(0);
+  await expect(p.locator('.retrato img')).toHaveCount(0);
+
+  /* Sem mexer: as duas pontas aparecem, e o que sobra na moldura fica vazio. */
+  await escolher();
+  await p.getByRole('button', { name: 'Salvar foto' }).click();
+  await expect(p.getByRole('dialog')).toHaveCount(0);
+  await expect(p.locator('.retrato img')).toBeVisible();
+  await expect.poll(() => pixel(3, 200).then(vermelho)).toBe(true);
+  expect(azul(await pixel(316, 200))).toBe(true);
+  expect((await pixel(160, 5))[3]).toBe(0);
+
+  /* Com zoom e arraste: a moldura fica cheia, só com o trecho escolhido. */
+  const srcAntes = await p.locator('.retrato img').getAttribute('src');
+  await escolher();
+  await p.getByLabel('Zoom').evaluate((el: HTMLInputElement) => {
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(el, el.max);
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  const moldura = (await p.locator('.ajuste-foto-moldura').boundingBox())!;
+  await p.mouse.move(moldura.x + moldura.width / 2, moldura.y + moldura.height / 2);
+  await p.mouse.down();
+  await p.mouse.move(moldura.x + moldura.width, moldura.y + moldura.height / 2, { steps: 4 });
+  await p.mouse.up();
+  await p.getByRole('button', { name: 'Salvar foto' }).click();
+  await expect.poll(() => p.locator('.retrato img').getAttribute('src')).not.toBe(srcAntes);
+  await expect.poll(() => pixel(160, 200).then(vermelho)).toBe(true);
+  expect(vermelho(await pixel(3, 5))).toBe(true);
+  expect(vermelho(await pixel(316, 395))).toBe(true);
 });
 
 test('só o mestre muda o núcleo, que soma na mana; perícia conta SP e continua depois de recarregar', async ({ browser }) => {
@@ -219,7 +279,7 @@ test('magias: adicionar, conjurar com desconto de mana e continuar depois de rec
   await expect(p.locator('#v-manaAtual')).toHaveValue('25');
 });
 
-test('chat de dados: abre ao rolar, guarda o histórico e continua depois de recarregar', async ({ browser }) => {
+test('chat de dados: pop-up ao rolar, histórico guardado e continua depois de recarregar', async ({ browser }) => {
   const p = await novaPessoa(browser, 'Ivo');
   await criarFicha(p, 'Solo');
 
@@ -241,32 +301,60 @@ test('chat de dados: abre ao rolar, guarda o histórico e continua depois de rec
   const esperado = Number(det.match(/\((\d)\)/)![1]) + 3;
   await expect(p.locator('.msg-total').first()).toHaveText(String(esperado));
 
-  /* Fechar com Esc; rolar pela ficha abre de novo sozinho. */
+  /* Com o chat aberto, rolar pela ficha cai nele, sem pop-up por cima. */
+  await p.getByRole('button', { name: 'Rolar d20 mais Destreza' }).click();
+  await expect(p.locator('.chat-flutuante .msg')).toHaveCount(2);
+  await expect(p.locator('.chat-popup')).toHaveCount(0);
+
+  /* Com o chat fechado, rolar pela ficha mostra só o resultado, e não o chat inteiro. */
   await p.keyboard.press('Escape');
   await expect(p.locator('.chat-flutuante')).toHaveCount(0);
   await p.getByRole('button', { name: 'Rolar d20 mais Tração' }).click();
-  await expect(p.locator('.msg')).toHaveCount(2);
-  await expect(p.locator('.msg-rotulo').last()).toHaveText('Tração');
+  await expect(p.locator('.chat-popup .msg-rotulo')).toHaveText('Tração');
+  await expect(p.locator('.chat-flutuante')).toHaveCount(0);
   await expect(p.getByRole('status').filter({ hasText: 'Salvo' })).toBeVisible();
+
+  /* O pop-up só sai pelo X: nem Esc, nem clique fora, nem o tempo. A rolagem seguinte troca o resultado. */
+  await p.keyboard.press('Escape');
+  await p.locator('.folio').click({ position: { x: 2, y: 2 } });
+  await p.waitForTimeout(5000);
+  await expect(p.locator('.chat-popup')).toBeVisible();
+  await p.getByRole('button', { name: 'Rolar d20 mais Destreza' }).click();
+  await expect(p.locator('.chat-popup .msg-rotulo')).toHaveText('Destreza');
+  await expect(p.locator('.chat-popup .msg')).toHaveCount(1);
+  await p.getByRole('button', { name: 'Fechar o resultado da rolagem' }).click();
+  await expect(p.locator('.chat-popup')).toHaveCount(0);
+
+  /* A pílula abre o chat inteiro, com a rolagem do pop-up. Ao fechar, o pop-up não volta. */
+  await p.getByRole('button', { name: 'Rolar d20 mais Tração' }).click();
+  await expect(p.locator('.chat-popup')).toBeVisible();
+  await p.getByRole('button', { name: 'Chat de dados' }).click();
+  await expect(p.locator('.chat-flutuante .msg')).toHaveCount(5);
+  await expect(p.locator('.chat-popup')).toHaveCount(0);
+  await p.keyboard.press('Escape');
+  await expect(p.locator('.chat-popup')).toHaveCount(0);
 
   /* O histórico vem do banco: sobrevive a recarregar, na ordem certa. */
   await p.reload();
   await p.getByRole('button', { name: 'Chat de dados' }).click();
-  await expect(p.locator('.msg')).toHaveCount(2);
+  await expect(p.locator('.msg')).toHaveCount(5);
   await expect(p.locator('.msg-det').first()).toHaveText(/^d6 /);
   await expect(p.locator('.msg-rotulo').last()).toHaveText('Tração');
   await expect(p.locator('.chat-dia')).toHaveText(['Hoje']);
 });
 
-test('chat de dados: o d20 não fica coberto pelo chat aberto no computador', async ({ browser }) => {
+test('chat de dados: o d20 não fica coberto pelo pop-up nem pelo chat aberto no computador', async ({ browser }) => {
   const p = await novaPessoa(browser, 'Jaci');
   await p.setViewportSize({ width: 1280, height: 800 });
   await criarFicha(p, 'Cobertura');
   await p.getByRole('button', { name: 'Rolar d20 mais Destreza' }).click();
-  await expect(p.locator('.chat-flutuante')).toBeVisible();
-  /* Se o chat estivesse por cima, este segundo clique falharia. */
+  await expect(p.locator('.chat-popup')).toBeVisible();
+  /* Se algo estivesse por cima, estes cliques falhariam. */
   await p.getByRole('button', { name: 'Rolar d20 mais Destreza' }).click();
-  await expect(p.locator('.msg')).toHaveCount(2);
+  await p.getByRole('button', { name: 'Chat de dados' }).click();
+  await expect(p.locator('.chat-flutuante .msg')).toHaveCount(2);
+  await p.getByRole('button', { name: 'Rolar d20 mais Destreza' }).click();
+  await expect(p.locator('.chat-flutuante .msg')).toHaveCount(3);
 });
 
 test('campanha: mestre convida, jogador entra pelo link, tudo aparece ao vivo', async ({ browser }) => {
@@ -320,6 +408,9 @@ test('campanha: mestre convida, jogador entra pelo link, tudo aparece ao vivo', 
   await expect(rolagemTheo).not.toHaveClass(/msg-minha/);
 
   /* Rolagem do mestre chega ao chat do jogador sem abrir nada na frente dele: aparece a contagem. */
+  await expect(jogador.locator('.chat-popup .msg-rotulo')).toHaveText('Destreza');
+  await jogador.getByRole('button', { name: 'Fechar o resultado da rolagem' }).click();
+  await jogador.locator('.chat-pilula').click();
   await mestre.locator('.chat-painel').getByRole('button', { name: 'Rolar d100' }).click();
   await expect(mestre.locator('.chat-painel .msg-minha')).toHaveCount(1);
   await expect(jogador.locator('.chat-flutuante .msg').filter({ hasText: 'Mestra Dora' })).toHaveCount(1, { timeout: 10000 });
@@ -405,6 +496,20 @@ test('ficha: criar elemento, dano na magia e fadiga só com o mestre', async ({ 
   await jogador.getByRole('button', { name: 'Rolar d20 mais Lava' }).click();
   await expect(jogador.locator('.msg-rotulo').last()).toHaveText('Lava');
   await jogador.locator('.chat-fechar').click();
+
+  /* A fusão também parte de elemento criado, que fica preso enquanto fizer parte dela. */
+  await jogador.getByRole('button', { name: '+ Criar elemento' }).click();
+  await jogador.getByLabel('Nome do elemento').fill('Obsidiana');
+  await jogador.getByLabel('Tipo').selectOption('fusao');
+  await jogador.getByLabel('Primeiro elemento').selectOption({ label: 'Lava' });
+  await jogador.getByLabel('Segundo elemento').selectOption('agua');
+  await jogador.getByRole('button', { name: 'Salvar elemento' }).click();
+  await expect(jogador.getByText('Fusão de Lava e Água')).toBeVisible();
+  await jogador.getByRole('button', { name: 'Remover Lava' }).click();
+  await jogador.getByRole('button', { name: 'Confirmar: remover' }).click();
+  await expect(jogador.getByText('Lava faz parte de Obsidiana. Remova Obsidiana primeiro.')).toBeVisible();
+  await expect(jogador.getByText('Fusão de Fogo e Terra')).toBeVisible();
+  await expect(jogador.getByRole('status').filter({ hasText: 'Salvo' })).toBeVisible();
 
   await jogador.getByRole('tab', { name: /Magias/ }).click();
   await jogador.getByRole('button', { name: 'Adicionar magia' }).click();

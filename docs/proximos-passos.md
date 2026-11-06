@@ -12,14 +12,14 @@
 
 ## Decisões em aberto
 
-1. **Fusão de elementos:** hoje, só combina os cinco elementos base.
-2. **Encerrar cena:** hoje, o jogador também pode encerrar a cena da própria ficha.
-3. **Perícia acima de 25:** hoje, o dado adicional fica em 1d10.
+1. **Encerrar cena:** hoje, o jogador também pode encerrar a cena da própria ficha.
+2. **Perícia acima de 25:** hoje, o dado adicional fica em 1d10.
 
 ## Decisões tomadas
 
 - **Brecha da fadiga (6 de novembro de 2026):** quando a ficha sai de uma campanha, o servidor guarda a fadiga dela. Se a ficha voltar para a mesma campanha, a fadiga volta a esse valor, e o registro da ficha mostra a mudança. Em outra campanha, a ficha entra com a fadiga atual.
 - **Quem cria elemento (6 de novembro de 2026):** o dono da ficha e o mestre.
+- **Fusão de elementos (6 de novembro de 2026):** combina elementos base e elementos já criados na ficha. A variação continua partindo só de um elemento base. Um elemento usado em uma fusão não pode ser removido antes dela.
 
 ## Pendências
 

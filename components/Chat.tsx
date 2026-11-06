@@ -120,9 +120,21 @@ export function CorpoChat({ chat, aoRolar }: { chat: ChatDados; aoRolar: (lados:
   );
 }
 
-/* Janela flutuante da ficha: abre sozinha ao rolar e avisa quando chega rolagem de outra pessoa com ela fechada. */
+/* Só o resultado da última rolagem, sem o histórico. Não some sozinho: a pessoa pode estar olhando para outra parte da ficha. */
+function PopupRolagem({ m, aoFechar }: { m: Mensagem; aoFechar: () => void }) {
+  return (
+    <section className="chat-popup" role="status" aria-label="Última rolagem">
+      <button type="button" className="chat-fechar" aria-label="Fechar o resultado da rolagem" onClick={aoFechar}>×</button>
+      <ul><BalaoRolagem key={m.id} m={m} nova /></ul>
+    </section>
+  );
+}
+
+/* Janela flutuante da ficha: mostra o pop-up ao rolar, abre pela pílula e avisa quando chega rolagem de outra pessoa com ela fechada. */
 export function ChatFlutuante({ chat, aoRolar, escopo }: { chat: ChatDados; aoRolar: (lados: number, bonus: number) => void; escopo: string }) {
-  const { aberto, setAberto, mensagens, carregando } = chat;
+  const { aberto, setAberto, mensagens, carregando, destaque, setDestaque } = chat;
+  /* O chat inteiro já mostra o resultado: fechar o chat não traz de volta um pop-up antigo. */
+  if (aberto && destaque) setDestaque(null);
   const [visto, setVisto] = useState<number | null>(null);
   const ultima = mensagens.at(-1)?.em ?? 0;
   if (visto === null && !carregando) setVisto(ultima);
@@ -139,10 +151,13 @@ export function ChatFlutuante({ chat, aoRolar, escopo }: { chat: ChatDados; aoRo
 
   if (!aberto) {
     return (
-      <button type="button" className="chat-pilula" onClick={() => setAberto(true)}>
-        Chat de dados
-        {naoLidas > 0 && <span className="chat-contagem" aria-label={`${naoLidas} ${naoLidas === 1 ? 'rolagem nova' : 'rolagens novas'}`}>{naoLidas}</span>}
-      </button>
+      <>
+        {destaque && <PopupRolagem m={destaque} aoFechar={() => setDestaque(null)} />}
+        <button type="button" className="chat-pilula" onClick={() => setAberto(true)}>
+          Chat de dados
+          {naoLidas > 0 && <span className="chat-contagem" aria-label={`${naoLidas} ${naoLidas === 1 ? 'rolagem nova' : 'rolagens novas'}`}>{naoLidas}</span>}
+        </button>
+      </>
     );
   }
   return (

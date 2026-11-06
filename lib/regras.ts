@@ -67,6 +67,8 @@ export const LIMITE_MAGIAS = 100;
 export interface ElementoCriado { id: string; nome: string; tipo: 'variacao' | 'fusao'; origens: string[]; valor: number }
 export const LIMITE_ELEMENTOS_CRIADOS = 20;
 export const TAMANHO_NOME_ELEMENTO = 40;
+/* Tamanho máximo do texto base64 da foto da ficha. */
+export const LIMITE_FOTO = 200_000;
 
 export interface DadosFicha {
   player: string; nome: string; idade: string; raca: string; estilo: string;
@@ -137,21 +139,31 @@ export function inteiro(v: unknown, min: number, max: number) {
 }
 const texto = (v: unknown, lim: number) => (typeof v === 'string' ? v.slice(0, lim) : '');
 
+/* Os elementos base por trás de um elemento, atravessando fusões de fusões. */
+export function basesDoElemento(chave: string, criados: readonly ElementoCriado[]): string[] {
+  const criado = GRUPOS.elementos.some(([k]) => k === chave) ? undefined : criados.find((e) => e.id === chave);
+  return criado ? [...new Set(criado.origens.flatMap((o) => basesDoElemento(o, criados)))] : [chave];
+}
+
 function normalizarElementosCriados(entrada: unknown): ElementoCriado[] {
   if (!Array.isArray(entrada)) return [];
   const ids = new Set<string>();
   const base = new Set<string>(GRUPOS.elementos.map(([k]) => k));
+  /* A fusão só aceita o que já veio antes na lista: um elemento não pode, nem por voltas, depender de si mesmo. */
+  const paraFusao = new Set(base);
   const lista: ElementoCriado[] = [];
   for (const bruto of entrada) {
     const e = (bruto && typeof bruto === 'object' ? bruto : {}) as Record<string, unknown>;
     const nome = texto(e.nome, TAMANHO_NOME_ELEMENTO).trim();
     const tipo = e.tipo === 'fusao' ? 'fusao' : 'variacao';
-    const origens = Array.isArray(e.origens) ? e.origens.filter((o): o is string => typeof o === 'string' && base.has(o)) : [];
+    const aceitas = tipo === 'fusao' ? paraFusao : base;
+    const origens = Array.isArray(e.origens) ? e.origens.filter((o): o is string => typeof o === 'string' && aceitas.has(o)) : [];
     const certos = tipo === 'fusao' ? origens.length === 2 && origens[0] !== origens[1] : origens.length === 1;
     /* O id entra na chave de rolagem "criados.id": um arquivo editado não pode trazer ponto nem repetir. */
     const pedido = texto(e.id, 40);
     if (!nome || !certos || !/^[\w-]+$/.test(pedido) || ids.has(pedido) || lista.length >= LIMITE_ELEMENTOS_CRIADOS) continue;
     ids.add(pedido);
+    paraFusao.add(pedido);
     lista.push({ id: pedido, nome, tipo, origens, valor: inteiro(e.valor ?? 0, 0, 999) });
   }
   return lista;
