@@ -23,6 +23,10 @@ export type Token = {
   /* O token nasceu sozinho com a ficha: sai da mesa quando ela sai da campanha. */
   automatico?: boolean
   condicoes?: string[]
+  /* Sprite mostrado abaixo da metade da vida. Fica fora da lista de sprites normais. */
+  spriteSangrandoId?: string
+  /* Só o servidor preenche, para quem não recebe a vida deste token. */
+  sangrando?: boolean
   /* O nome acompanha o da ficha até alguém renomear o token. */
   nomeDaFicha?: boolean
   ownerIds: string[]
@@ -84,7 +88,16 @@ export const TAMANHO_MAXIMO = 10
 export const alturaDoToken = (token: Pick<Token, 'size' | 'altura'>) => token.altura ?? token.size
 
 /* Com a ficha vinculada, a foto dela é a imagem do token. Sem foto, valem os sprites do próprio token. */
+export function estaSangrando(token: Pick<Token, 'hpCurrent' | 'hpMax' | 'sangrando'>) {
+  if (token.sangrando !== undefined) return token.sangrando
+  return token.hpMax !== undefined && token.hpMax > 0 && token.hpCurrent !== undefined && token.hpCurrent < token.hpMax / 2
+}
+
 export function spriteDoToken(token: Token, sprites: readonly TokenSprite[] = []): TokenSprite | undefined {
+  if (token.spriteSangrandoId && estaSangrando(token)) {
+    const ferido = sprites.find((sprite) => sprite.id === token.spriteSangrandoId)
+    if (ferido) return ferido
+  }
   if (token.characterId && token.fotoFichaV) {
     return { id: `ficha-${token.characterId}-${token.fotoFichaV}`, label: 'Foto da ficha', imageUrl: `/api/fichas/${token.characterId}/foto?v=${token.fotoFichaV}` }
   }

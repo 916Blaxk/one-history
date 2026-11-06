@@ -409,6 +409,45 @@ describe('papéis vêm do banco', () => {
     expect(m.eventos.some(e => e.type === 'mapa:focar')).toBe(false);
   });
 
+  it('abaixo da metade da vida, o sprite sangrando vale para todos, sem revelar a vida', async () => {
+    const { mestre, jogador, colega, ficha, id } = await mesaCompleta();
+    const m = await entrar(mestre, id);
+    const j = await entrar(jogador, id);
+    const col = await entrar(colega, id);
+    const heroi = [...j.tokens.values()].find((k: any) => k.characterId === ficha.id) as any;
+    j.comando({ type: 'token:sprite:add', id: heroi.id, sprite: { id: 'normal', label: 'Normal', imageUrl: PIXEL } });
+    await ate(() => j.ultimoToken(heroi.id).activeSpriteId === 'normal');
+    j.comando({ type: 'token:sprite:add', id: heroi.id, sprite: { id: 'ferido', label: 'Sangrando', imageUrl: PIXEL }, sangrando: true });
+    await ate(() => j.ultimoToken(heroi.id).spriteSangrandoId === 'ferido');
+    expect(j.ultimoToken(heroi.id).activeSpriteId).toBe('normal');
+
+    /* Em cheio, ninguém vê sangrando. O máximo do Kael é 25. */
+    await ate(() => col.ultimoToken(heroi.id)?.spriteSangrandoId === 'ferido');
+    expect(col.ultimoToken(heroi.id).sangrando).toBe(false);
+    await jogador.c('PATCH', `/api/fichas/${ficha.id}`, { vidaAtual: 13 });
+    await ate(() => m.ultimoToken(heroi.id).hpCurrent === 13);
+    expect(col.ultimoToken(heroi.id).sangrando).toBe(false);
+    await jogador.c('PATCH', `/api/fichas/${ficha.id}`, { vidaAtual: 12 });
+    await ate(() => col.ultimoToken(heroi.id).sangrando === true);
+    expect(col.ultimoToken(heroi.id).hpCurrent).toBeUndefined();
+    await jogador.c('PATCH', `/api/fichas/${ficha.id}`, { vidaAtual: 25 });
+    await ate(() => col.ultimoToken(heroi.id).sangrando === false);
+
+    /* Um sprite sangrando novo substitui o anterior, e remover não deixa referência solta. */
+    j.comando({ type: 'token:sprite:add', id: heroi.id, sprite: { id: 'ferido2', label: 'Sangrando', imageUrl: PIXEL }, sangrando: true });
+    await ate(() => j.ultimoToken(heroi.id).spriteSangrandoId === 'ferido2');
+    expect(j.ultimoToken(heroi.id).spriteIds).toEqual(['normal', 'ferido2']);
+    j.comando({ type: 'token:sprite:remove', id: heroi.id, spriteId: 'ferido2' });
+    await ate(() => j.ultimoToken(heroi.id).spriteIds.length === 1);
+    expect(j.ultimoToken(heroi.id).spriteSangrandoId).toBeUndefined();
+
+    /* Sem sprite normal, o sangrando não vira o sprite do dia a dia. */
+    const novo = await criarToken(m, { name: 'Só ferido' });
+    m.comando({ type: 'token:sprite:add', id: novo, sprite: { id: 'so', label: 'Sangrando', imageUrl: PIXEL }, sangrando: true });
+    await ate(() => m.ultimoToken(novo).spriteSangrandoId === 'so');
+    expect(m.ultimoToken(novo).activeSpriteId).toBeNull();
+  });
+
   it('condições ficam no token e têm limite', async () => {
     const { mestre, jogador, ficha, id } = await mesaCompleta();
     const m = await entrar(mestre, id);

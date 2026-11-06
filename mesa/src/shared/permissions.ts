@@ -30,6 +30,7 @@ export const PLAYER_TOKEN_FIELDS = [
   'manaMax',
   'characterId',
   'condicoes',
+  'spriteSangrandoId',
 ] as const
 export const GM_TOKEN_FIELDS = [
   ...PLAYER_TOKEN_FIELDS,
@@ -47,6 +48,7 @@ export const NULLABLE_TOKEN_FIELDS = [
   'manaCurrent',
   'manaMax',
   'characterId',
+  'spriteSangrandoId',
 ] as const
 
 export function validCharacterId(value: unknown): value is string {

@@ -42,7 +42,7 @@ export type RoomCommand =
   | { type: 'token:create'; token: Token; sprites: TokenSprite[] }
   | { type: 'token:update'; id: string; changes: RoomTokenChanges }
   | { type: 'token:sprites'; id: string; sprites: TokenSprite[] }
-  | { type: 'token:sprite:add'; id: string; sprite: TokenSprite }
+  | { type: 'token:sprite:add'; id: string; sprite: TokenSprite; sangrando?: boolean }
   | { type: 'token:sprite:rename'; id: string; spriteId: string; label: string }
   | { type: 'token:sprite:remove'; id: string; spriteId: string }
   | { type: 'token:remove'; id: string }

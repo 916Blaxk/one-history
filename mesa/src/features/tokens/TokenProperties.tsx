@@ -27,6 +27,8 @@ export function TokenProperties({
   const fileInput = useRef<HTMLInputElement>(null)
   const [collapsed, setCollapsed] = useState(false)
   const [spritesExpanded, setSpritesExpanded] = useState(false)
+  const [abaSprite, setAbaSprite] = useState<'normal' | 'sangrando'>('normal')
+  const arquivoSangrando = useRef<HTMLInputElement>(null)
   const selectedTokenId = useTokenStore((state) => state.selectedTokenId)
   const token = useTokenStore((state) =>
     state.tokens.find((item) => item.id === selectedTokenId),
@@ -37,6 +39,7 @@ export function TokenProperties({
   const updateToken = useTokenStore((state) => state.updateToken)
   const removeToken = useTokenStore((state) => state.removeToken)
   const addTokenSprites = useTokenStore((state) => state.addTokenSprites)
+  const addSpriteSangrando = useTokenStore((state) => state.addSpriteSangrando)
   const renameTokenSprite = useTokenStore((state) => state.renameTokenSprite)
   const selectTokenSprite = useTokenStore((state) => state.selectTokenSprite)
   const removeTokenSprite = useTokenStore((state) => state.removeTokenSprite)
@@ -74,6 +77,8 @@ export function TokenProperties({
   const activeSprite = sprites.find(
     (sprite) => sprite.id === selectedToken.activeSpriteId,
   )
+  const spritesNormais = sprites.filter((sprite) => sprite.id !== selectedToken.spriteSangrandoId)
+  const spriteSangrando = sprites.find((sprite) => sprite.id === selectedToken.spriteSangrandoId)
 
   /* Largura e altura mudam separadas. Na grade, cada eixo se alinha pela própria medida. */
   function changeSize(changes: { size?: number; altura?: number }) {
@@ -335,8 +340,39 @@ export function TokenProperties({
             </button>
             <div className="token-sprites-content">
               <span className="token-sprites-title">Sprites</span>
+              <div className="sprite-abas" role="group" aria-label="Tipo de sprite">
+                <button type="button" className={abaSprite === 'normal' ? 'is-active' : ''} aria-pressed={abaSprite === 'normal'} onClick={() => setAbaSprite('normal')}>Sprite normal</button>
+                <button type="button" className={abaSprite === 'sangrando' ? 'is-active' : ''} aria-pressed={abaSprite === 'sangrando'} onClick={() => setAbaSprite('sangrando')}>Sprite sangrando</button>
+              </div>
+              {abaSprite === 'sangrando' ? (
+                <div className="sprite-sangrando">
+                  <p className="mini-sheet-note">Aparece sozinho quando a vida fica abaixo da metade, e o sprite normal volta quando ela sobe.</p>
+                  {spriteSangrando && <img className="sprite-sangrando-previa" src={spriteSangrando.imageUrl} alt="Sprite sangrando atual" />}
+                  <input
+                    ref={arquivoSangrando}
+                    className="visually-hidden"
+                    type="file"
+                    accept="image/*"
+                    aria-label="Arquivo do sprite sangrando"
+                    onChange={(event) => {
+                      const arquivo = event.currentTarget.files?.[0]
+                      if (arquivo) addSpriteSangrando(selectedToken.id, arquivo)
+                      event.currentTarget.value = ''
+                    }}
+                  />
+                  <button className="token-image-button" type="button" onClick={() => arquivoSangrando.current?.click()}>
+                    <ImagePlus size={15} /> {spriteSangrando ? 'Trocar sprite sangrando' : 'Adicionar sprite sangrando'}
+                  </button>
+                  {spriteSangrando && (
+                    <button className="token-delete-button" type="button" onClick={() => removeTokenSprite(selectedToken.id, spriteSangrando.id)}>
+                      <Trash2 size={15} /> Remover sprite sangrando
+                    </button>
+                  )}
+                </div>
+              ) : (
+              <>
               {linked && Boolean(selectedToken.fotoFichaV) && (
-                <p className="mini-sheet-note">O token usa a foto da ficha. Os sprites voltam se a foto for removida ou a ficha, desvinculada.</p>
+                <p className="mini-sheet-note">O sprite normal deste token é a foto da ficha. Os sprites abaixo voltam se a foto for removida ou a ficha, desvinculada.</p>
               )}
               <label className="token-field">
                 Sprite ativo
@@ -347,8 +383,8 @@ export function TokenProperties({
                       selectTokenSprite(selectedToken.id, event.target.value)
                   }}
                 >
-                  {sprites.length === 0 && <option value="">Sem sprite</option>}
-                  {sprites.map((sprite) => (
+                  {spritesNormais.length === 0 && <option value="">Sem sprite</option>}
+                  {spritesNormais.map((sprite) => (
                     <option key={sprite.id} value={sprite.id}>
                       {sprite.label}
                     </option>
@@ -401,6 +437,8 @@ export function TokenProperties({
                     <Trash2 size={15} /> Remover sprite
                   </button>
                 </>
+              )}
+              </>
               )}
               <label className="token-flip-toggle">
                 <input

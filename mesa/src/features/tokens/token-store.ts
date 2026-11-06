@@ -38,6 +38,7 @@ type TokenState = {
   updateTokenPosition: (id: string, position: TokenPosition) => void
   snapTokenToGrid: (id: string, cellSize: number) => void
   snapTokensToGrid: (cellSize: number) => void
+  addSpriteSangrando: (tokenId: string, file: File) => void
   removeToken: (id: string) => void
   selectToken: (id: string | null) => void
   applyRoomSnapshot: (
@@ -147,6 +148,16 @@ export const useTokenStore = create<TokenState>((set) => ({
         ),
       }
     })
+  },
+  addSpriteSangrando: (tokenId, file) => {
+    void (async () => {
+      try {
+        const sprite: TokenSprite = { id: crypto.randomUUID(), label: 'Sangrando', imageUrl: await fileToRoomImage(file) }
+        sendRoomCommand({ type: 'token:sprite:add', id: tokenId, sprite, sangrando: true })
+      } catch (error) {
+        window.alert(error instanceof Error ? error.message : 'Não foi possível preparar a imagem.')
+      }
+    })()
   },
   renameTokenSprite: (tokenId, spriteId, label) => {
     if (isRoomMode()) {

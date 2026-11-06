@@ -376,3 +376,34 @@ test('mesa: mapa, névoa, combate, magia e ferramentas na mesma sessão', async 
 
   expect(erros).toEqual([]);
 });
+
+test('mesa: o token troca para o sprite sangrando abaixo da metade da vida', async ({ browser }) => {
+  const { jogador, campanhaId, fichaId } = await montar(browser);
+  const fotoDaCor = (cor: string) => jogador.evaluate((c) => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 64;
+    canvas.height = 64;
+    const contexto = canvas.getContext('2d')!;
+    contexto.fillStyle = c;
+    contexto.fillRect(0, 0, 64, 64);
+    return canvas.toDataURL('image/png');
+  }, cor);
+  await jogador.request.patch(`/api/fichas/${fichaId}`, { data: { foto: await fotoDaCor('#2040e0') } });
+  await abrirMesa(jogador, campanhaId);
+  const PONTO = { x: 540, y: 700 };
+  await expect.poll(async () => (await corNaTela(jogador, PONTO.x, PONTO.y)).b).toBeGreaterThan(180);
+
+  await jogador.mouse.click(525, 745);
+  await jogador.locator('.token-sprites-toggle').click({ timeout: 2000 }).catch(() => {});
+  await jogador.getByRole('button', { name: 'Sprite sangrando' }).click();
+  const vermelho = (await fotoDaCor('#e02020')).split(',')[1]!;
+  await jogador.getByLabel('Arquivo do sprite sangrando').setInputFiles({ name: 'ferido.png', mimeType: 'image/png', buffer: Buffer.from(vermelho, 'base64') });
+  await expect(jogador.getByAltText('Sprite sangrando atual')).toBeVisible();
+
+  /* Em cheio, continua o sprite normal. Abaixo da metade, troca, e volta ao curar. */
+  expect((await corNaTela(jogador, PONTO.x, PONTO.y)).b).toBeGreaterThan(180);
+  await jogador.getByLabel('PV atual').fill('12');
+  await expect.poll(async () => (await corNaTela(jogador, PONTO.x, PONTO.y)).r).toBeGreaterThan(180);
+  await jogador.getByLabel('PV atual').fill('25');
+  await expect.poll(async () => (await corNaTela(jogador, PONTO.x, PONTO.y)).b).toBeGreaterThan(180);
+});

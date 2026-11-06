@@ -3,7 +3,7 @@ import { Server, type Socket } from 'socket.io'
 import { z } from 'zod'
 import { DiceExpressionError, rollDice } from '../src/features/chat/dice-parser.js'
 import type { ChatMessage } from '../src/features/chat/chat-types.js'
-import { TAMANHO_MAXIMO, TAMANHO_MINIMO, alturaDoToken, type Token, type TokenPosition, type TokenSprite } from '../src/features/tokens/token-types.js'
+import { TAMANHO_MAXIMO, TAMANHO_MINIMO, alturaDoToken, estaSangrando, type Token, type TokenPosition, type TokenSprite } from '../src/features/tokens/token-types.js'
 import type {
   ClientToServerEvents, Combate, NevoaDaMesa, RoomCommand, RoomGrid, RoomPlayer, RoomScene, RoomSnapshot,
   ServerRoomMessage, ServerToClientEvents,
@@ -103,6 +103,8 @@ function validToken(value: unknown, sprites: TokenSprite[]): value is Token {
     (value.fotoFichaV === undefined || (typeof value.fotoFichaV === 'number' && Number.isFinite(value.fotoFichaV) && value.fotoFichaV >= 0)) &&
     (value.fotoFichaPrivada === undefined || typeof value.fotoFichaPrivada === 'boolean') &&
     (value.automatico === undefined || typeof value.automatico === 'boolean') &&
+    (value.spriteSangrandoId === undefined || (typeof value.spriteSangrandoId === 'string' && ids.includes(value.spriteSangrandoId))) &&
+    (value.sangrando === undefined || typeof value.sangrando === 'boolean') &&
     (value.condicoes === undefined || (Array.isArray(value.condicoes) && value.condicoes.length <= 10 && value.condicoes.every((c) => typeof c === 'string' && c.length >= 1 && c.length <= 24))) &&
     (value.nomeDaFicha === undefined || typeof value.nomeDaFicha === 'boolean')
     && Array.isArray(value.ownerIds) && value.ownerIds.length <= 100 &&
@@ -118,7 +120,7 @@ const esquemaComando = z.discriminatedUnion('type', [
   z.object({ type: z.literal('token:create'), token: z.record(z.string(), z.unknown()), sprites: z.unknown().refine(validSprites) }),
   z.object({ type: z.literal('token:update'), id: idCurto, changes: z.record(z.string(), z.unknown()) }),
   z.object({ type: z.literal('token:sprites'), id: idCurto, sprites: z.unknown().refine(validSprites) }),
-  z.object({ type: z.literal('token:sprite:add'), id: idCurto, sprite: z.unknown().refine(validSprite) }),
+  z.object({ type: z.literal('token:sprite:add'), id: idCurto, sprite: z.unknown().refine(validSprite), sangrando: z.boolean().optional() }),
   z.object({ type: z.literal('token:sprite:rename'), id: idCurto, spriteId: idCurto, label: z.string().max(40) }),
   z.object({ type: z.literal('token:sprite:remove'), id: idCurto, spriteId: idCurto }),
   z.object({ type: z.literal('token:remove'), id: idCurto }),
@@ -219,7 +221,8 @@ class RoomState {
 /* A vida e a mana de uma ficha só saem do servidor para o mestre e o dono, como no resto do site. */
 function visaoDoToken(room: RoomState, token: Token, player: RoomPlayer): Token {
   if (!token.characterId || player.role === 'gm' || room.donosFicha.get(token.characterId) === player.id) return token
-  const visao = { ...token }
+  /* A vida fica guardada, mas o sprite ferido é visível: quem olha só recebe se está abaixo da metade. */
+  const visao = { ...token, sangrando: estaSangrando(token) }
   delete visao.hpCurrent; delete visao.hpMax; delete visao.manaCurrent; delete visao.manaMax
   /* O mestre pode mostrar o token no mapa, mas o nome e a foto da ficha privada continuam guardados. */
   if (token.fotoFichaPrivada) {
@@ -465,7 +468,7 @@ async function handleCommand(socket: TableSocket, room: RoomState, player: RoomP
         createdByPlayerKey: player.id,
       }
       /* O vínculo com a ficha passa sempre pela checagem de token:update. */
-      delete token.characterId; delete token.fotoFichaV; delete token.fotoFichaPrivada; delete token.automatico; delete token.nomeDaFicha
+      delete token.characterId; delete token.fotoFichaV; delete token.fotoFichaPrivada; delete token.automatico; delete token.nomeDaFicha; delete token.sangrando; delete token.spriteSangrandoId
       if (!validToken(token, message.sprites)) return
       room.tokens.set(token.id, token); room.sprites.set(token.id, message.sprites)
       broadcastVisible(room, { type: 'token:added', token, sprites: message.sprites, playerId: socket.id }, token); return
@@ -534,9 +537,13 @@ async function handleCommand(socket: TableSocket, room: RoomState, player: RoomP
       const current = room.tokens.get(message.id); const sprites = [...(room.sprites.get(message.id) ?? [])]
       if (!current) return
       if (!can(player.role, 'token:sprites', current, player.id)) return deny(socket)
+      let sangrandoId = current.spriteSangrandoId
       if (message.type === 'token:sprite:add') {
-        if (!validSprite(message.sprite) || sprites.length >= MAX_SPRITES_PER_TOKEN || sprites.some((item) => item.id === message.sprite.id)) return
-        sprites.push(message.sprite)
+        /* O sprite sangrando é um só: um novo substitui o anterior. */
+        const lista = message.sangrando ? sprites.filter((item) => item.id !== current.spriteSangrandoId) : sprites
+        if (!validSprite(message.sprite) || lista.length >= MAX_SPRITES_PER_TOKEN || lista.some((item) => item.id === message.sprite.id)) return
+        sprites.splice(0, sprites.length, ...lista, message.sprite)
+        if (message.sangrando) sangrandoId = message.sprite.id
       } else if (message.type === 'token:sprite:rename') {
         if (message.label.trim().length === 0 || message.label.length > 40 || !sprites.some((item) => item.id === message.spriteId)) return
         const index = sprites.findIndex((item) => item.id === message.spriteId); sprites[index] = { ...sprites[index]!, label: message.label }
@@ -544,7 +551,7 @@ async function handleCommand(socket: TableSocket, room: RoomState, player: RoomP
         if (!sprites.some((item) => item.id === message.spriteId)) return
         const index = sprites.findIndex((item) => item.id === message.spriteId); sprites.splice(index, 1)
       }
-      updateSprites(room, message.id, current, sprites); return
+      updateSprites(room, message.id, current, sprites, sangrandoId); return
     }
     case 'token:remove': {
       const token = room.tokens.get(message.id); if (!token) return
@@ -820,9 +827,13 @@ async function handleCommand(socket: TableSocket, room: RoomState, player: RoomP
     }
   }
 }
-function updateSprites(room: RoomState, id: string, current: Token, sprites: TokenSprite[]) {
+function updateSprites(room: RoomState, id: string, current: Token, sprites: TokenSprite[], sangrandoPedido = current.spriteSangrandoId) {
   const ids = sprites.map((sprite) => sprite.id)
-  const updated = { ...current, spriteIds: ids, activeSpriteId: ids.includes(current.activeSpriteId ?? '') ? current.activeSpriteId : (ids[0] ?? null) }
+  const sangrandoId = sangrandoPedido && ids.includes(sangrandoPedido) ? sangrandoPedido : undefined
+  const normais = ids.filter((spriteId) => spriteId !== sangrandoId)
+  const updated: Token = { ...current, spriteIds: ids, activeSpriteId: normais.includes(current.activeSpriteId ?? '') ? current.activeSpriteId : (normais[0] ?? null) }
+  if (sangrandoId) updated.spriteSangrandoId = sangrandoId
+  else delete updated.spriteSangrandoId
   if (!validToken(updated, sprites)) return
   room.tokens.set(id, updated); room.sprites.set(id, sprites)
   broadcastVisible(room, { type: 'token:updated', token: updated, sprites }, updated)
