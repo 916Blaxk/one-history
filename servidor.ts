@@ -14,7 +14,9 @@ async function agendarBackup() {
   const { createClient } = await import('@libsql/client');
   const client = createClient({ url });
   setInterval(() => {
-    fazerBackup(client, pasta).then(destino => console.log(`Backup em ${destino}`)).catch(e => console.error('Backup falhou', e));
+    fazerBackup(client, pasta)
+      .then(destino => console.log(destino ? `Backup em ${destino}` : 'Backup não feito: pouco espaço no disco. Baixe as cópias e aumente o volume.'))
+      .catch(e => console.error('Backup falhou', e));
   }, UM_DIA_MS).unref();
 }
 

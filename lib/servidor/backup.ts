@@ -4,14 +4,24 @@ import type { Client } from '@libsql/client';
 
 const PREFIXO = 'one-history-';
 
-/* VACUUM INTO gera uma cópia consistente mesmo com o site no ar. Só serve para banco em arquivo. */
-export async function fazerBackup(client: Client, pasta: string, agora = new Date(), manter = 7) {
+function espacoLivreEm(pasta: string) {
+  const { bavail, bsize } = fs.statfsSync(pasta);
+  return bavail * bsize;
+}
+
+/* VACUUM INTO gera uma cópia consistente mesmo com o site no ar. Só serve para banco em arquivo.
+   O backup divide o volume com o banco: encher o disco travaria o site, então, sem espaço, ele não roda e devolve null. */
+export async function fazerBackup(client: Client, pasta: string, agora = new Date(), manter = 3, espacoLivre = espacoLivreEm) {
   fs.mkdirSync(pasta, { recursive: true });
+  const copias = fs.readdirSync(pasta).filter(n => n.startsWith(PREFIXO) && n.endsWith('.db')).sort();
+  for (const antiga of copias.slice(0, Math.max(0, copias.length - manter + 1))) fs.rmSync(path.join(pasta, antiga));
+
+  const { rows } = await client.execute('SELECT page_count * page_size AS bytes FROM pragma_page_count(), pragma_page_size()');
+  if (espacoLivre(pasta) < Number(rows[0].bytes) * 2) return null;
+
   const carimbo = agora.toISOString().replace(/[-:]/g, '').replace('T', '-').slice(0, 15);
   const destino = path.join(pasta, `${PREFIXO}${carimbo}.db`);
   await client.execute({ sql: 'VACUUM INTO ?', args: [destino] });
-  const copias = fs.readdirSync(pasta).filter(n => n.startsWith(PREFIXO) && n.endsWith('.db')).sort();
-  for (const antiga of copias.slice(0, Math.max(0, copias.length - manter))) fs.rmSync(path.join(pasta, antiga));
   return destino;
 }
 

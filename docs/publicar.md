@@ -1,6 +1,8 @@
 # Publicar o One History
 
-O site roda como um único serviço Node, com banco no Turso. Depois de configurado, cada envio para a branch `main` publica o site sozinho.
+O site roda como um único serviço Node. Cada envio para a branch `main` publica o site sozinho.
+
+**Situação atual:** no ar em https://one-history-production.up.railway.app, com banco em volume do Railway montado em `/data`. O Turso abaixo é o próximo passo opcional, para ver e editar os dados com mais facilidade.
 
 Os nomes de botões do Railway e do Turso podem mudar. Se algo estiver diferente, procure pelo mesmo conceito.
 
@@ -76,4 +78,13 @@ Para restaurar, copie o arquivo para um banco novo e vazio com o mesmo comando, 
 
 Sem Turso, crie um volume permanente no Railway e use `DATABASE_URL=file:/caminho/do/volume/one-history.db`. Cada gravação fica mais rápida, porque não passa pela rede, mas ver e editar os dados fica mais difícil.
 
-Nesse caso, o servidor faz uma cópia por dia em `backups/`, na mesma pasta do banco, e guarda as 7 mais recentes. Defina `BACKUP_DIR` para usar outra pasta. Essas cópias ficam no mesmo volume, então baixe uma de vez em quando.
+Nesse caso, o servidor faz uma cópia por dia em `backups/`, na mesma pasta do banco, e guarda as 3 mais recentes. Defina `BACKUP_DIR` para usar outra pasta. Se faltar espaço, a cópia não é feita e o log avisa, porque encher o volume travaria o site.
+
+Essas cópias ficam no mesmo volume, então não protegem contra a perda dele. Baixe uma de vez em quando e acompanhe o espaço usado.
+
+## Passar do volume para o Turso
+
+1. Crie o banco no Turso, como no passo 1, e pare de usar o site.
+2. Com o site parado, gere a cópia dentro do serviço: `railway ssh`, depois `DESTINO_TOKEN=seu-token node scripts/copiar-banco.mjs file:/data/one-history.db libsql://seu-banco.turso.io`.
+3. Troque `DATABASE_URL` pela URL do Turso e crie `DATABASE_AUTH_TOKEN` no Railway.
+4. Confira o site e só depois remova o volume.

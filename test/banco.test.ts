@@ -59,13 +59,21 @@ describe('backup automático', () => {
   it('gera uma cópia que abre e guarda só as mais recentes', async () => {
     const c = await bancoComDados('vivo.db');
     const destino = path.join(pasta, 'backups');
-    let ultima = '';
+    let ultima: string | null = null;
     for (let dia = 1; dia <= 4; dia++) ultima = await fazerBackup(c, destino, new Date(Date.UTC(2026, 0, dia)), 2);
     c.close();
     expect(fs.readdirSync(destino).sort()).toEqual(['one-history-20260103-000000.db', 'one-history-20260104-000000.db']);
-    const copia = createClient({ url: `file:${ultima.replaceAll('\\', '/')}` });
+    const copia = createClient({ url: `file:${ultima!.replaceAll('\\', '/')}` });
     expect(Number((await copia.execute('SELECT count(*) AS n FROM mesa_imagens')).rows[0].n)).toBe(2);
     copia.close();
+  });
+
+  it('não roda sem espaço no disco, para não travar o site', async () => {
+    const c = await bancoComDados('apertado.db');
+    const destino = path.join(pasta, 'sem-espaco');
+    expect(await fazerBackup(c, destino, new Date(), 3, () => 1000)).toBeNull();
+    expect(fs.readdirSync(destino)).toEqual([]);
+    c.close();
   });
 
   it('só vale para banco em arquivo', () => {
