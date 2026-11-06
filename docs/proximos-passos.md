@@ -12,7 +12,7 @@
 
 ## Decisões em aberto
 
-1. **Perícia acima de 25:** hoje, o dado adicional fica em 1d10.
+1. **Perícia acima de 25:** hoje, o dado adicional fica em 1d10. Aguarda a pessoa que criou o sistema, que decide as regras de dados.
 
 ## Decisões tomadas
 
