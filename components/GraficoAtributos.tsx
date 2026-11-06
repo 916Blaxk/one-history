@@ -31,7 +31,7 @@ export default function GraficoAtributos({ corpo, mente }: { corpo: Record<strin
         return (
           <g key={k}>
             <circle cx={x.toFixed(1)} cy={y.toFixed(1)} r="4" fill={COR[grupo]} />
-            <text x={lx.toFixed(1)} y={(ly + (noEixo ? (ly < cy ? -2 : 10) : 4)).toFixed(1)} textAnchor={noEixo ? 'middle' : lx > cx ? 'start' : 'end'} fontSize="13" fill="var(--text)">
+            <text x={lx.toFixed(1)} y={(ly + (noEixo ? (ly < cy ? -2 : 10) : 4)).toFixed(1)} textAnchor={noEixo ? 'middle' : lx > cx ? 'start' : 'end'} fontSize="15" fill="var(--text)">
               {rotulo} <tspan fontWeight="700" fill={COR[grupo]}>{nums[i]}</tspan>
             </text>
           </g>

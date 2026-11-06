@@ -783,7 +783,7 @@ body:has(.entrada){background:radial-gradient(900px 560px at 18% 12%,#4f7bff2e,t
 .entrada-lista li::before{background:var(--secondary)}
 
 @media (min-width:860px) and (max-width:1239px){
-  .col-id{grid-template-columns:minmax(0,1fr)}
+  .col-id{grid-template-columns:repeat(2,minmax(0,1fr));align-items:start}
 }
 @media (max-width:859px){
   .placa{grid-template-columns:84px minmax(0,1fr);gap:12px 14px;padding:14px;margin-bottom:12px;border-bottom:2px solid var(--estagio-cor);overflow:hidden}
@@ -800,3 +800,28 @@ body:has(.entrada){background:radial-gradient(900px 560px at 18% 12%,#4f7bff2e,t
   /* Abaixo de 16 px, o iPhone dá zoom ao tocar no campo. */
   .pericia-linha input[type=number],.pericias-filtro,.elemento-adicionar{font-size:16px}
 }
+
+/* ---------- Distribuição da ficha: três colunas de altura parecida ---------- */
+@media (min-width:1240px){
+  .ficha-grade{grid-template-columns:300px minmax(0,1fr) 340px;gap:24px}
+}
+.col-id>div{padding:16px;background:var(--surface);border:1px solid var(--border);border-radius:14px;box-shadow:0 6px 20px #0000003d}
+.col-id .campo textarea{min-height:110px}
+.col-id .nucleo-linha{padding:8px 0 4px}
+.col-id .nucleo-linha .orbe{width:44px}
+.col-id .nucleo-nome{font-size:17px}
+.col-id .formula{font-size:13px}
+.abas{flex-wrap:wrap;gap:2px 6px}
+.abas button{padding:8px 10px}
+.atributos-corpo{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,270px),1fr));gap:12px 18px;align-items:center;margin-top:6px}
+.atributos-corpo .grafico-atributos{width:100%;max-width:360px;margin:0 auto}
+.atributos-corpo .duas-col{grid-template-columns:minmax(0,1fr);gap:4px}
+.atributos-corpo .subtitulo-grupo{margin-top:4px}
+.attr[data-grupo="corpo"],.attr[data-grupo="mente"]{margin-bottom:6px;padding:6px 10px}
+.attr[data-grupo="elementos"] .elemento-remover{justify-self:end}
+.attr[data-grupo="elementos"] .elemento-remover .btn{min-height:22px;padding:0 2px;background:none;border:0;font-size:12px;font-weight:400;color:var(--text-muted)}
+.attr[data-grupo="elementos"] .elemento-remover .btn:hover:not(:disabled){color:var(--danger)}
+@media (max-width:859px){
+  .attr[data-grupo="elementos"] .elemento-remover .btn{min-height:44px;padding:0 6px}
+}
+.attr[data-grupo="armas"] .passo{justify-self:start}

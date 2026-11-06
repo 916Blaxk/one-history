@@ -37,7 +37,7 @@ export default function EditorFicha({ f, ed, chat }: {
   const entradaFoto = useRef<HTMLInputElement>(null);
   const [fotoEscolhida, setFotoEscolhida] = useState<{ arquivo: File; original?: string; ajuste?: Enquadramento | null } | null>(null);
   const [editandoLimites, setEditandoLimites] = useState(false);
-  const [aba, setAba] = useState<'atributos' | 'magias' | 'habilidades'>('atributos');
+  const [aba, setAba] = useState<'atributos' | 'pericias' | 'magias' | 'habilidades'>('atributos');
   /* Só o celular usa: no computador, as três colunas ficam sempre à vista. */
   const [secao, setSecao] = useState<'cena' | 'perfil' | 'atributos'>('cena');
   const souMestre = f.contexto.souMestre;
@@ -279,15 +279,38 @@ export default function EditorFicha({ f, ed, chat }: {
               ))}
             </fieldset>
           </div>
+          <div className="bloco-nucleo">
+            <div className="cab-grupo"><h2 className="titulo-grupo">Núcleo</h2></div>
+            <div className="nucleo-linha">
+              <span className="orbe" aria-hidden="true" style={{ '--orbe': COR_DO_NUCLEO[f.nucleo] } as React.CSSProperties} />
+              <span className="nucleo-nome">{R.NUCLEOS[f.nucleo].nome}</span>
+            </div>
+            <div className="campo">
+              <label className="rotulo" htmlFor="c-nucleo">Estágio do núcleo</label>
+              <select id="c-nucleo" disabled={!souMestre} value={f.nucleo} onChange={ev => mudarComMaximos(c => { c.nucleo = R.inteiro(ev.target.value, 0, R.NUCLEOS.length - 1); }, c => ({ nucleo: c.nucleo }))}>
+                {R.NUCLEOS.map((n, i) => <option key={n.nome} value={i}>{n.nome}</option>)}
+              </select>
+            </div>
+            {!souMestre && <p className="formula">Só o mestre da campanha muda o estágio do núcleo.</p>}
+            {R.NUCLEOS[f.nucleo].txt && <p className="formula">{R.NUCLEOS[f.nucleo].txt}</p>}
+            <p className="formula">Total até aqui: +{bonus.mana} de mana, −{bonus.gasto} de gasto universal de mana, {bonus.sp} SP, +{bonus.pv} de vida</p>
+          </div>
+                      {([['inventario', 'Inventário'], ['notas', 'Anotações']] as const).map(([k, rotulo]) => (
+            <div className="campo" key={k}>
+              <label className="rotulo" htmlFor={`c-${k}`}>{rotulo}</label>
+              <textarea id={`c-${k}`} value={f[k]} onChange={ev => ed.definir({ ...f, [k]: ev.target.value }, { [k]: ev.target.value })} />
+            </div>
+          ))}
         </section>
 
         <section className="col-attr" aria-label="Atributos e magias">
           <div className="abas" role="tablist" aria-label="Seções da ficha">
             <button type="button" role="tab" id="aba-atributos" aria-controls="painel-atributos" aria-selected={aba === 'atributos'} onClick={() => setAba('atributos')}>Atributos</button>
+            <button type="button" role="tab" id="aba-pericias" aria-controls="painel-pericias" aria-selected={aba === 'pericias'} onClick={() => setAba('pericias')}>Perícias</button>
             <button type="button" role="tab" id="aba-magias" aria-controls="painel-magias" aria-selected={aba === 'magias'} onClick={() => setAba('magias')}>Magias ({f.magias.length})</button>
             <button type="button" role="tab" id="aba-habilidades" aria-controls="painel-habilidades" aria-selected={aba === 'habilidades'} onClick={() => setAba('habilidades')}>Habilidades ({f.habilidades.length})</button>
           </div>
-          {/* Fica montado e só escondido: trocar de aba não fecha as categorias de perícia já abertas. */}
+          {/* Ficam montadas e só escondidas: trocar de aba não perde o filtro de perícias nem as magias abertas. */}
           <div className="painel-aba" id="painel-atributos" role="tabpanel" aria-labelledby="aba-atributos" hidden={aba !== 'atributos'}>
             <div>
               <div className="cab-grupo"><h2 className="titulo-grupo">Elementos</h2></div>
@@ -310,6 +333,7 @@ export default function EditorFicha({ f, ed, chat }: {
             <div>
               <div className="cab-grupo"><h2 className="titulo-grupo">Atributos</h2></div>
               <p className="grupo-desc">Corpo e mente: tração, vitalidade, encanto...</p>
+              <div className="atributos-corpo">
               <div className="grafico-atributos"><GraficoAtributos corpo={f.corpo} mente={f.mente} /></div>
               <div className="duas-col">
                 <div className="grupo-corpo">
@@ -321,27 +345,14 @@ export default function EditorFicha({ f, ed, chat }: {
                   {R.GRUPOS.mente.map(i => linhaAttr('mente', i))}
                 </div>
               </div>
+              </div>
             </div>
             <div>
               <div className="cab-grupo"><h2 className="titulo-grupo">Armas</h2></div>
               <div className="lista-armas">{R.GRUPOS.armas.map(i => linhaAttr('armas', i))}</div>
             </div>
-            <div className="bloco-nucleo">
-              <div className="cab-grupo"><h2 className="titulo-grupo">Núcleo</h2></div>
-              <div className="nucleo-linha">
-                <span className="orbe" aria-hidden="true" style={{ '--orbe': COR_DO_NUCLEO[f.nucleo] } as React.CSSProperties} />
-                <span className="nucleo-nome">{R.NUCLEOS[f.nucleo].nome}</span>
-              </div>
-              <div className="campo">
-                <label className="rotulo" htmlFor="c-nucleo">Estágio do núcleo</label>
-                <select id="c-nucleo" disabled={!souMestre} value={f.nucleo} onChange={ev => mudarComMaximos(c => { c.nucleo = R.inteiro(ev.target.value, 0, R.NUCLEOS.length - 1); }, c => ({ nucleo: c.nucleo }))}>
-                  {R.NUCLEOS.map((n, i) => <option key={n.nome} value={i}>{n.nome}</option>)}
-                </select>
-              </div>
-              {!souMestre && <p className="formula">Só o mestre da campanha muda o estágio do núcleo.</p>}
-              {R.NUCLEOS[f.nucleo].txt && <p className="formula">{R.NUCLEOS[f.nucleo].txt}</p>}
-              <p className="formula">Total até aqui: +{bonus.mana} de mana, −{bonus.gasto} de gasto universal de mana, {bonus.sp} SP, +{bonus.pv} de vida</p>
-            </div>
+          </div>
+          <div className="painel-aba" id="painel-pericias" role="tabpanel" aria-labelledby="aba-pericias" hidden={aba !== 'pericias'}>
             <div>
               <div className="cab-grupo cab-pericias">
                 <h2 className="titulo-grupo">Perícias</h2>
@@ -358,14 +369,6 @@ export default function EditorFicha({ f, ed, chat }: {
                 aoMudarLimite={mudarLimite}
                 aoRolar={k => rolar({ atributo: `pericias.${k}` })}
               />
-            </div>
-            <div className="duas-col">
-              {([['inventario', 'Inventário'], ['notas', 'Anotações']] as const).map(([k, rotulo]) => (
-                <div className="campo" key={k}>
-                  <label className="rotulo" htmlFor={`c-${k}`}>{rotulo}</label>
-                  <textarea id={`c-${k}`} value={f[k]} onChange={ev => ed.definir({ ...f, [k]: ev.target.value }, { [k]: ev.target.value })} />
-                </div>
-              ))}
             </div>
           </div>
           <div className="painel-aba" id="painel-magias" role="tabpanel" aria-labelledby="aba-magias" hidden={aba !== 'magias'}>

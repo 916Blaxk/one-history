@@ -265,6 +265,7 @@ test('perícias: existe a classe Magia, e as adicionais foram distribuídas', as
   const p = await novaPessoa(browser, 'Lua');
   await criarFicha(p, 'Arcana');
   await expect(p.getByText('Perícias adicionais')).toHaveCount(0);
+  await p.getByRole('tab', { name: 'Perícias' }).click();
 
   /* Tabela única, em ordem alfabética, com o atributo de cada perícia. */
   const nomes = await p.locator('.pericias .pericia-nome').allTextContents();
@@ -321,6 +322,7 @@ test('só o mestre muda o núcleo, que soma na mana; perícia conta SP e continu
   await expect(p.getByText('Total até aqui: +7 de mana, −2 de gasto universal de mana, 32 SP')).toBeVisible();
   await expect(p.getByText(/\+ núcleo 7 = 37$/)).toBeVisible();
 
+  await p.getByRole('tab', { name: 'Perícias' }).click();
   await p.locator('#a-pericias-esquiva').fill('4');
   await p.locator('#a-pericias-esquiva').press('Enter');
   await expect(p.getByText('4 de 32 SP usados')).toBeVisible();
@@ -328,6 +330,7 @@ test('só o mestre muda o núcleo, que soma na mana; perícia conta SP e continu
 
   await p.reload();
   await expect(p.getByLabel('Estágio do núcleo')).toHaveValue('3');
+  await p.getByRole('tab', { name: 'Perícias' }).click();
   await expect(p.getByText('4 de 32 SP usados')).toBeVisible();
 });
 
@@ -341,6 +344,7 @@ test('mestre define bônus e limites; jogador para neles e nos SP', async ({ bro
   await jogador.reload();
   await expect(jogador.getByLabel('Bônus do mestre em SP')).toHaveCount(0);
   await expect(jogador.getByRole('button', { name: 'Definir limites' })).toHaveCount(0);
+  await jogador.getByRole('tab', { name: 'Perícias' }).click();
   await jogador.locator('#a-pericias-esquiva').fill('40');
   await jogador.locator('#a-pericias-esquiva').press('Enter');
   await expect(jogador.locator('#a-pericias-esquiva')).toHaveValue('15');
@@ -355,6 +359,7 @@ test('mestre define bônus e limites; jogador para neles e nos SP', async ({ bro
   await mestre.getByLabel('Bônus do mestre em vida').fill('10');
   await mestre.getByLabel('Bônus do mestre em vida').press('Enter');
   await expect(mestre.getByText('15 + vitalidade 0 × 2 + ajuste 10 = 25')).toBeVisible();
+  await mestre.getByRole('tab', { name: 'Perícias' }).click();
   await mestre.getByLabel('Bônus do mestre em SP').fill('5');
   await mestre.getByLabel('Bônus do mestre em SP').press('Enter');
   await expect(mestre.getByText('15 de 20 SP usados')).toBeVisible();
@@ -363,6 +368,7 @@ test('mestre define bônus e limites; jogador para neles e nos SP', async ({ bro
   await expect(mestre.getByRole('status').filter({ hasText: 'Salvo' })).toBeVisible();
 
   await jogador.reload();
+  await jogador.getByRole('tab', { name: 'Perícias' }).click();
   await expect(jogador.getByText('Máx. 2')).toBeVisible();
   await jogador.locator('#a-pericias-aparar').fill('9');
   await jogador.locator('#a-pericias-aparar').press('Enter');
