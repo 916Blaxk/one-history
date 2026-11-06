@@ -6,7 +6,7 @@ export interface Recurso { id: 'vida' | 'mana'; rotulo: string; atual: number; m
 export interface MagiaResumo { id: string; nome: string; elemento: string; custo: number }
 export interface ResumoDaFicha {
   id: string; nome: string; atualizado: number; fotoV: number;
-  recursos: Recurso[]; acoes: AcaoRolagem[]; magias: MagiaResumo[];
+  recursos: Recurso[]; acoes: AcaoRolagem[]; magias: MagiaResumo[]; fadiga: number;
 }
 
 const NOME_GRUPO: Record<R.Grupo, string> = { elementos: 'Atributos', armas: 'Armas', corpo: 'Corpo', mente: 'Mente', pericias: 'Perícias' };
@@ -56,5 +56,6 @@ export function resumoDaFicha(f: { id: string; dados: unknown; fotoV: number; at
     recursos: recursosDaFicha(d),
     acoes: acoesDeRolagem(d),
     magias: d.magias.map(m => ({ id: m.id, nome: m.nome, elemento: m.elemento, custo: R.custoMagia(d, m) })),
+    fadiga: d.fadiga,
   };
 }

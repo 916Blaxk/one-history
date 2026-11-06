@@ -68,6 +68,7 @@ export function useRoomConnection(campanhaId: string) {
       useUiStore.getState().applyRoomGrid(snapshot.grid)
       useUiStore.getState().applyRoomScenes(snapshot.scenes)
       useUiStore.getState().applyNevoa(snapshot.nevoa)
+      useUiStore.getState().applyCombate(snapshot.combate)
       useChatStore.getState().replaceRoomMessages(snapshot.messages)
       useRoomStore.getState().setPlayers(snapshot.players)
       useRoomStore.getState().setPlayerId(playerId)
@@ -103,7 +104,20 @@ export function useRoomConnection(campanhaId: string) {
           if (message.focar) useUiStore.getState().focarEm(message.scene.x, message.scene.y)
           break
         case 'scene:updated':
-          useUiStore.setState((state) => ({ scenes: state.scenes.map((scene) => scene.id === message.id ? { ...scene, nome: message.nome, oculto: message.oculto } : scene) }))
+          useUiStore.setState((state) => ({ scenes: state.scenes.map((scene) => scene.id === message.id ? { ...scene, nome: message.nome, oculto: message.oculto, escala: message.escala, travado: message.travado } : scene) }))
+          break
+        case 'grid:updated':
+          useUiStore.getState().applyRoomGrid(message.grid)
+          for (const { id, x, y } of message.posicoes) useTokenStore.getState().applyRoomPosition(id, { x, y })
+          break
+        case 'mapa:ping':
+          useUiStore.getState().mostrarPing(message.x, message.y)
+          break
+        case 'mapa:focar':
+          useUiStore.getState().focarEm(message.x, message.y)
+          break
+        case 'combate:estado':
+          useUiStore.getState().applyCombate(message.combate)
           break
         case 'scene:moved':
           useUiStore.setState((state) => ({ scenes: state.scenes.map((scene) => scene.id === message.id ? { ...scene, x: message.x, y: message.y } : scene) }))

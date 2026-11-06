@@ -127,6 +127,8 @@ button:disabled {
   top: 22px;
   right: 24px;
   width: min(330px, calc(100vw - 32px));
+  max-height: calc(100vh - 44px);
+  overflow-y: auto;
   border-color: #c49a5238;
   background: #191a1df2;
   color: #e8e1d3;
@@ -223,6 +225,167 @@ button:disabled {
 .scene-list-actions {
   display: flex;
   justify-content: space-between;
+}
+.scene-escala {
+  margin: 0 0 6px;
+}
+.map-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 12px 0;
+}
+.map-tools button {
+  display: inline-flex;
+  flex: 1 1 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 0 10px;
+  border: 1px solid #ffffff1c;
+  border-radius: 6px;
+  color: #ddd5c8;
+  background: #ffffff08;
+  font-size: 12px;
+}
+.map-tools button:hover,
+.map-tools button.is-active {
+  color: #f2d18d;
+  background: #c49a5222;
+}
+.combate {
+  margin: 12px 0;
+  padding-top: 12px;
+  border-top: 1px solid #ffffff12;
+  color: #ddd5c8;
+  font-size: 12px;
+}
+.combate-topo {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+.combate-lista {
+  display: grid;
+  gap: 3px;
+  margin: 0 0 8px;
+  padding: 0;
+  list-style: none;
+}
+.combate-lista li {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 36px;
+  padding: 0 4px 0 8px;
+  border-left: 3px solid transparent;
+  border-radius: 5px;
+  background: #ffffff08;
+}
+.combate-lista li.is-turn {
+  border-left-color: #6fe39a;
+  background: #6fe39a1f;
+}
+.combate-nome {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.combate-lista input {
+  width: 48px;
+  min-height: 28px;
+  padding: 0 4px;
+  border: 1px solid #ffffff1c;
+  border-radius: 5px;
+  color: inherit;
+  background: #00000026;
+  font: inherit;
+  text-align: center;
+}
+.combate-lista button {
+  min-width: 34px;
+  min-height: 34px;
+  border: 0;
+  border-radius: 5px;
+  color: #cfc5b4;
+  background: transparent;
+}
+.combate-lista button:hover {
+  color: #f2d18d;
+  background: #c49a5222;
+}
+.combate-botoes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.combate-botoes button,
+.combate-acao {
+  width: 100%;
+  min-height: 40px;
+  padding: 0 8px;
+  border: 1px solid #ffffff1c;
+  border-radius: 6px;
+  color: #ddd5c8;
+  background: #ffffff08;
+  font-size: 12px;
+}
+.combate-botoes button:hover,
+.combate-acao:hover {
+  color: #f2d18d;
+  background: #c49a5222;
+}
+.combate-botoes .is-primary {
+  border-color: #6fe39a66;
+  color: #bff3d2;
+}
+.token-condicoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 8px 0;
+  padding: 0;
+  border: 0;
+}
+.token-condicoes legend {
+  margin-bottom: 4px;
+  color: #d0c5b4;
+  font-size: 12px;
+}
+.token-condicoes button {
+  min-height: 32px;
+  padding: 0 8px;
+  border: 1px solid #ffffff1c;
+  border-radius: 999px;
+  color: #ddd5c8;
+  background: #ffffff08;
+  font-size: 11px;
+}
+.token-condicoes button.is-active {
+  border-color: #f2b36b;
+  color: #f2b36b;
+  background: #f2b36b1f;
+}
+.mini-sheet-group li.mini-sheet-spell {
+  flex-wrap: wrap;
+}
+.mini-sheet-group li.mini-sheet-spell span {
+  flex: 1 1 100%;
+  min-width: 0;
+}
+.mini-sheet-group li.mini-sheet-spell button {
+  flex: none;
+  width: auto;
+  min-height: 32px;
+  border: 0;
+}
+.mini-sheet-cena {
+  display: grid;
+  gap: 6px;
+  margin: 8px 0;
 }
 .scene-list-item button,
 .fog-controls button {
@@ -401,6 +564,7 @@ button:disabled {
 }
 .token-properties-content {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 12px;
   padding: 5px 16px 16px;
 }

@@ -22,6 +22,7 @@ export type Token = {
   fotoFichaPrivada?: boolean
   /* O token nasceu sozinho com a ficha: sai da mesa quando ela sai da campanha. */
   automatico?: boolean
+  condicoes?: string[]
   /* O nome acompanha o da ficha até alguém renomear o token. */
   nomeDaFicha?: boolean
   ownerIds: string[]
@@ -77,6 +78,7 @@ export function migrateLegacyToken(token: LegacyImageToken) {
 
 export type TokenPosition = Pick<Token, 'x' | 'y'>
 
+export const CONDICOES = ['Envenenado', 'Caído', 'Atordoado', 'Paralisado', 'Cego', 'Queimando', 'Sangrando', 'Amedrontado', 'Inconsciente', 'Fortalecido'] as const
 export const TAMANHO_MINIMO = 0.25
 export const TAMANHO_MAXIMO = 10
 export const alturaDoToken = (token: Pick<Token, 'size' | 'altura'>) => token.altura ?? token.size

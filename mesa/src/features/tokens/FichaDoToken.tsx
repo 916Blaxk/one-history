@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react'
 import { ExternalLink, Search } from 'lucide-react'
 import useSWR from 'swr'
-import { buscar, mensagem, urlFoto } from '@/lib/cliente'
+import { api, buscar, mensagem, urlFoto } from '@/lib/cliente'
 import type { AcaoRolagem, ResumoDaFicha } from '@/lib/resumoFicha'
 import type { DetalheCampanha } from '@/lib/tipos'
 import { postSheetRoll } from '@mesa/features/chat/post-roll'
+import { useRoomStore } from '@mesa/features/rooms/room-store'
 import { useTokenStore } from '@mesa/features/tokens/token-store'
 import type { Token } from '@mesa/features/tokens/token-types'
 
@@ -56,7 +57,7 @@ function EscolherFicha({ tokenId, campanhaId }: { tokenId: string; campanhaId: s
 }
 
 function FichaVinculada({ token, fichaId }: { token: Token; fichaId: string }) {
-  const { data, error } = useSWR<ResumoDaFicha>(`/api/fichas/${fichaId}/resumo`, buscar, { shouldRetryOnError: false })
+  const { data, error, mutate } = useSWR<ResumoDaFicha>(`/api/fichas/${fichaId}/resumo`, buscar, { shouldRetryOnError: false })
   const [busca, setBusca] = useState('')
   const grupos = useMemo(() => {
     const termo = busca.trim().toLowerCase()
@@ -68,6 +69,36 @@ function FichaVinculada({ token, fichaId }: { token: Token; fichaId: string }) {
     return [...mapa]
   }, [data, busca])
   const desvincular = () => useTokenStore.getState().updateToken(token.id, { characterId: undefined })
+  const avisar = (texto: string) => {
+    useRoomStore.getState().setNotice(texto)
+    window.setTimeout(() => useRoomStore.getState().setNotice(null), 3500)
+  }
+  const url = `/api/fichas/${fichaId}`
+  /* A mana e a cena mudam pela mesma rota da página da ficha: as regras e os avisos continuam em um lugar só. */
+  async function agir(acao: () => Promise<unknown>) {
+    try {
+      await acao()
+      await mutate()
+    } catch (erro) {
+      avisar(mensagem(erro))
+    }
+  }
+  function conjurar(magia: { nome: string; custo: number }) {
+    const mana = data?.recursos.find((recurso) => recurso.id === 'mana')?.atual ?? 0
+    const nome = magia.nome || 'Magia sem nome'
+    if (magia.custo > mana) {
+      avisar(`Mana insuficiente: ${nome} custa ${magia.custo}, e a ficha tem ${mana}.`)
+      return
+    }
+    void agir(() => api('PATCH', url, { manaAtual: mana - magia.custo }))
+  }
+  function encerrarCena() {
+    if (!window.confirm(`Encerrar a cena com ${data?.fadiga ?? 0}% de fadiga? A perda de mana, se houver, é permanente.`)) return
+    void agir(async () => {
+      const resposta = await api<{ mensagem: string }>('POST', `${url}/encerrar-cena`)
+      avisar(resposta.mensagem)
+    })
+  }
 
   /* Colega da mesa: o token aparece no mapa, mas a ficha continua privada. */
   if (error) {
@@ -130,11 +161,27 @@ function FichaVinculada({ token, fichaId }: { token: Token; fichaId: string }) {
               <li className="mini-sheet-spell" key={magia.id}>
                 <span>{magia.nome || 'Magia sem nome'}</span>
                 <b>{magia.custo} de mana</b>
+                <button type="button" className="mini-sheet-text-button" aria-label={`Conjurar ${magia.nome || 'magia sem nome'}`} onClick={() => conjurar(magia)}>Conjurar</button>
               </li>
             ))}
           </ul>
         </details>
       )}
+      <div className="mini-sheet-cena">
+        <label className="token-field">
+          Fadiga mental (%)
+          <input
+            key={data.fadiga}
+            type="number"
+            min="0"
+            max="100"
+            defaultValue={data.fadiga}
+            onBlur={(event) => { if (Number(event.target.value) !== data.fadiga) void agir(() => api('PATCH', url, { fadiga: Number(event.target.value) })) }}
+            onKeyDown={(event) => { if (event.key === 'Enter') event.currentTarget.blur() }}
+          />
+        </label>
+        <button className="token-image-button" type="button" onClick={encerrarCena}>Encerrar cena</button>
+      </div>
       <button className="mini-sheet-text-button" type="button" onClick={desvincular}>Desvincular ficha</button>
     </div>
   )

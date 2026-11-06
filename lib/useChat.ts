@@ -1,5 +1,5 @@
 'use client';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import useSWR from 'swr';
 import { toast } from 'sonner';
 import { api, buscar, mensagem as textoErro } from './cliente';
@@ -16,11 +16,13 @@ export function useChat(url: string) {
   const [aberto, setAberto] = useState(false);
 
   /* A ficha entrou ou saiu de uma campanha: é outro chat. */
-  useEffect(() => {
+  const [urlAtual, setUrlAtual] = useState(url);
+  if (urlAtual !== url) {
+    setUrlAtual(url);
     setAntigas([]);
     setProprias([]);
     setTemMaisAntigas(null);
-  }, [url]);
+  }
 
   const mensagens = useMemo(() => {
     const porId = new Map<string, Mensagem>();

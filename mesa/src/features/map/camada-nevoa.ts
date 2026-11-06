@@ -48,12 +48,13 @@ export class CamadaNevoa {
     }
     this.ops = ops
     this.sprite.texture = this.textura
-    this.sprite.scale.set(1 / this.escala)
     this.textura.source.update()
   }
 
-  posicionar(origemX: number, origemY: number) {
-    this.sprite.position.set(origemX + this.limites.x, origemY + this.limites.y)
+  /* `escalaCena`: os traços ficam na medida original do cenário, para continuarem no lugar quando ele muda de tamanho. */
+  posicionar(origemX: number, origemY: number, escalaCena = 1) {
+    this.sprite.scale.set(escalaCena / this.escala)
+    this.sprite.position.set(origemX + this.limites.x * escalaCena, origemY + this.limites.y * escalaCena)
   }
 
   private pintar(op: OpNevoa) {

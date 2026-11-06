@@ -2,7 +2,7 @@ import { and, desc, eq, inArray, notInArray, sql } from 'drizzle-orm'
 import type { DiceRollResult } from '../src/features/chat/dice-types.js'
 import type { ChatMessage, ChatMessageType } from '../src/features/chat/chat-types.js'
 import type { Token, TokenSprite } from '../src/features/tokens/token-types.js'
-import type { NevoaDaMesa, RoomGrid, RoomScene } from '../src/shared/room-protocol.js'
+import type { Combate, NevoaDaMesa, RoomGrid, RoomScene } from '../src/shared/room-protocol.js'
 import * as R from '../../lib/regras'
 import type { LinhaRolagem } from '../../lib/servidor/barramento'
 import { db } from '../../lib/servidor/db'
@@ -90,6 +90,7 @@ export interface EstadoMesa {
   espectadores: string[]
   /* Fichas que já tiveram token: é o que impede um token apagado de voltar sozinho. */
   fichasComToken?: string[]
+  combate?: Combate | null
 }
 
 export async function carregarMesa(campanhaId: string) {

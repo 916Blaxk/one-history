@@ -64,6 +64,7 @@ class Cliente {
     this.socket.on('room:event', (e: any) => {
       this.eventos.push(e);
       if (e.token) this.tokens.set(e.token.id, e.token);
+      if (e.type === 'token:removed') this.tokens.delete(e.id);
     });
   }
   comando(m: object) { this.socket.emit('room:command', m); }
@@ -313,6 +314,112 @@ describe('papéis vêm do banco', () => {
     await jogador.c('POST', `/api/campanhas/${id}/fichas`, { fichaId: ficha.id });
     await ate(() => daFicha(m, ficha.id).length === 1);
     expect(daFicha(m, ficha.id)[0].id).not.toBe(doJogador.id);
+  });
+
+  it('combate: ordem, vez e iniciativa respeitam o papel e os tokens ocultos', async () => {
+    const { mestre, jogador, colega, ficha, id } = await mesaCompleta();
+    const m = await entrar(mestre, id);
+    const j = await entrar(jogador, id);
+    const col = await entrar(colega, id);
+    const heroi = [...m.tokens.values()].find((k: any) => k.characterId === ficha.id) as any;
+    const oculto = await criarToken(m, { name: 'Emboscada', hidden: true });
+    const estado = (c: any) => [...c.eventos].reverse().find((e: any) => e.type === 'combate:estado')?.combate;
+    const negados = (c: any) => c.eventos.filter((e: any) => e.type === 'permission:error').length;
+
+    j.comando({ type: 'combate:iniciar' });
+    await ate(() => negados(j) === 1);
+    m.comando({ type: 'combate:iniciar' });
+    await ate(() => estado(j)?.lista.length === 1);
+    expect(estado(j).lista[0].tokenId).toBe(heroi.id);
+
+    /* O token oculto entra na ordem, e o jogador continua sem saber. */
+    m.comando({ type: 'combate:entrar', tokenId: oculto });
+    await ate(() => estado(m)?.lista.length === 2);
+    m.comando({ type: 'combate:iniciativa', tokenId: oculto, valor: 30 });
+    await ate(() => estado(m).lista.find((e: any) => e.tokenId === oculto).iniciativa === 30);
+    expect(JSON.stringify(estado(j))).not.toContain(oculto);
+
+    /* O dono rola a própria iniciativa, com a Destreza da ficha. O colega não pode. */
+    col.comando({ type: 'combate:rolar', tokenId: heroi.id });
+    await ate(() => negados(col) === 1);
+    j.comando({ type: 'combate:rolar', tokenId: heroi.id });
+    await ate(() => estado(j).lista[0].iniciativa !== null);
+    const rolagem = await ate(() => j.eventos.find((e: any) => e.message?.label === 'Iniciativa'));
+    expect(rolagem.message.roll.expression ?? rolagem.message.text).toContain('1d20+7');
+    expect(estado(j).lista[0].iniciativa).toBeGreaterThanOrEqual(8);
+
+    /* A vez do oculto não aparece para o jogador, que também não pode passá-la. */
+    m.comando({ type: 'combate:vez', direcao: 1 });
+    await ate(() => estado(m).vez === oculto);
+    await ate(() => estado(j).vez === null);
+    j.comando({ type: 'combate:vez', direcao: 1 });
+    await ate(() => negados(j) === 2);
+    m.comando({ type: 'combate:vez', direcao: 1 });
+    await ate(() => estado(j).vez === heroi.id);
+    j.comando({ type: 'combate:vez', direcao: 1 });
+    await ate(() => estado(m).rodada === 2);
+
+    /* Token apagado sai da ordem. */
+    m.comando({ type: 'token:remove', id: oculto });
+    await ate(() => estado(m).lista.length === 1);
+    expect((await entrar(jogador, id)).snapshot.combate.rodada).toBe(2);
+    m.comando({ type: 'combate:encerrar' });
+    await ate(() => estado(j) === null);
+  });
+
+  it('cenário: escala, trava e desfazer da névoa, sem reenviar imagens a cada ajuste', async () => {
+    const { mestre, jogador, id } = await mesaCompleta();
+    const m = await entrar(mestre, id);
+    const j = await entrar(jogador, id);
+    m.comando({ type: 'scene:add', scene: { id: 'mapa', imageUrl: PIXEL, x: 0, y: 0, width: 100, height: 100, oculto: true } });
+    await ate(() => m.eventos.some(e => e.type === 'scene:added'));
+    m.comando({ type: 'scene:update', id: 'mapa', escala: 2.5 });
+    await ate(() => m.eventos.some(e => e.type === 'scene:updated' && e.escala === 2.5));
+    m.comando({ type: 'scene:update', id: 'mapa', escala: 99 });
+    m.comando({ type: 'fog:traco', camada: 'mapa', revelar: false, raio: 5, pontos: [0, 0], g: 'um' });
+    m.comando({ type: 'fog:traco', camada: 'mapa', revelar: false, raio: 5, pontos: [9, 9], g: 'um' });
+    m.comando({ type: 'fog:traco', camada: 'mapa', revelar: false, raio: 5, pontos: [1, 1], g: 'dois' });
+    m.comando({ type: 'fog:desfazer', camada: 'mapa', g: 'um' });
+    const desfeito = await ate(() => m.eventos.find(e => e.type === 'fog:camada'));
+    expect(desfeito.ops.map((op: any) => op.g)).toEqual(['dois']);
+
+    /* Ao mostrar, o cenário já vai travado, com a escala escolhida. */
+    m.comando({ type: 'scene:update', id: 'mapa', oculto: false });
+    const chegou = await ate(() => j.eventos.find(e => e.type === 'scene:added'));
+    expect(chegou.scene).toMatchObject({ escala: 2.5, travado: true, imageUrl: PIXEL });
+
+    /* A grade não leva imagens, e um snapshot geral só leva o que mudou. */
+    const antes = j.eventos.length;
+    m.comando({ type: 'grid:update', grid: { enabled: true, cellSize: 60, opacity: 0.3 } });
+    const grade = await ate(() => j.eventos.slice(antes).find(e => e.type === 'grid:updated'));
+    expect(grade.grid.cellSize).toBe(60);
+    expect(JSON.stringify(grade)).not.toContain('base64');
+    m.comando({ type: 'player:role', playerKey: jogador.id, role: 'spectator' });
+    await ate(() => j.snapshot.role === 'spectator');
+    expect(j.snapshot.scenes[0].imageUrl).toBe('');
+    expect((await entrar(jogador, id)).snapshot.scenes[0].imageUrl).toBe(PIXEL);
+
+    /* Ping só para quem joga, e o foco só para o mestre. */
+    j.comando({ type: 'mapa:ping', x: 1, y: 1 });
+    await ate(() => j.eventos.some(e => e.type === 'permission:error'));
+    m.comando({ type: 'mapa:ping', x: 5, y: 6 });
+    await ate(() => j.eventos.some(e => e.type === 'mapa:ping' && e.x === 5));
+    m.comando({ type: 'mapa:focar', x: 7, y: 8 });
+    await ate(() => j.eventos.some(e => e.type === 'mapa:focar' && e.y === 8));
+    expect(m.eventos.some(e => e.type === 'mapa:focar')).toBe(false);
+  });
+
+  it('condições ficam no token e têm limite', async () => {
+    const { mestre, jogador, ficha, id } = await mesaCompleta();
+    const m = await entrar(mestre, id);
+    const j = await entrar(jogador, id);
+    const heroi = [...j.tokens.values()].find((k: any) => k.characterId === ficha.id) as any;
+    j.comando({ type: 'token:update', id: heroi.id, changes: { condicoes: ['Caído', 'Cego'] } });
+    await ate(() => m.ultimoToken(heroi.id).condicoes?.length === 2);
+    j.comando({ type: 'token:update', id: heroi.id, changes: { condicoes: Array(11).fill('Caído') } });
+    j.comando({ type: 'token:update', id: heroi.id, changes: { name: 'Depois' } });
+    await ate(() => m.ultimoToken(heroi.id).name === 'Depois');
+    expect(m.ultimoToken(heroi.id).condicoes).toEqual(['Caído', 'Cego']);
   });
 
   it('jogador só recebe a foto de token com ficha do mestre quando ela é pública', async () => {

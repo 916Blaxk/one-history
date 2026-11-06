@@ -206,6 +206,7 @@ test('mesa: o mestre prepara o cenário oculto com névoa livre e mostra quando 
   await expect.poll(async () => (await corNaTela(mestre, CENTRO.x, CENTRO.y)).r).toBeGreaterThan(90);
   expect((await corNaTela(jogador, CENTRO.x, CENTRO.y)).r).toBeLessThan(40);
 
+  mestre.once('dialog', d => void d.accept());
   await mestre.getByRole('button', { name: 'Cobrir de névoa: caverna' }).click();
   await expect.poll(async () => (await corNaTela(mestre, ACIMA.x, ACIMA.y)).r).toBeLessThan(90);
   const coberto = await corNaTela(mestre, CENTRO.x, CENTRO.y);
@@ -262,4 +263,116 @@ test('mesa: a ficha já tem token, com a foto dela, e ele acompanha a troca', as
   await jogador.request.patch(`/api/fichas/${fichaId}`, { data: { foto: await fotoDaCor('#2040e0') } });
   await expect.poll(async () => (await corNaTela(jogador, PONTO.x, PONTO.y)).b).toBeGreaterThan(180);
   expect((await corNaTela(jogador, PONTO.x, PONTO.y)).r).toBeLessThan(90);
+});
+
+
+test('mesa: mapa, névoa, combate, magia e ferramentas na mesma sessão', async ({ browser }) => {
+  test.setTimeout(120_000);
+  const { mestre, jogador, campanhaId, fichaId } = await montar(browser);
+  const erros: string[] = [];
+  for (const p of [mestre, jogador]) {
+    p.on('pageerror', e => erros.push(e.message));
+    p.on('dialog', d => void d.accept());
+  }
+  await jogador.request.patch(`/api/fichas/${fichaId}`, { data: { magias: [{ id: 'm1', nome: 'Bola de fogo', elemento: 'fogo', custo: 10, alcance: '', duracao: '', descricao: '' }] } });
+  await abrirMesa(mestre, campanhaId);
+  await abrirMesa(jogador, campanhaId);
+
+  const imagem = await mestre.evaluate(() => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 600;
+    canvas.height = 400;
+    const contexto = canvas.getContext('2d')!;
+    contexto.fillStyle = '#e02020';
+    contexto.fillRect(0, 0, 600, 400);
+    return canvas.toDataURL('image/png').split(',')[1]!;
+  });
+  await mestre.locator('input[type=file]').first().setInputFiles({ name: 'salao.png', mimeType: 'image/png', buffer: Buffer.from(imagem, 'base64') });
+
+  /* Em 150%, o cenário alcança um ponto que antes ficava fora dele. */
+  const BORDA = { x: 300, y: 512 };
+  await expect(mestre.getByLabel('Tamanho de salao')).toBeVisible();
+  expect((await corNaTela(mestre, BORDA.x, BORDA.y)).r).toBeLessThan(40);
+  await mestre.getByLabel('Tamanho de salao').fill('150');
+  await expect.poll(async () => (await corNaTela(mestre, BORDA.x, BORDA.y)).r).toBeGreaterThan(90);
+
+  /* Travado, arrastar não move o cenário. */
+  await mestre.getByRole('button', { name: 'Travar: salao' }).click();
+  await expect(mestre.getByRole('button', { name: 'Destravar: salao' })).toBeVisible();
+  await mestre.mouse.move(500, 400);
+  await mestre.mouse.down();
+  await mestre.mouse.move(800, 400, { steps: 4 });
+  await mestre.mouse.up();
+  await mestre.waitForTimeout(300);
+  expect((await corNaTela(mestre, BORDA.x, BORDA.y)).r).toBeGreaterThan(90);
+
+  /* Desfazer tira o último traço inteiro, mesmo depois de vários envios. */
+  const CENTRO = { x: 712, y: 512 };
+  await mestre.getByRole('button', { name: 'Cobrir de névoa: salao' }).click();
+  await expect.poll(async () => (await corNaTela(mestre, CENTRO.x, CENTRO.y)).r).toBeLessThan(90);
+  const coberto = (await corNaTela(mestre, CENTRO.x, CENTRO.y)).r;
+  await mestre.getByRole('button', { name: 'Revelar', exact: true }).click();
+  await mestre.mouse.move(600, CENTRO.y);
+  await mestre.mouse.down();
+  await mestre.mouse.move(800, CENTRO.y, { steps: 12 });
+  await mestre.mouse.up();
+  await mestre.getByRole('button', { name: 'Revelar', exact: true }).click();
+  await expect.poll(async () => (await corNaTela(mestre, CENTRO.x, CENTRO.y)).r).toBeGreaterThan(coberto + 20);
+  await mestre.getByRole('button', { name: 'Desfazer o último traço' }).click();
+  await expect.poll(async () => (await corNaTela(mestre, CENTRO.x, CENTRO.y)).r).toBeLessThan(coberto + 5);
+
+  /* Combate: o mestre conduz, e o jogador passa a própria vez. */
+  await mestre.getByRole('button', { name: 'Iniciar combate' }).click();
+  const ordem = jogador.getByRole('region', { name: 'Ordem de combate' });
+  await expect(ordem).toContainText('Kael');
+  await mestre.getByRole('button', { name: 'Rolar faltantes' }).click();
+  await expect(mestre.getByLabel('Iniciativa de Kael', { exact: true })).not.toHaveValue('');
+  await expect(ordem.locator('b').last()).not.toHaveText('—');
+  await mestre.getByRole('button', { name: 'Começar' }).click();
+  await expect(ordem.locator('li[aria-current=true]')).toContainText('Kael');
+  await jogador.getByRole('button', { name: 'Passar a vez' }).click();
+  await expect(ordem).toContainText('Rodada 2');  await mestre.getByRole('button', { name: 'Encerrar', exact: true }).click();
+  await expect(ordem).toHaveCount(0);
+
+  /* O token da ficha: condição, magia e fadiga sem sair da mesa. */
+  await jogador.mouse.click(525, 745);
+  await expect(jogador.getByLabel('PV atual')).toHaveValue('25');
+  await jogador.getByRole('button', { name: 'Caído' }).click();
+  await expect(jogador.getByRole('button', { name: 'Caído' })).toHaveAttribute('aria-pressed', 'true');
+  await jogador.locator('.mini-sheet-group summary', { hasText: 'Magias' }).click();
+  await jogador.getByRole('button', { name: 'Conjurar Bola de fogo' }).click();
+  await expect(jogador.locator('.mini-sheet-identity')).toContainText('Mana: 20');
+  await expect(jogador.getByLabel('Mana atual')).toHaveValue('20');
+  await jogador.getByLabel('Fadiga mental (%)').fill('60');
+  await jogador.getByLabel('Fadiga mental (%)').press('Enter');
+  await expect.poll(async () => (await (await jogador.request.get(`/api/fichas/${fichaId}`)).json()).ficha.fadiga).toBe(60);
+  await jogador.getByRole('button', { name: 'Encerrar cena' }).click();
+  await expect.poll(async () => (await (await jogador.request.get(`/api/fichas/${fichaId}`)).json()).ficha.manaPerdida).toBeGreaterThan(0);
+  /* O jogador não remove o token da ficha: a tecla nem pergunta. O mestre confirma e remove. */
+  let perguntas = 0;
+  jogador.on('dialog', () => { perguntas += 1; });
+  await jogador.locator('canvas').focus();
+  await jogador.keyboard.press('Delete');
+  await jogador.waitForTimeout(300);
+  expect(perguntas).toBe(0);
+  await expect(jogador.getByLabel('PV atual')).toBeVisible();
+  await mestre.mouse.click(525, 745);
+  await expect(mestre.getByLabel('PV atual')).toHaveValue('25');
+  await mestre.locator('canvas').focus();
+  await mestre.keyboard.press('Delete');
+  await expect(mestre.getByLabel('PV atual')).toHaveCount(0);
+  await expect(jogador.getByLabel('PV atual')).toHaveCount(0);
+
+  /* Régua e ping não atrapalham o mapa. */
+  await mestre.getByRole('button', { name: 'Medir' }).click();
+  await mestre.mouse.move(400, 800);
+  await mestre.mouse.down();
+  await mestre.mouse.move(610, 800, { steps: 3 });  await mestre.mouse.up();
+  await mestre.getByRole('button', { name: 'Medir' }).click();
+  await mestre.getByRole('button', { name: 'Ping' }).click();
+  await mestre.mouse.click(500, 850);
+  await mestre.getByRole('button', { name: 'Ping' }).click();
+  await mestre.getByRole('button', { name: 'Levar todos' }).click();
+
+  expect(erros).toEqual([]);
 });

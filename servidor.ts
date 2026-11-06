@@ -3,6 +3,21 @@
 import { createServer } from 'node:http';
 import { loadEnvConfig } from '@next/env';
 
+const UM_DIA_MS = 24 * 60 * 60 * 1000;
+
+/* Só com banco em arquivo e fora do desenvolvimento. O site continua no ar se a cópia falhar. */
+async function agendarBackup() {
+  const { pastaDeBackup, fazerBackup } = await import('./lib/servidor/backup');
+  const url = process.env.DATABASE_URL || 'file:dados/one-history.db';
+  const pasta = pastaDeBackup(url, process.env.BACKUP_DIR);
+  if (!pasta) return;
+  const { createClient } = await import('@libsql/client');
+  const client = createClient({ url });
+  setInterval(() => {
+    fazerBackup(client, pasta).then(destino => console.log(`Backup em ${destino}`)).catch(e => console.error('Backup falhou', e));
+  }, UM_DIA_MS).unref();
+}
+
 async function principal() {
   const dev = process.argv.includes('--dev');
   (process.env as Record<string, string>).NODE_ENV = dev ? 'development' : 'production';
@@ -19,6 +34,7 @@ async function principal() {
 
   const servidor = createServer((req, res) => { void atender(req, res); });
   const encerrarMesa = anexarMesa(servidor);
+  if (!dev) await agendarBackup();
   if (dev) {
     const atualizar = app.getUpgradeHandler();
     /* O Socket.IO cuida do próprio caminho. O resto é o recarregamento automático do Next. */

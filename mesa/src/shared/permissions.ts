@@ -29,6 +29,7 @@ export const PLAYER_TOKEN_FIELDS = [
   'manaCurrent',
   'manaMax',
   'characterId',
+  'condicoes',
 ] as const
 export const GM_TOKEN_FIELDS = [
   ...PLAYER_TOKEN_FIELDS,

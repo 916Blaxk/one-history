@@ -9,7 +9,7 @@ import { useBottomSheetDismiss } from '@mesa/hooks/use-bottom-sheet-dismiss'
 import { isRoomMode } from '@mesa/features/rooms/room-commands'
 import { useRoomStore } from '@mesa/features/rooms/room-store'
 import { FichaDoToken } from '@mesa/features/tokens/FichaDoToken'
-import { TAMANHO_MAXIMO, TAMANHO_MINIMO, alturaDoToken } from '@mesa/features/tokens/token-types'
+import { CONDICOES, TAMANHO_MAXIMO, TAMANHO_MINIMO, alturaDoToken } from '@mesa/features/tokens/token-types'
 
 const EMPTY_SPRITES: TokenSprite[] = []
 
@@ -299,6 +299,27 @@ export function TokenProperties({
               />
             </label>
           </div>
+          <fieldset className="token-condicoes">
+            <legend>Condições</legend>
+            {CONDICOES.map((condicao) => {
+              const ativa = selectedToken.condicoes?.includes(condicao) ?? false
+              return (
+                <button
+                  type="button"
+                  key={condicao}
+                  className={ativa ? 'is-active' : ''}
+                  aria-pressed={ativa}
+                  onClick={() => setValue({
+                    condicoes: ativa
+                      ? (selectedToken.condicoes ?? []).filter((item) => item !== condicao)
+                      : [...(selectedToken.condicoes ?? []), condicao],
+                  })}
+                >
+                  {condicao}
+                </button>
+              )
+            })}
+          </fieldset>
           <FichaDoToken token={selectedToken} campanhaId={campanhaId} />
           <section
             className={`token-sprites-section ${spritesExpanded ? 'is-expanded' : ''}`}

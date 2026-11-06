@@ -8,6 +8,12 @@ import {
   Eye,
   EyeOff,
   ImagePlus,
+  Lock,
+  LockOpen,
+  LocateFixed,
+  MapPin,
+  Ruler,
+  Undo2,
   RotateCcw,
   Trash2,
   UserRoundPlus,
@@ -20,6 +26,8 @@ import { useBottomSheetDismiss } from '@mesa/hooks/use-bottom-sheet-dismiss'
 import { isRoomMode } from '@mesa/features/rooms/room-commands'
 import { fileToRoomScene } from '@mesa/features/rooms/scene-serializer'
 import { useRoomStore } from '@mesa/features/rooms/room-store'
+import { sendRoomCommand } from '@mesa/features/rooms/room-commands'
+import { PainelCombate } from '@mesa/features/map/PainelCombate'
 
 export function MapControls({
   mobileOpen,
@@ -44,6 +52,10 @@ export function MapControls({
   const setFogBrushRadius = useUiStore((state) => state.setFogBrushRadius)
   const setFogMode = useUiStore((state) => state.setFogMode)
   const clearFog = useUiStore((state) => state.clearFog)
+  const desfazerTraco = useUiStore((state) => state.desfazerTraco)
+  const podeDesfazer = useUiStore((state) => state.tracosFeitos.length > 0)
+  const ferramenta = useUiStore((state) => state.ferramenta)
+  const setFerramenta = useUiStore((state) => state.setFerramenta)
   const addToken = useTokenStore((state) => state.addToken)
   const role = useRoomStore((state) => state.role)
   const gmControls = !isRoomMode() || role === 'gm'
@@ -85,6 +97,11 @@ export function MapControls({
       y: window.innerHeight / 2,
       zoom: 1,
     })
+  }
+
+  function levarJogadores() {
+    const { camera } = useUiStore.getState()
+    sendRoomCommand({ type: 'mapa:focar', x: (window.innerWidth / 2 - camera.x) / camera.zoom, y: (window.innerHeight / 2 - camera.y) / camera.zoom })
   }
 
   function createToken() {
@@ -168,14 +185,28 @@ export function MapControls({
                           {scene.oculto ? <Eye size={15} /> : <EyeOff size={15} />}
                         </button>
                         <button type="button" title="Ir até o cenário" aria-label={`Ir até ${nome}`} onClick={() => focarEm(scene.x, scene.y)}><Crosshair size={15} /></button>
-                        <button type="button" title="Cobrir de névoa" aria-label={`Cobrir de névoa: ${nome}`} onClick={() => cobrirNevoa(scene.id)}><CloudFog size={15} /></button>
-                        <button type="button" title="Tirar toda a névoa" aria-label={`Tirar a névoa: ${nome}`} onClick={() => limparNevoa(scene.id)}><Eraser size={15} /></button>
+                        <button type="button" title={scene.travado ? 'Destravar para arrastar' : 'Travar no lugar'} aria-label={`${scene.travado ? 'Destravar' : 'Travar'}: ${nome}`} onClick={() => updateScene(scene.id, { travado: !scene.travado })}>
+                          {scene.travado ? <Lock size={15} /> : <LockOpen size={15} />}
+                        </button>
+                        <button type="button" title="Cobrir de névoa" aria-label={`Cobrir de névoa: ${nome}`} onClick={() => { if (window.confirm(`Cobrir ${nome} inteiro de névoa? O que foi pintado nele será substituído.`)) cobrirNevoa(scene.id) }}><CloudFog size={15} /></button>
+                        <button type="button" title="Tirar toda a névoa" aria-label={`Tirar a névoa: ${nome}`} onClick={() => { if (window.confirm(`Tirar toda a névoa de ${nome}?`)) limparNevoa(scene.id) }}><Eraser size={15} /></button>
                         <button type="button" title="Remover cenário" aria-label={`Remover ${nome}`} onClick={() => {
                           if (!window.confirm(`Remover ${nome}? A imagem e a névoa dele serão apagadas.`)) return
                           if (scene.imageUrl.startsWith('blob:')) URL.revokeObjectURL(scene.imageUrl)
                           removeScene(scene.id)
                         }}><Trash2 size={15} /></button>
                       </div>
+                      <label className="range-control scene-escala">
+                        <span>Tamanho <b>{Math.round((scene.escala ?? 1) * 100)}%</b></span>
+                        <input
+                          type="range"
+                          aria-label={`Tamanho de ${nome}`}
+                          min="10"
+                          max="300"
+                          value={Math.round((scene.escala ?? 1) * 100)}
+                          onChange={(event) => updateScene(scene.id, { escala: Number(event.target.value) / 100 })}
+                        />
+                      </label>
                     </div>
                   )
                 })}
@@ -185,6 +216,7 @@ export function MapControls({
                 <div>
                   <button type="button" className={fogMode === 'hide' ? 'is-active' : ''} onClick={() => setFogMode(fogMode === 'hide' ? null : 'hide')}>Ocultar</button>
                   <button type="button" className={fogMode === 'reveal' ? 'is-active' : ''} onClick={() => setFogMode(fogMode === 'reveal' ? null : 'reveal')}>Revelar</button>
+                  <button type="button" disabled={!podeDesfazer} title="Desfazer o último traço (Ctrl+Z)" aria-label="Desfazer o último traço" onClick={desfazerTraco}><Undo2 size={15} /></button>
                   <button type="button" onClick={() => { if (window.confirm('Tirar a névoa de todos os cenários e do mapa?')) clearFog() }}>Limpar tudo</button>
                 </div>
                 <label className="range-control"><span>Raio do pincel <b>{fogRadius} px</b></span>
@@ -232,6 +264,22 @@ export function MapControls({
               </label>
             </>
           )}
+          <PainelCombate />
+          <div className="map-tools" role="group" aria-label="Ferramentas do mapa">
+            <button type="button" className={ferramenta === 'medir' ? 'is-active' : ''} aria-pressed={ferramenta === 'medir'} onClick={() => setFerramenta(ferramenta === 'medir' ? null : 'medir')}>
+              <Ruler size={15} /> Medir
+            </button>
+            {canCreateToken && (
+              <button type="button" className={ferramenta === 'ping' ? 'is-active' : ''} aria-pressed={ferramenta === 'ping'} title="Alt + clique também marca um ponto" onClick={() => setFerramenta(ferramenta === 'ping' ? null : 'ping')}>
+                <MapPin size={15} /> Ping
+              </button>
+            )}
+            {gmControls && (
+              <button type="button" title="Leva a câmera dos jogadores para o centro da sua tela" onClick={levarJogadores}>
+                <LocateFixed size={15} /> Levar todos
+              </button>
+            )}
+          </div>
           {canCreateToken && (
             <button
               className="new-token-button"

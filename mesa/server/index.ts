@@ -5,15 +5,16 @@ import { DiceExpressionError, rollDice } from '../src/features/chat/dice-parser.
 import type { ChatMessage } from '../src/features/chat/chat-types.js'
 import { TAMANHO_MAXIMO, TAMANHO_MINIMO, alturaDoToken, type Token, type TokenPosition, type TokenSprite } from '../src/features/tokens/token-types.js'
 import type {
-  ClientToServerEvents, NevoaDaMesa, RoomCommand, RoomGrid, RoomPlayer, RoomScene, RoomSnapshot,
+  ClientToServerEvents, Combate, NevoaDaMesa, RoomCommand, RoomGrid, RoomPlayer, RoomScene, RoomSnapshot,
   ServerRoomMessage, ServerToClientEvents,
 } from '../src/shared/room-protocol.js'
 import {
   GM_TOKEN_FIELDS, NULLABLE_TOKEN_FIELDS, PLAYER_TOKEN_FIELDS, can, validCharacterId, validRollLabel,
 } from '../src/shared/permissions.js'
+import { avancarVez, tirarDoCombate } from '../src/shared/combate.js'
 import { CAMADA_MUNDO, MAX_NUMEROS_NEVOA, MAX_OPS_NEVOA, celulasParaOps, tamanhoDaNevoa } from '../src/shared/nevoa.js'
 import * as R from '../../lib/regras'
-import { expressaoDaAcao, itemDaAcao } from '../../lib/resumoFicha'
+import { expressaoAtributo, expressaoDaAcao, itemDaAcao } from '../../lib/resumoFicha'
 import { ouvirMesa, type EventoMesa } from '../../lib/servidor/barramento'
 import { alterarFicha, gravarRolagem, textoDaRolagem } from '../../lib/servidor/rotas'
 import { COOKIE, usuarioDoToken } from '../../lib/servidor/sessao'
@@ -34,6 +35,9 @@ const NOME_FICHA_PRIVADA = '???'
 const CORES_TOKEN_AUTOMATICO = ['#80624a', '#4a6f80', '#5f8050', '#7a4f7c', '#8a5a44', '#4f5f8a']
 /* Fora do centro do cenário: o token novo não pode cair em cima do que o mestre está mostrando. */
 const CELULAS_ATE_TOKEN_NOVO = 3
+const INTERVALO_PING_MS = 300
+const ESCALA_MINIMA = 0.05
+const ESCALA_MAXIMA = 5
 const TOKENS_NOVOS_POR_LINHA = 8
 
 type SocketData = { usuario: { id: string; nome: string }; token: string; campanhaId?: string }
@@ -62,6 +66,8 @@ function isRoomScene(value: unknown): value is RoomScene {
   return isRecord(value) && typeof value.id === 'string' && value.id.length <= 80 && value.id !== CAMADA_MUNDO && validScene(value.imageUrl) &&
     (value.nome === undefined || (typeof value.nome === 'string' && value.nome.length <= 60)) &&
     (value.oculto === undefined || typeof value.oculto === 'boolean') &&
+    (value.escala === undefined || (typeof value.escala === 'number' && value.escala >= ESCALA_MINIMA && value.escala <= ESCALA_MAXIMA)) &&
+    (value.travado === undefined || typeof value.travado === 'boolean') &&
     isFiniteNumber(value.x) && isFiniteNumber(value.y) && Number.isFinite(value.width) && Number(value.width) > 0 && Number(value.width) <= 10000 &&
     Number.isFinite(value.height) && Number(value.height) > 0 && Number(value.height) <= 10000
 }
@@ -97,6 +103,7 @@ function validToken(value: unknown, sprites: TokenSprite[]): value is Token {
     (value.fotoFichaV === undefined || (typeof value.fotoFichaV === 'number' && Number.isFinite(value.fotoFichaV) && value.fotoFichaV >= 0)) &&
     (value.fotoFichaPrivada === undefined || typeof value.fotoFichaPrivada === 'boolean') &&
     (value.automatico === undefined || typeof value.automatico === 'boolean') &&
+    (value.condicoes === undefined || (Array.isArray(value.condicoes) && value.condicoes.length <= 10 && value.condicoes.every((c) => typeof c === 'string' && c.length >= 1 && c.length <= 24))) &&
     (value.nomeDaFicha === undefined || typeof value.nomeDaFicha === 'boolean')
     && Array.isArray(value.ownerIds) && value.ownerIds.length <= 100 &&
     value.ownerIds.every((id) => typeof id === 'string' && id.length <= 100) &&
@@ -121,12 +128,26 @@ const esquemaComando = z.discriminatedUnion('type', [
   z.object({ type: z.literal('player:remove'), playerKey: z.string().max(100) }),
   z.object({ type: z.literal('scene:add'), scene: z.unknown().refine(isRoomScene) }),
   z.object({ type: z.literal('scene:move'), id: idCurto, x: numero, y: numero }),
-  z.object({ type: z.literal('scene:update'), id: idCurto, nome: z.string().max(60).optional(), oculto: z.boolean().optional() }),
+  z.object({
+    type: z.literal('scene:update'), id: idCurto, nome: z.string().max(60).optional(), oculto: z.boolean().optional(),
+    escala: z.number().min(ESCALA_MINIMA).max(ESCALA_MAXIMA).optional(), travado: z.boolean().optional(),
+  }),
   z.object({ type: z.literal('scene:remove'), id: idCurto }),
   z.object({
     type: z.literal('fog:traco'), camada: idCurto, revelar: z.boolean(), raio: z.number().int().min(1).max(300),
     pontos: z.array(z.number().int().min(-1_000_000).max(1_000_000)).min(2).max(256).refine((p) => p.length % 2 === 0),
+    g: z.string().max(40).optional(),
   }),
+  z.object({ type: z.literal('fog:desfazer'), camada: idCurto, g: z.string().max(40) }),
+  z.object({ type: z.literal('mapa:ping'), x: numero, y: numero }),
+  z.object({ type: z.literal('mapa:focar'), x: numero, y: numero }),
+  z.object({ type: z.literal('combate:iniciar') }),
+  z.object({ type: z.literal('combate:entrar'), tokenId: idCurto }),
+  z.object({ type: z.literal('combate:sair'), tokenId: idCurto }),
+  z.object({ type: z.literal('combate:iniciativa'), tokenId: idCurto, valor: z.number().int().min(-999).max(999) }),
+  z.object({ type: z.literal('combate:rolar'), tokenId: idCurto.optional() }),
+  z.object({ type: z.literal('combate:vez'), direcao: z.union([z.literal(1), z.literal(-1)]) }),
+  z.object({ type: z.literal('combate:encerrar') }),
   z.object({ type: z.literal('fog:cobrir'), camada: idCurto }),
   z.object({ type: z.literal('fog:limpar'), camada: idCurto }),
   z.object({ type: z.literal('fog:clear') }),
@@ -159,6 +180,8 @@ class RoomState {
   scenes: RoomScene[] = []
   nevoa: NevoaDaMesa = {}
   fichasComToken = new Set<string>()
+  combate: Combate | null = null
+  ultimoPing = new Map<string, number>()
   lastMoveAt = new Map<string, number>()
   cleanupTimer?: ReturnType<typeof setTimeout>
   /* Só para saber quem vê a vida e a mana de um token vinculado, sem consultar o banco a cada envio. */
@@ -172,14 +195,17 @@ class RoomState {
   fila: Promise<unknown> = Promise.resolve()
   apagada = false
   constructor(readonly code: string) {}
-  snapshot(player: RoomPlayer): RoomSnapshot {
+  /* `leve`: a imagem de cada cenário sobe uma vez só. O navegador já a tem, e reenviar várias a cada ajuste trava a mesa. */
+  snapshot(player: RoomPlayer, leve = false): RoomSnapshot {
+    const cenas = player.role === 'gm' ? this.scenes : this.scenes.filter((scene) => !scene.oculto)
     const tokens = [...this.tokens.values()].filter((token) => !token.hidden || player.role === 'gm')
     const ids = new Set(tokens.map((token) => token.id))
     return {
       tokens: tokens.map((token) => visaoDoToken(this, token, player)),
       spritesByTokenId: Object.fromEntries([...this.sprites].filter(([id]) => ids.has(id))),
       grid: this.grid,
-      scenes: player.role === 'gm' ? this.scenes : this.scenes.filter((scene) => !scene.oculto),
+      scenes: leve ? cenas.map((scene) => ({ ...scene, imageUrl: '' })) : cenas,
+      combate: visaoDoCombate(this, player),
       nevoa: player.role === 'gm' ? this.nevoa : Object.fromEntries(Object.entries(this.nevoa).filter(([camada]) => !camadaOculta(this, camada))),
       messages: [...this.messages, ...(this.privateMessages.get(player.id) ?? [])]
         .sort((a, b) => a.timestamp - b.timestamp).slice(-200),
@@ -208,6 +234,26 @@ let io: Server<ClientToServerEvents, ServerToClientEvents, Record<string, never>
 const rooms = new Map<string, RoomState>()
 const carregando = new Map<string, Promise<RoomState>>()
 
+/* Token oculto não aparece na ordem de quem não pode vê-lo, nem quando é a vez dele. */
+function visaoDoCombate(room: RoomState, player: RoomPlayer): Combate | null {
+  if (!room.combate) return null
+  const visivel = (id: string) => { const token = room.tokens.get(id); return Boolean(token && (player.role === 'gm' || !token.hidden)) }
+  return {
+    rodada: room.combate.rodada,
+    vez: room.combate.vez && visivel(room.combate.vez) ? room.combate.vez : null,
+    lista: room.combate.lista.filter((item) => visivel(item.tokenId)),
+  }
+}
+function enviarCombate(room: RoomState) {
+  for (const player of room.players.values()) {
+    if (player.status === 'connected') io.to(playerRoom(room.code, player.id)).emit('room:event', { type: 'combate:estado', combate: visaoDoCombate(room, player) })
+  }
+}
+function removerTokenDoCombate(room: RoomState, tokenId: string) {
+  if (!room.combate?.lista.some((item) => item.tokenId === tokenId)) return
+  room.combate = tirarDoCombate(room.combate, tokenId)
+  enviarCombate(room)
+}
 function broadcast(room: RoomState, message: ServerRoomMessage) { io.to(room.code).emit('room:event', message) }
 function camadaOculta(room: RoomState, camada: string) {
   return room.scenes.some((scene) => scene.id === camada && scene.oculto)
@@ -238,7 +284,7 @@ function broadcastSnapshots(room: RoomState) {
   for (const player of room.players.values()) {
     if (player.status === 'connected') {
       for (const socketId of room.connections.get(player.id) ?? []) {
-        io.to(socketId).emit('room:snapshot', room.snapshot(player), socketId)
+        io.to(socketId).emit('room:snapshot', room.snapshot(player, true), socketId)
       }
     }
   }
@@ -282,10 +328,11 @@ function estadoDaSala(room: RoomState) {
     tokens: [...room.tokens.values()],
     sprites: Object.fromEntries([...room.sprites].map(([id, lista]) => [id, lista.map(({ id: sid, label }) => ({ id: sid, label }))])),
     grid: room.grid,
-    scenes: room.scenes.map(({ id, x, y, width, height, nome, oculto }) => ({ id, x, y, width, height, nome, oculto })),
+    scenes: room.scenes.map(({ imageUrl: _imagem, ...resto }) => resto),
     nevoa: room.nevoa,
     espectadores: [...room.espectadores],
     fichasComToken: [...room.fichasComToken],
+    combate: room.combate,
   }
   return { estado, imagens }
 }
@@ -318,6 +365,7 @@ function desvincular(room: RoomState, token: Token) {
   if (token.automatico) {
     room.tokens.delete(token.id); room.sprites.delete(token.id)
     broadcast(room, { type: 'token:removed', id: token.id })
+    removerTokenDoCombate(room, token.id)
     marcarSuja(room)
     return
   }
@@ -383,6 +431,23 @@ async function criarTokensDasFichas(room: RoomState) {
 async function revalidarVinculos(room: RoomState) {
   const fichas = new Set([...room.tokens.values()].flatMap((token) => (token.characterId ? [token.characterId] : [])))
   for (const fichaId of fichas) await sincronizarFicha(room, fichaId)
+}
+
+/* Iniciativa é d20 + Destreza da ficha vinculada. Token oculto rola em segredo: o chat é de todos. */
+async function rolarIniciativa(room: RoomState, player: RoomPlayer, tokenId: string) {
+  const token = room.tokens.get(tokenId)
+  const entrada = room.combate?.lista.find((item) => item.tokenId === tokenId)
+  if (!token || !entrada) return
+  const ficha = token.characterId ? await lerFicha(token.characterId) : null
+  const expressao = expressaoAtributo(ficha?.dados.corpo.destreza ?? 0)
+  const roll = rollDice(expressao)
+  entrada.iniciativa = roll.total
+  if (token.hidden) return
+  await gravarRolagem({
+    campanhaId: room.code, fichaId: null, usuarioId: player.id,
+    autor: token.fotoFichaPrivada && token.nomeDaFicha ? NOME_FICHA_PRIVADA : token.name,
+    rotulo: 'Iniciativa', det: textoDaRolagem(roll), total: roll.total, expressao, detalhe: roll,
+  })
 }
 
 async function handleCommand(socket: TableSocket, room: RoomState, player: RoomPlayer, message: RoomCommand) {
@@ -484,7 +549,10 @@ async function handleCommand(socket: TableSocket, room: RoomState, player: RoomP
     case 'token:remove': {
       const token = room.tokens.get(message.id); if (!token) return
       if (!can(player.role, 'token:remove', token, player.id)) return deny(socket)
-      room.tokens.delete(message.id); room.sprites.delete(message.id); broadcastSnapshots(room); return
+      room.tokens.delete(message.id); room.sprites.delete(message.id)
+      broadcast(room, { type: 'token:removed', id: message.id })
+      removerTokenDoCombate(room, message.id)
+      return
     }
     case 'token:move': {
       const token = room.tokens.get(message.id); if (!token) return
@@ -509,7 +577,13 @@ async function handleCommand(socket: TableSocket, room: RoomState, player: RoomP
       if (!validGrid(message.grid)) return
       room.grid = message.grid
       if (room.grid.enabled) for (const [id, token] of room.tokens) room.tokens.set(id, { ...token, x: snap(token.x, token.size, room.grid.cellSize), y: snap(token.y, alturaDoToken(token), room.grid.cellSize) })
-      broadcastSnapshots(room); return
+      /* O controle da grade dispara vários comandos por segundo: nada de imagem aqui. */
+      for (const alvo of room.players.values()) {
+        if (alvo.status !== 'connected') continue
+        const posicoes = [...room.tokens.values()].filter((token) => alvo.role === 'gm' || !token.hidden).map(({ id, x, y }) => ({ id, x, y }))
+        io.to(playerRoom(room.code, alvo.id)).emit('room:event', { type: 'grid:updated', grid: room.grid, posicoes })
+      }
+      return
     }
     case 'scene:add':
       if (!can(player.role, 'fog:update')) return deny(socket)
@@ -528,8 +602,12 @@ async function handleCommand(socket: TableSocket, room: RoomState, player: RoomP
       const atualizado: RoomScene = { ...scene }
       if (message.nome !== undefined) atualizado.nome = message.nome.trim()
       if (message.oculto !== undefined) atualizado.oculto = message.oculto
+      if (message.escala !== undefined) atualizado.escala = message.escala
+      if (message.travado !== undefined) atualizado.travado = message.travado
+      /* Em cena, um clique errado não pode arrastar o mapa: ao mostrar, ele já vai travado. */
+      if (scene.oculto && message.oculto === false && message.travado === undefined) atualizado.travado = true
       room.scenes = room.scenes.map((item) => item.id === scene.id ? atualizado : item)
-      const aviso: ServerRoomMessage = { type: 'scene:updated', id: scene.id, nome: atualizado.nome, oculto: atualizado.oculto }
+      const aviso: ServerRoomMessage = { type: 'scene:updated', id: scene.id, nome: atualizado.nome, oculto: atualizado.oculto, escala: atualizado.escala, travado: atualizado.travado }
       io.to(playerRoom(room.code, room.mestreId)).emit('room:event', aviso)
       /* Para os jogadores, mostrar é o cenário chegar, com a névoa já pronta, e esconder é ele sumir. */
       if (Boolean(scene.oculto) !== Boolean(atualizado.oculto)) {
@@ -556,11 +634,93 @@ async function handleCommand(socket: TableSocket, room: RoomState, player: RoomP
         socket.emit('room:snapshot', room.snapshot(player), socket.id)
         return
       }
-      const op = { tipo: 'traco' as const, revelar: message.revelar, raio: message.raio, pontos: message.pontos }
+      const op = { tipo: 'traco' as const, revelar: message.revelar, raio: message.raio, pontos: message.pontos, ...(message.g ? { g: message.g } : {}) }
       room.nevoa[message.camada] = [...(room.nevoa[message.camada] ?? []), op]
       paraQuemVe(room, camadaOculta(room, message.camada), { type: 'fog:traco', camada: message.camada, op }, socket.id)
       return
     }
+    case 'fog:desfazer': {
+      if (!can(player.role, 'fog:update')) return deny(socket)
+      const ops = room.nevoa[message.camada]
+      if (!ops) return
+      room.nevoa[message.camada] = ops.filter((op) => op.tipo !== 'traco' || op.g !== message.g)
+      paraQuemVe(room, camadaOculta(room, message.camada), { type: 'fog:camada', camada: message.camada, ops: room.nevoa[message.camada]! })
+      return
+    }
+    case 'mapa:ping': {
+      if (player.role === 'spectator') return deny(socket)
+      const agora = Date.now()
+      if (agora - (room.ultimoPing.get(player.id) ?? 0) < INTERVALO_PING_MS) return
+      room.ultimoPing.set(player.id, agora)
+      broadcast(room, { type: 'mapa:ping', x: message.x, y: message.y })
+      return
+    }
+    case 'mapa:focar':
+      if (!can(player.role, 'fog:update')) return deny(socket)
+      paraJogadores(room, { type: 'mapa:focar', x: message.x, y: message.y })
+      return
+    case 'combate:iniciar':
+      if (!can(player.role, 'fog:update')) return deny(socket)
+      if (room.combate) return
+      room.combate = {
+        rodada: 1, vez: null,
+        lista: [...room.tokens.values()].filter((token) => !token.hidden).map((token) => ({ tokenId: token.id, iniciativa: null })),
+      }
+      enviarCombate(room)
+      return
+    case 'combate:entrar': {
+      const token = room.tokens.get(message.tokenId)
+      if (!token || !room.combate) return
+      if (!can(player.role, 'token:update', token, player.id)) return deny(socket)
+      if (room.combate.lista.some((item) => item.tokenId === token.id)) return
+      room.combate = { ...room.combate, lista: [...room.combate.lista, { tokenId: token.id, iniciativa: null }] }
+      enviarCombate(room)
+      return
+    }
+    case 'combate:sair': {
+      const token = room.tokens.get(message.tokenId)
+      if (!token || !room.combate) return
+      if (!can(player.role, 'token:update', token, player.id)) return deny(socket)
+      removerTokenDoCombate(room, token.id)
+      return
+    }
+    case 'combate:iniciativa': {
+      if (!can(player.role, 'fog:update')) return deny(socket)
+      const entrada = room.combate?.lista.find((item) => item.tokenId === message.tokenId)
+      if (!entrada) return
+      entrada.iniciativa = message.valor
+      enviarCombate(room)
+      return
+    }
+    case 'combate:rolar': {
+      if (!room.combate) return
+      if (message.tokenId) {
+        const token = room.tokens.get(message.tokenId)
+        if (!token) return
+        if (!can(player.role, 'token:update', token, player.id)) return deny(socket)
+        await rolarIniciativa(room, player, token.id)
+      } else {
+        if (!can(player.role, 'fog:update')) return deny(socket)
+        for (const item of room.combate.lista) if (item.iniciativa === null) await rolarIniciativa(room, player, item.tokenId)
+      }
+      enviarCombate(room)
+      return
+    }
+    case 'combate:vez': {
+      if (!room.combate) return
+      /* O jogador só encerra a própria vez. O mestre conduz o resto. */
+      const naVez = room.combate.vez ? room.tokens.get(room.combate.vez) : undefined
+      const podePassar = message.direcao === 1 && naVez && can(player.role, 'token:update', naVez, player.id)
+      if (player.role !== 'gm' && !podePassar) return deny(socket)
+      room.combate = avancarVez(room.combate, message.direcao)
+      enviarCombate(room)
+      return
+    }
+    case 'combate:encerrar':
+      if (!can(player.role, 'fog:update')) return deny(socket)
+      room.combate = null
+      enviarCombate(room)
+      return
     case 'fog:cobrir':
       if (!can(player.role, 'fog:update')) return deny(socket)
       if (!room.scenes.some((item) => item.id === message.camada)) return
@@ -681,6 +841,7 @@ async function carregarSala(campanhaId: string) {
     if (e.fogCells?.length && !room.nevoa[CAMADA_MUNDO]) room.nevoa[CAMADA_MUNDO] = celulasParaOps(e.fogCells, e.grid.cellSize)
     room.espectadores = new Set(e.espectadores)
     room.fichasComToken = new Set(e.fichasComToken)
+    room.combate = e.combate ?? null
     room.scenes = e.scenes.flatMap((c) => {
       const imageUrl = salva.imagens.get(c.id)
       return imageUrl ? [{ ...c, imageUrl }] : []
@@ -742,6 +903,7 @@ async function sincronizarMembros(room: RoomState) {
     room.players.delete(player.id)
     room.espectadores.delete(player.id)
     room.privateMessages.delete(player.id)
+    room.ultimoPing.delete(player.id)
     for (const [id, token] of room.tokens) {
       if (token.ownerIds.includes(player.id)) room.tokens.set(id, { ...token, ownerIds: token.ownerIds.filter((dono) => dono !== player.id) })
     }

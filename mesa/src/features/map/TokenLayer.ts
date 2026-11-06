@@ -14,6 +14,8 @@ export type TokenView = {
   ownerMark: Graphics
   health: Graphics
   label: Text
+  condicoes: Text
+  turno: Graphics
   flipButton: Graphics
   flipButtonY: number
   texture: Texture | null
@@ -50,6 +52,17 @@ export function createTokenView() {
   const ownerMark = new Graphics()
   const health = new Graphics()
   const flipButton = new Graphics()
+  const turno = new Graphics()
+  const condicoes = new Text({
+    text: '',
+    style: {
+      fontFamily: 'DM Sans, sans-serif',
+      fontSize: 12,
+      fill: 0xf2b36b,
+      stroke: { color: 0x101114, width: 3 },
+    },
+  })
+  condicoes.anchor.set(0.5, 0)
   const label = new Text({
     text: '',
     style: {
@@ -66,6 +79,7 @@ export function createTokenView() {
   initials.anchor.set(0.5)
   label.anchor.set(0.5, 0)
   root.addChild(
+    turno,
     shadow,
     circle,
     direction,
@@ -75,6 +89,7 @@ export function createTokenView() {
     ownerMark,
     health,
     label,
+    condicoes,
     flipButton,
   )
 
@@ -89,6 +104,8 @@ export function createTokenView() {
     ownerMark,
     health,
     label,
+    condicoes,
+    turno,
     flipButton,
     flipButtonY: 0,
     texture: null,
@@ -108,6 +125,7 @@ export function updateTokenView(
   zoom: number,
   playerKey?: string | null,
   canEdit = true,
+  naVez = false,
 ) {
   const diameter = token.size * cellSize
   const radius = diameter / 2
@@ -141,6 +159,14 @@ export function updateTokenView(
   view.initials.text = token.name.trim().charAt(0).toLocaleUpperCase() || '?'
   view.initials.style.fontSize = Math.max(14, Math.min(diameter, alturaBase) * 0.46)
   view.initials.visible = !hasImage
+
+  view.turno.clear()
+  if (naVez) {
+    view.turno
+      .ellipse(0, 0, radius + 7 / zoom, radiusY + 7 / zoom)
+      .fill({ color: 0x6fe39a, alpha: 0.22 })
+      .stroke({ color: 0x6fe39a, width: 3 / zoom })
+  }
 
   view.selection.clear()
   if (selectedId === token.id) {
@@ -198,13 +224,17 @@ export function updateTokenView(
   view.label.text = token.name
   view.label.position.set(0, belowBase + (barIndex * 8) / zoom)
   view.label.style.fontSize = Math.max(12, Math.min(16, 14 / zoom))
+  view.condicoes.text = token.condicoes?.join(' · ') ?? ''
+  view.condicoes.style.fontSize = Math.max(11, Math.min(14, 12 / zoom))
+  view.condicoes.position.set(0, view.label.position.y + Math.max(view.label.height, 16 / zoom))
+  const alturaCondicoes = token.condicoes?.length ? view.condicoes.height : 0
   view.flipButton.clear()
   view.flipButton.visible = canEdit && selectedId === token.id && hasImage
   if (view.flipButton.visible) {
     const width = 42 / zoom
     const height = 28 / zoom
     const y =
-      view.label.position.y + Math.max(view.label.height, 16 / zoom) + 5 / zoom
+      view.label.position.y + Math.max(view.label.height, 16 / zoom) + alturaCondicoes + 5 / zoom
     view.flipButtonY = y
     view.flipButton
       .roundRect(-width / 2, y, width, height, 6 / zoom)

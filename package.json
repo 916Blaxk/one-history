@@ -3,6 +3,9 @@
   "version": "2.0.0",
   "private": true,
   "description": "Fichas e campanhas do sistema de RPG One History",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "db:gerar": "drizzle-kit generate",
     "db:migrar": "node scripts/migrar.mjs",

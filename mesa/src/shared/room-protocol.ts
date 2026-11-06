@@ -7,9 +7,11 @@ import type {
 
 export type RoomGrid = { enabled: boolean; cellSize: number; opacity: number }
 /* `oculto`: só o mestre recebe a imagem e a névoa. É como ele prepara o cenário antes da sessão. */
-export type RoomScene = { id: string; imageUrl: string; x: number; y: number; width: number; height: number; nome?: string; oculto?: boolean }
+export type RoomScene = { id: string; imageUrl: string; x: number; y: number; width: number; height: number; nome?: string; oculto?: boolean; escala?: number; travado?: boolean }
+export type EntradaCombate = { tokenId: string; iniciativa: number | null }
+export type Combate = { rodada: number; vez: string | null; lista: EntradaCombate[] }
 export type OpNevoa =
-  | { tipo: 'traco'; revelar: boolean; raio: number; pontos: number[] }
+  | { tipo: 'traco'; revelar: boolean; raio: number; pontos: number[]; g?: string }
   | { tipo: 'ret'; x: number; y: number; largura: number; altura: number }
   | { tipo: 'cobrir' }
 export type NevoaDaMesa = Record<string, OpNevoa[]>
@@ -25,6 +27,7 @@ export type RoomSnapshot = {
   grid: RoomGrid
   scenes: RoomScene[]
   nevoa: NevoaDaMesa
+  combate: Combate | null
   messages: ChatMessage[]
   players: RoomPlayer[]
   role: RoomPlayer['role']
@@ -49,12 +52,22 @@ export type RoomCommand =
   | { type: 'player:remove'; playerKey: string }
   | { type: 'scene:add'; scene: RoomScene }
   | { type: 'scene:move'; id: string; x: number; y: number }
-  | { type: 'scene:update'; id: string; nome?: string; oculto?: boolean }
+  | { type: 'scene:update'; id: string; nome?: string; oculto?: boolean; escala?: number; travado?: boolean }
   | { type: 'scene:remove'; id: string }
-  | { type: 'fog:traco'; camada: string; revelar: boolean; raio: number; pontos: number[] }
+  | { type: 'fog:traco'; camada: string; revelar: boolean; raio: number; pontos: number[]; g?: string }
+  | { type: 'fog:desfazer'; camada: string; g: string }
   | { type: 'fog:cobrir'; camada: string }
   | { type: 'fog:limpar'; camada: string }
   | { type: 'fog:clear' }
+  | { type: 'mapa:ping'; x: number; y: number }
+  | { type: 'mapa:focar'; x: number; y: number }
+  | { type: 'combate:iniciar' }
+  | { type: 'combate:entrar'; tokenId: string }
+  | { type: 'combate:sair'; tokenId: string }
+  | { type: 'combate:iniciativa'; tokenId: string; valor: number }
+  | { type: 'combate:rolar'; tokenId?: string }
+  | { type: 'combate:vez'; direcao: 1 | -1 }
+  | { type: 'combate:encerrar' }
   | {
       type: 'chat:send'
       message: {
@@ -83,7 +96,11 @@ export type ServerRoomMessage =
       playerId: string
     }
   | { type: 'scene:added'; scene: RoomScene; nevoa?: OpNevoa[]; focar?: boolean }
-  | { type: 'scene:updated'; id: string; nome?: string; oculto?: boolean }
+  | { type: 'scene:updated'; id: string; nome?: string; oculto?: boolean; escala?: number; travado?: boolean }
+  | { type: 'grid:updated'; grid: RoomGrid; posicoes: { id: string; x: number; y: number }[] }
+  | { type: 'mapa:ping'; x: number; y: number }
+  | { type: 'mapa:focar'; x: number; y: number }
+  | { type: 'combate:estado'; combate: Combate | null }
   | { type: 'scene:moved'; id: string; x: number; y: number }
   | { type: 'scene:removed'; id: string }
   | { type: 'fog:traco'; camada: string; op: OpNevoa }

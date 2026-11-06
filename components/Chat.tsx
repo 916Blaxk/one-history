@@ -58,8 +58,8 @@ export function CorpoChat({ chat, aoRolar }: { chat: ChatDados; aoRolar: (lados:
   const { mensagens, carregando } = chat;
 
   /* Mensagens de antes de abrir o chat entram paradas. Só as que chegam depois têm animação. */
-  const corte = useRef<number | null>(null);
-  if (corte.current === null && !carregando) corte.current = mensagens.at(-1)?.em ?? 0;
+  const [corte, setCorte] = useState<number | null>(null);
+  if (corte === null && !carregando) setCorte(mensagens.at(-1)?.em ?? 0);
 
   const primeiraId = mensagens[0]?.id;
   const ultimaId = mensagens.at(-1)?.id;
@@ -83,7 +83,6 @@ export function CorpoChat({ chat, aoRolar }: { chat: ChatDados; aoRolar: (lados:
     ultimaAntes.current = ultimaId;
   });
 
-  let diaAnterior = '';
   return (
     <>
       <div className="chat-lista" ref={lista} onScroll={e => {
@@ -99,14 +98,13 @@ export function CorpoChat({ chat, aoRolar }: { chat: ChatDados; aoRolar: (lados:
           <p className="chat-vazio">{carregando ? 'Abrindo o histórico…' : 'Nenhuma rolagem ainda. Escolha um dado abaixo ou clique em d20 ao lado de um atributo da ficha.'}</p>
         )}
         <ul role="log" aria-live="polite" aria-label="Histórico de rolagens">
-          {mensagens.map(m => {
+          {mensagens.map((m, i) => {
             const dia = nomeDoDia(m.em);
-            const separador = dia !== diaAnterior;
-            diaAnterior = dia;
+            const separador = i === 0 || dia !== nomeDoDia(mensagens[i - 1]!.em);
             return (
               <Fragment key={m.id}>
                 {separador && <li className="chat-dia"><span>{dia}</span></li>}
-                <BalaoRolagem m={m} nova={corte.current !== null && m.em > corte.current} />
+                <BalaoRolagem m={m} nova={corte !== null && m.em > corte} />
               </Fragment>
             );
           })}
@@ -125,11 +123,11 @@ export function CorpoChat({ chat, aoRolar }: { chat: ChatDados; aoRolar: (lados:
 /* Janela flutuante da ficha: abre sozinha ao rolar e avisa quando chega rolagem de outra pessoa com ela fechada. */
 export function ChatFlutuante({ chat, aoRolar, escopo }: { chat: ChatDados; aoRolar: (lados: number, bonus: number) => void; escopo: string }) {
   const { aberto, setAberto, mensagens, carregando } = chat;
-  const visto = useRef<number | null>(null);
+  const [visto, setVisto] = useState<number | null>(null);
   const ultima = mensagens.at(-1)?.em ?? 0;
-  if (visto.current === null && !carregando) visto.current = ultima;
-  if (aberto && visto.current !== null) visto.current = Math.max(visto.current, ultima);
-  const corteVisto = visto.current ?? Infinity;
+  if (visto === null && !carregando) setVisto(ultima);
+  else if (aberto && visto !== null && ultima > visto) setVisto(ultima);
+  const corteVisto = visto ?? Infinity;
   const naoLidas = aberto ? 0 : mensagens.filter(m => !m.minha && m.em > corteVisto).length;
 
   useEffect(() => {

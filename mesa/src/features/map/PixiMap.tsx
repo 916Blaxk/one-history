@@ -1,14 +1,15 @@
 import { useEffect, useRef } from 'react'
-import { Application, Container, Graphics, Sprite, Texture } from 'pixi.js'
+import { Application, Container, Graphics, Sprite, Text, Texture } from 'pixi.js'
 /* O CSP do site proíbe eval, e o PixiJS gera funções em tempo de execução sem este módulo. */
 import 'pixi.js/unsafe-eval'
 import { useUiStore } from '@mesa/stores/ui-store'
 import { useTokenStore } from '@mesa/features/tokens/token-store'
-import { isRoomMode, sendRoomMove } from '@mesa/features/rooms/room-commands'
+import { isRoomMode, sendRoomCommand, sendRoomMove } from '@mesa/features/rooms/room-commands'
 import { useRoomStore } from '@mesa/features/rooms/room-store'
 import { spriteDoToken, type TokenSprite } from '@mesa/features/tokens/token-types'
 import type { OpNevoa, RoomScene } from '@mesa/shared/room-protocol'
 import { CAMADA_MUNDO, limitesDaOp } from '@mesa/shared/nevoa'
+import { can } from '@mesa/shared/permissions'
 import { CamadaNevoa, type Limites } from '@mesa/features/map/camada-nevoa'
 import {
   createTokenView,
@@ -29,6 +30,10 @@ const ALFA_CENARIO_OCULTO = 0.65
 const FOLGA_CAMADA_MUNDO = 256
 const INTERVALO_TRACO_MS = 40
 const MAX_NUMEROS_POR_ENVIO = 250
+const DURACAO_PING_MS = 2200
+const escalaDe = (scene: RoomScene) => scene.escala ?? 1
+const acertouCena = (scene: RoomScene, x: number, y: number) =>
+  Math.abs(x - scene.x) <= (scene.width * escalaDe(scene)) / 2 && Math.abs(y - scene.y) <= (scene.height * escalaDe(scene)) / 2
 
 export function PixiMap({
   onMapInteraction,
@@ -95,15 +100,21 @@ export function PixiMap({
     let tracoNevoa:
       | {
           camada: string
+          g: string
           origemX: number
           origemY: number
+          escala: number
           revelar: boolean
           raio: number
+          raioMapa: number
+          camadas: Set<string>
           pendentes: number[]
           ultimo?: [number, number]
           timer?: ReturnType<typeof setTimeout>
         }
       | undefined
+
+    let regua: { pointerId: number; x: number; y: number } | undefined
 
     const initialize = async () => {
       const pixi = new Application()
@@ -142,7 +153,28 @@ export function PixiMap({
       fogContainer = fogLayer
       fogLayer.sortableChildren = true
       const cursorNevoa = new Graphics()
-      uiLayer.addChild(cursorNevoa)
+      const linhaRegua = new Graphics()
+      const textoRegua = new Text({
+        text: '',
+        style: { fontFamily: 'DM Sans, sans-serif', fontSize: 15, fontWeight: '600', fill: 0xffffff, stroke: { color: 0x101114, width: 4 } },
+      })
+      textoRegua.anchor.set(0.5, 1)
+      const anelPing = new Graphics()
+      uiLayer.addChild(cursorNevoa, linhaRegua, textoRegua, anelPing)
+      const animarPings = () => {
+        const { pings, camera } = useUiStore.getState()
+        anelPing.clear()
+        const agora = Date.now()
+        for (const ping of pings) {
+          const progresso = Math.min(1, (agora - ping.em) / DURACAO_PING_MS)
+          for (const atraso of [0, 0.35]) {
+            const fase = Math.max(0, progresso - atraso) / (1 - atraso)
+            if (fase <= 0) continue
+            anelPing.circle(ping.x, ping.y, (10 + fase * 70) / camera.zoom).stroke({ color: 0xffd166, alpha: 1 - fase, width: 4 / camera.zoom })
+          }
+        }
+      }
+      pixi.ticker.add(animarPings)
 
       const renderTokens = () => {
         const tokenState = useTokenStore.getState()
@@ -176,6 +208,7 @@ export function PixiMap({
               (role === 'player' &&
                 !token.hidden &&
                 Boolean(playerKey && token.ownerIds.includes(playerKey))),
+            state.combate?.vez === token.id,
           )
           if (
             view.activeSpriteId !== (activeSprite?.id ?? null) ||
@@ -244,6 +277,7 @@ export function PixiMap({
                       useRoomStore.getState().playerKey!,
                     ),
                 )),
+            useUiStore.getState().combate?.vez === currentToken.id,
           )
         } catch {
           if (!disposed && version === view.imageVersion)
@@ -296,6 +330,8 @@ export function PixiMap({
           if (sprite) {
             sprite.position.set(scene.x, scene.y)
             sprite.alpha = scene.oculto ? ALFA_CENARIO_OCULTO : 1
+            sprite.width = scene.width * escalaDe(scene)
+            sprite.height = scene.height * escalaDe(scene)
           } else void loadScene(scene)
         }
         if (!state.fogMode) cursorNevoa.clear()
@@ -341,7 +377,7 @@ export function PixiMap({
             fogContainer?.addChild(view.sprite)
           }
           view.atualizar(ops, limites)
-          view.posicionar(scene?.x ?? 0, scene?.y ?? 0)
+          view.posicionar(scene?.x ?? 0, scene?.y ?? 0, scene ? escalaDe(scene) : 1)
           view.sprite.alpha = alfa
           vivas.add(camada)
         }
@@ -367,8 +403,9 @@ export function PixiMap({
           sprite.anchor.set(0.5)
           sprite.position.set(scene.x, scene.y)
           sprite.alpha = useUiStore.getState().scenes.find((item) => item.id === scene.id)?.oculto ? ALFA_CENARIO_OCULTO : 1
-          sprite.width = scene.width
-          sprite.height = scene.height
+          const atual = useUiStore.getState().scenes.find((item) => item.id === scene.id) ?? scene
+          sprite.width = atual.width * escalaDe(atual)
+          sprite.height = atual.height * escalaDe(atual)
           sceneSprites.set(scene.id, sprite)
           sceneLayer?.addChild(sprite)
         } catch {
@@ -472,6 +509,15 @@ export function PixiMap({
         const worldY = (point.y - camera.y) / camera.zoom
         const canSelect = event.pointerType === 'touch' || event.button === 0
         const { role } = useRoomStore.getState()
+        const ferramenta = useUiStore.getState().ferramenta
+        if (canSelect && ferramenta === 'medir') {
+          regua = { pointerId: event.pointerId, x: worldX, y: worldY }
+          return
+        }
+        if (canSelect && (ferramenta === 'ping' || event.altKey)) {
+          sendRoomCommand({ type: 'mapa:ping', x: worldX, y: worldY })
+          return
+        }
         const fogMode = useUiStore.getState().fogMode
         if (canSelect && fogMode && (!isRoomMode() || role === 'gm')) {
           fogPointerId = event.pointerId
@@ -537,8 +583,7 @@ export function PixiMap({
           return
         }
         if (canSelect && (!isRoomMode() || role === 'gm') && !spaceDown) {
-          const hitScene = [...useUiStore.getState().scenes].reverse().find((scene) =>
-            Math.abs(worldX - scene.x) <= scene.width / 2 && Math.abs(worldY - scene.y) <= scene.height / 2)
+          const hitScene = [...useUiStore.getState().scenes].reverse().find((scene) => !scene.travado && acertouCena(scene, worldX, worldY))
           if (hitScene) {
             sceneDrag = { id: hitScene.id, pointerId: event.pointerId, offsetX: worldX - hitScene.x, offsetY: worldY - hitScene.y }
             return
@@ -569,7 +614,17 @@ export function PixiMap({
         if (!point) return
         point.x = event.clientX - rect.left
         point.y = event.clientY - rect.top
-        if (fogPointerId === event.pointerId) {
+        if (regua?.pointerId === event.pointerId) {
+          const { camera, grid } = useUiStore.getState()
+          const fimX = (point.x - camera.x) / camera.zoom
+          const fimY = (point.y - camera.y) / camera.zoom
+          linhaRegua.clear().moveTo(regua.x, regua.y).lineTo(fimX, fimY).stroke({ color: 0xffffff, width: 2 / camera.zoom })
+          linhaRegua.circle(regua.x, regua.y, 4 / camera.zoom).fill(0xffffff)
+          const celulas = Math.hypot(fimX - regua.x, fimY - regua.y) / grid.cellSize
+          textoRegua.text = `${celulas.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} ${celulas === 1 ? 'célula' : 'células'}`
+          textoRegua.scale.set(1 / camera.zoom)
+          textoRegua.position.set(fimX, fimY - 10 / camera.zoom)
+        } else if (fogPointerId === event.pointerId) {
           const camera = useUiStore.getState().camera
           paintFogAt((point.x - camera.x) / camera.zoom, (point.y - camera.y) / camera.zoom)
         } else if (sceneDrag?.pointerId === event.pointerId) {
@@ -608,9 +663,15 @@ export function PixiMap({
 
       function onPointerEnd(event: PointerEvent) {
         if (!pointers.has(event.pointerId)) return
+        if (regua?.pointerId === event.pointerId) {
+          regua = undefined
+          linhaRegua.clear()
+          textoRegua.text = ''
+        }
         if (fogPointerId === event.pointerId) {
           fogPointerId = null
           enviarTracoNevoa()
+          if (tracoNevoa) useUiStore.getState().registrarTraco([...tracoNevoa.camadas], tracoNevoa.g)
           tracoNevoa = undefined
         }
         if (sceneDrag?.pointerId === event.pointerId) sceneDrag = undefined
@@ -659,14 +720,19 @@ export function PixiMap({
       function iniciarTracoNevoa(x: number, y: number) {
         const state = useUiStore.getState()
         /* O traço pertence ao cenário onde começou, para acompanhá-lo quando ele for movido. */
-        const scene = [...state.scenes].reverse().find((item) =>
-          Math.abs(x - item.x) <= item.width / 2 && Math.abs(y - item.y) <= item.height / 2)
+        const scene = [...state.scenes].reverse().find((item) => acertouCena(item, x, y))
+        const escala = scene ? escalaDe(scene) : 1
         tracoNevoa = {
           camada: scene?.id ?? CAMADA_MUNDO,
+          g: crypto.randomUUID(),
           origemX: scene?.x ?? 0,
           origemY: scene?.y ?? 0,
+          escala,
           revelar: state.fogMode === 'reveal',
-          raio: state.fogBrushRadius,
+          /* Os traços ficam na medida original do cenário: o círculo do pincel vale o que aparece na tela. */
+          raio: Math.min(300, Math.max(1, Math.round(state.fogBrushRadius / escala))),
+          raioMapa: state.fogBrushRadius,
+          camadas: new Set(),
           pendentes: [],
         }
         paintFogAt(x, y)
@@ -675,8 +741,8 @@ export function PixiMap({
       function paintFogAt(x: number, y: number) {
         const traco = tracoNevoa
         if (!traco) return
-        const px = Math.round(x - traco.origemX)
-        const py = Math.round(y - traco.origemY)
+        const px = Math.round((x - traco.origemX) / traco.escala)
+        const py = Math.round((y - traco.origemY) / traco.escala)
         if (traco.ultimo?.[0] === px && traco.ultimo[1] === py) return
         /* Cada envio recomeça no último ponto do anterior, para o traço não ficar com falhas. */
         if (!traco.pendentes.length && traco.ultimo) traco.pendentes.push(...traco.ultimo)
@@ -695,11 +761,13 @@ export function PixiMap({
         const pontos = traco.pendentes
         traco.pendentes = []
         const state = useUiStore.getState()
-        state.pintarNevoa(traco.camada, pontos, traco.raio, traco.revelar)
+        state.pintarNevoa(traco.camada, pontos, traco.raio, traco.revelar, traco.g)
+        traco.camadas.add(traco.camada)
         /* Névoa pintada fora de um cenário pode cobri-lo. Revelar precisa abrir essa camada também. */
         if (traco.revelar && traco.camada !== CAMADA_MUNDO && state.nevoa[CAMADA_MUNDO]?.length) {
-          const noMapa = pontos.map((valor, i) => Math.round(valor + (i % 2 === 0 ? traco.origemX : traco.origemY)))
-          state.pintarNevoa(CAMADA_MUNDO, noMapa, traco.raio, true)
+          const noMapa = pontos.map((valor, i) => Math.round(valor * traco.escala + (i % 2 === 0 ? traco.origemX : traco.origemY)))
+          state.pintarNevoa(CAMADA_MUNDO, noMapa, traco.raioMapa, true, traco.g)
+          traco.camadas.add(CAMADA_MUNDO)
         }
       }
 
@@ -715,12 +783,21 @@ export function PixiMap({
           useTokenStore.getState().selectToken(null)
           return
         }
+        if (!isEditing && (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z' && (!isRoomMode() || useRoomStore.getState().role === 'gm')) {
+          useUiStore.getState().desfazerTraco()
+          event.preventDefault()
+          return
+        }
         if (
           !isEditing &&
           (event.key === 'Delete' || event.key === 'Backspace')
         ) {
-          const selectedId = useTokenStore.getState().selectedTokenId
-          if (selectedId) useTokenStore.getState().removeToken(selectedId)
+          const { selectedTokenId: selectedId, tokens } = useTokenStore.getState()
+          const selecionado = tokens.find((token) => token.id === selectedId)
+          /* Uma tecla apertada sem querer não pode apagar um token: o da ficha não volta sozinho. */
+          const { role, playerKey } = useRoomStore.getState()
+          const podeRemover = selecionado && (!isRoomMode() || (role && can(role, 'token:remove', selecionado, playerKey ?? undefined)))
+          if (podeRemover && window.confirm(`Remover o token ${selecionado.name}?`)) useTokenStore.getState().removeToken(selecionado.id)
           return
         }
         if (
@@ -745,6 +822,7 @@ export function PixiMap({
       }
 
       cleanupPixi = () => {
+        pixi.ticker.remove(animarPings)
         canvas.removeEventListener('wheel', onWheel)
         canvas.removeEventListener('pointerdown', onPointerDown)
         canvas.removeEventListener('pointermove', onPointerMove)

@@ -97,6 +97,8 @@ O último comando abre o site em http://localhost:3457 com banco temporário. `n
 
 ## Deploy
 
+O passo a passo atual, com Turso e Railway, está em [publicar.md](publicar.md). Esta seção descreve a alternativa com volume permanente.
+
 **Recomendação:** Railway ou Render, com um serviço Node e um volume permanente. Assim o banco continua sendo o SQLite de hoje, e levar os dados é copiar um arquivo. Turso é a alternativa para hospedagens sem volume, mas cada gravação passa pela rede e os dados precisam ser copiados de outra forma.
 
 | Variável | Valor |
