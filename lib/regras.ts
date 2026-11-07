@@ -120,6 +120,8 @@ export const chaveLimite = (g: Grupo, k: string) => `${g}.${k}`;
 export const chaveCriado = (id: string) => `criados.${id}`;
 export const fichaPrivada = (f: { donoId: string; dados: Pick<DadosFicha, 'publica'> }, mestreId: string) => f.donoId === mestreId && !f.dados.publica;
 export const PONTOS_POR_VANTAGEM = 15;
+/* Atributo é bruto: dá vantagem, mas o valor dele não soma no resultado, nem na rolagem dele mesmo. */
+export const somaNaRolagem = (g: Grupo) => g !== 'corpo' && g !== 'mente';
 /* Regra do criador do sistema: a cada 15 pontos no atributo, 1 dado de vantagem, seja na rolagem do atributo ou na de uma perícia dele. Elementos e armas não têm atributo definido. */
 export function vantagemDaRolagem(f: Pick<DadosFicha, 'corpo' | 'mente'>, grupo: Grupo, chave: string) {
   const atributo = grupo === 'pericias' ? ATRIBUTO_DA_PERICIA[chave] : grupo === 'corpo' || grupo === 'mente' ? chave : undefined;

@@ -1,4 +1,4 @@
-import { expressaoDaRolagem, lerAcao } from '../lib/resumoFicha';
+import { acoesDeRolagem, expressaoDaRolagem, lerAcao } from '../lib/resumoFicha';
 import { describe, expect, it } from 'vitest';
 import * as R from '../lib/regras';
 
@@ -91,7 +91,14 @@ describe('regras do sistema', () => {
     expect(lerAcao(f, 'pericias.aparar')).toMatchObject({ valor: 5, vantagem: 0 });
     /* Sorte não tem atributo definido. */
     expect(lerAcao(f, 'pericias.sorte')).toMatchObject({ valor: 5, vantagem: 0 });
-    expect(lerAcao(f, 'corpo.destreza')).toMatchObject({ valor: 15, vantagem: 1 });
+  });
+
+  it('rolar o próprio atributo tem a vantagem dele, sem somar o valor', () => {
+    const f = R.normalizar({ corpo: { destreza: 15, tracao: 7 } });
+    expect(lerAcao(f, 'corpo.destreza')).toMatchObject({ valor: 0, vantagem: 1 });
+    expect(lerAcao(f, 'corpo.tracao')).toMatchObject({ valor: 0, vantagem: 0 });
+    expect(acoesDeRolagem(f).find(a => a.id === 'corpo.destreza')!.expressao).toBe('2d20kh1');
+    expect(acoesDeRolagem(f).find(a => a.id === 'corpo.tracao')!.expressao).toBe('1d20');
   });
 
   it('elementos e armas não ganham vantagem de atributo', () => {

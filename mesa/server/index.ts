@@ -446,13 +446,13 @@ async function revalidarVinculos(room: RoomState) {
   for (const fichaId of fichas) await sincronizarFicha(room, fichaId)
 }
 
-/* Iniciativa é uma rolagem de Destreza da ficha vinculada, com a vantagem dela. Token oculto rola em segredo: o chat é de todos. */
+/* Iniciativa é uma rolagem de Destreza da ficha vinculada: tem a vantagem dela, sem somar o valor. Token oculto rola em segredo: o chat é de todos. */
 async function rolarIniciativa(room: RoomState, player: RoomPlayer, tokenId: string) {
   const token = room.tokens.get(tokenId)
   const entrada = room.combate?.lista.find((item) => item.tokenId === tokenId)
   if (!token || !entrada) return
   const ficha = token.characterId ? await lerFicha(token.characterId) : null
-  const expressao = expressaoDaRolagem(ficha?.dados.corpo.destreza ?? 0, ficha ? R.vantagemDaRolagem(ficha.dados, 'corpo', 'destreza') : 0)
+  const expressao = expressaoDaRolagem(0, ficha ? R.vantagemDaRolagem(ficha.dados, 'corpo', 'destreza') : 0)
   const roll = rollDice(expressao)
   entrada.iniciativa = roll.total
   if (token.hidden) return

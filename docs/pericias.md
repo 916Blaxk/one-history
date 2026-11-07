@@ -11,7 +11,7 @@ A numeração é corrida, na ordem do código. O documento do sistema pulava de 
 - **Valor:** cada perícia guarda um valor por ficha, que começa em 0.
 - **Treino e Outros:** Treino é o valor da perícia e gasta SP. Outros é um bônus livre, sem gastar SP.
 - **Rolagem:** rolar uma perícia é d20 com a vantagem do atributo + bônus (Treino + Outros). O servidor lê os valores, e o navegador não escolhe o bônus.
-- **Atributo:** cada perícia usa o atributo da lista do sistema, que dá vantagem, mas o valor dele não soma no resultado. Sorte não está na lista e rola sem vantagem.
+- **Atributo:** cada perícia usa o atributo da lista do sistema, que dá vantagem, mas o valor dele não soma no resultado. Sorte é sem atributo e rola sem vantagem.
 - **SP:** a soma do Treino de todas as perícias é o SP gasto. O SP total vem do estágio do núcleo mais o ajuste do mestre.
 - **Travas do jogador:** o jogador não sobe uma perícia além do SP total nem do limite que o mestre definir para ela.
 - **Mestre:** o mestre pode deixar um valor acima do limite. Depois disso, o jogador só pode baixar esse valor.
@@ -20,7 +20,7 @@ A numeração é corrida, na ordem do código. O documento do sistema pulava de 
 
 Regra passada por Arthur Baldo, que criou o sistema, em 7 de novembro de 2026. Substitui a tabela de dado adicional (1d2 a 1d10).
 
-A cada 15 pontos em um atributo, a rolagem desse atributo e das perícias dele ganha 1 dado de vantagem. Cada vantagem rola mais um d20, e fica o maior.
+A cada 15 pontos em um atributo, a rolagem desse atributo e das perícias dele ganha 1 dado de vantagem. Cada vantagem rola mais um d20, e fica o maior. O valor do atributo nunca soma no resultado.
 
 | Atributo | Vantagem | Dados |
 | --- | --- | --- |
@@ -30,8 +30,9 @@ A cada 15 pontos em um atributo, a rolagem desse atributo e das perícias dele g
 
 Exemplo: com 15 de Destreza e 5 de Esquiva, esquivar rola 2d20, fica o maior, e soma 5.
 
-- **Atributos:** rolar o próprio atributo tem a vantagem dele e soma o valor. A iniciativa é uma rolagem de Destreza.
-- **Elementos e armas:** rolam d20 + valor, sem vantagem.
+- **Atributos:** rolar o próprio atributo tem a vantagem dele e não soma nada. Com 15 de Destreza, rola 2d20 e fica o maior. A iniciativa é uma rolagem de Destreza.
+- **Sorte:** é sem atributo e rola sem vantagem, por decisão de quem criou o sistema.
+- **Elementos e armas:** rolam d20 + valor, sem vantagem. Os pontos de atributo também podem ser distribuídos neles, mas o site ainda não controla esse total.
 
 ## SP e vida por estágio do núcleo
 

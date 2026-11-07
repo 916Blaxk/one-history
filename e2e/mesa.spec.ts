@@ -113,15 +113,21 @@ test('fadiga: encerrar cena reduz a mana total de vez e 100% esconde o nome', as
   await expect(p.getByText(/= 46$/)).toBeVisible();
 });
 
-test('rolar atributo mostra d20 + valor', async ({ browser }) => {
+test('rolar atributo não soma o valor, e 15 pontos dão vantagem', async ({ browser }) => {
   const p = await novaPessoa(browser, 'Cid');
   await criarFicha(p, 'Rola');
   await p.locator('#a-corpo-destreza').fill('7');
   await p.locator('#a-corpo-destreza').press('Enter');
-  await p.getByRole('button', { name: 'Rolar d20 mais Destreza' }).click();
+  await p.getByRole('button', { name: 'Rolar d20 de Destreza' }).click();
   await expect(p.locator('.chat-popup')).toBeVisible();
   await expect(p.locator('.msg').first().locator('.msg-rotulo')).toHaveText('Destreza');
-  await expect(p.locator('.msg').first().locator('.msg-det')).toHaveText(/^d20 \(\d+\) \+ 7$/);
+  await expect(p.locator('.msg').first().locator('.msg-det')).toHaveText(/^d20 \(\d+\)$/);
+
+  await p.locator('#a-corpo-destreza').fill('15');
+  await p.locator('#a-corpo-destreza').press('Enter');
+  await expect(p.getByRole('status').filter({ hasText: 'Salvo' })).toBeVisible();
+  await p.getByRole('button', { name: 'Rolar d20 de Destreza' }).click();
+  await expect(p.locator('.chat-popup .msg-det')).toHaveText(/^2d20, fica o maior \(\d+, \d+\)$/);
 });
 
 test('foto: entra inteira, sem corte, e o ajuste escolhe o trecho', async ({ browser }) => {
@@ -433,14 +439,14 @@ test('chat de dados: pop-up ao rolar, histórico guardado e continua depois de r
   await expect(p.locator('.msg-total').first()).toHaveText(String(esperado));
 
   /* Com o chat aberto, rolar pela ficha cai nele, sem pop-up por cima. */
-  await p.getByRole('button', { name: 'Rolar d20 mais Destreza' }).click();
+  await p.getByRole('button', { name: 'Rolar d20 de Destreza' }).click();
   await expect(p.locator('.chat-flutuante .msg')).toHaveCount(2);
   await expect(p.locator('.chat-popup')).toHaveCount(0);
 
   /* Com o chat fechado, rolar pela ficha mostra só o resultado, e não o chat inteiro. */
   await p.keyboard.press('Escape');
   await expect(p.locator('.chat-flutuante')).toHaveCount(0);
-  await p.getByRole('button', { name: 'Rolar d20 mais Tração' }).click();
+  await p.getByRole('button', { name: 'Rolar d20 de Tração' }).click();
   await expect(p.locator('.chat-popup .msg-rotulo')).toHaveText('Tração');
   await expect(p.locator('.chat-flutuante')).toHaveCount(0);
   await expect(p.getByRole('status').filter({ hasText: 'Salvo' })).toBeVisible();
@@ -450,14 +456,14 @@ test('chat de dados: pop-up ao rolar, histórico guardado e continua depois de r
   await p.locator('.folio').click({ position: { x: 2, y: 2 } });
   await p.waitForTimeout(5000);
   await expect(p.locator('.chat-popup')).toBeVisible();
-  await p.getByRole('button', { name: 'Rolar d20 mais Destreza' }).click();
+  await p.getByRole('button', { name: 'Rolar d20 de Destreza' }).click();
   await expect(p.locator('.chat-popup .msg-rotulo')).toHaveText('Destreza');
   await expect(p.locator('.chat-popup .msg')).toHaveCount(1);
   await p.getByRole('button', { name: 'Fechar o resultado da rolagem' }).click();
   await expect(p.locator('.chat-popup')).toHaveCount(0);
 
   /* A pílula abre o chat inteiro, com a rolagem do pop-up. Ao fechar, o pop-up não volta. */
-  await p.getByRole('button', { name: 'Rolar d20 mais Tração' }).click();
+  await p.getByRole('button', { name: 'Rolar d20 de Tração' }).click();
   await expect(p.locator('.chat-popup')).toBeVisible();
   await p.getByRole('button', { name: 'Chat de dados' }).click();
   await expect(p.locator('.chat-flutuante .msg')).toHaveCount(5);
@@ -478,13 +484,13 @@ test('chat de dados: o d20 não fica coberto pelo pop-up nem pelo chat aberto no
   const p = await novaPessoa(browser, 'Jaci');
   await p.setViewportSize({ width: 1280, height: 800 });
   await criarFicha(p, 'Cobertura');
-  await p.getByRole('button', { name: 'Rolar d20 mais Destreza' }).click();
+  await p.getByRole('button', { name: 'Rolar d20 de Destreza' }).click();
   await expect(p.locator('.chat-popup')).toBeVisible();
   /* Se algo estivesse por cima, estes cliques falhariam. */
-  await p.getByRole('button', { name: 'Rolar d20 mais Destreza' }).click();
+  await p.getByRole('button', { name: 'Rolar d20 de Destreza' }).click();
   await p.getByRole('button', { name: 'Chat de dados' }).click();
   await expect(p.locator('.chat-flutuante .msg')).toHaveCount(2);
-  await p.getByRole('button', { name: 'Rolar d20 mais Destreza' }).click();
+  await p.getByRole('button', { name: 'Rolar d20 de Destreza' }).click();
   await expect(p.locator('.chat-flutuante .msg')).toHaveCount(3);
 });
 
@@ -531,7 +537,7 @@ test('campanha: mestre convida, jogador entra pelo link, tudo aparece ao vivo', 
   await expect(jogador.locator('article.ficha')).toHaveAttribute('data-estagio', '60', { timeout: 10000 });
 
   /* A rolagem do jogador cai no registro da mesa do mestre. */
-  await jogador.getByRole('button', { name: 'Rolar d20 mais Destreza' }).click();
+  await jogador.getByRole('button', { name: 'Rolar d20 de Destreza' }).click();
   await mestre.getByRole('link', { name: /Voltar para A Queda de Vael/ }).click();
   const rolagemTheo = mestre.locator('.chat-painel .msg').filter({ hasText: 'Theo' }).first();
   await expect(rolagemTheo).toContainText('Destreza');

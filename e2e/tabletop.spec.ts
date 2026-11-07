@@ -77,11 +77,11 @@ test('mesa: mestre é GM, jogador usa a ficha, rola e a vida sincroniza nos dois
 
   /* Rolagem pela ficha aparece para os dois, com resultado do servidor. */
   await jogador.locator('.mini-sheet-group summary', { hasText: 'Corpo' }).click();
-  await jogador.getByRole('button', { name: 'Rolar Destreza: 1d20+7' }).click();
+  await jogador.getByRole('button', { name: 'Rolar Destreza: 1d20' }).click();
   await expect(jogador.locator('.chat-roll-label').last()).toHaveText('Destreza');
   await mestre.getByRole('button', { name: 'Abrir chat' }).click();
   await expect(mestre.locator('.chat-roll-label').last()).toHaveText('Destreza');
-  await expect(mestre.locator('.dice-roll-expression').last()).toHaveText(/1d20\+7/);
+  await expect(mestre.locator('.dice-roll-expression').last()).toHaveText(/1d20/);
 
   /* Chat e rolagem por comando. */
   await jogador.getByLabel('Mensagem ou comando').fill('/r 2d20kh1+5');
@@ -160,9 +160,9 @@ test('mesa: o mestre controla grade e névoa, e o que muda aparece para o jogado
 test('a ficha continua igual fora da mesa, com rolagem e chat do site', async ({ browser }) => {
   const { jogador, fichaId } = await montar(browser);
   await jogador.goto(`/fichas/${fichaId}`);
-  await jogador.getByRole('button', { name: 'Rolar d20 mais Destreza' }).click();
+  await jogador.getByRole('button', { name: 'Rolar d20 de Destreza' }).click();
   await expect(jogador.locator('.chat-popup')).toBeVisible();
-  await expect(jogador.locator('.msg').first().locator('.msg-det')).toHaveText(/^d20 \(\d+\) \+ 7$/);
+  await expect(jogador.locator('.msg').first().locator('.msg-det')).toHaveText(/^d20 \(\d+\)$/);
 });
 
 /* Lê um pixel da tela: a névoa e os tokens são desenhados em WebGL, sem nada no HTML para conferir. */

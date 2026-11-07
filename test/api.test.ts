@@ -458,16 +458,16 @@ describe('campanhas', () => {
     expect((await intruso.c('POST', `/api/convites/${novo}/entrar`)).status).toBe(200);
   });
 
-  it('rolagem de atributo é d20 + valor guardado, sem aceitar bônus do navegador, e aparece no registro', async () => {
+  it('rolagem de atributo não soma o valor, não aceita bônus do navegador e aparece no registro', async () => {
     const { mestre, jog, c, codigo } = await mesa();
     await jog.c('POST', `/api/convites/${codigo}/entrar`);
     const f = await novaFicha(jog.c, { nome: 'Rola', corpo: { destreza: 7 } });
     await jog.c('POST', `/api/campanhas/${c.id}/fichas`, { fichaId: f.id });
     const r = (await jog.c('POST', `/api/fichas/${f.id}/rolar`, { atributo: 'corpo.destreza', lados: 100, bonus: 500 })).corpo.rolagem;
-    expect(r.total).toBeGreaterThanOrEqual(8);
-    expect(r.total).toBeLessThanOrEqual(27);
+    expect(r.total).toBeGreaterThanOrEqual(1);
+    expect(r.total).toBeLessThanOrEqual(20);
     expect(r.rotulo).toBe('Destreza');
-    expect(r.det).toMatch(/^d20 \(\d+\) \+ 7$/);
+    expect(r.det).toMatch(/^d20 \(\d+\)$/);
     const { mensagens } = (await mestre.c('GET', `/api/campanhas/${c.id}/chat`)).corpo;
     expect(mensagens[0].autor).toBe('Rola');
     expect(mensagens[0].total).toBe(r.total);
@@ -605,7 +605,7 @@ describe('resumo da ficha', () => {
     expect(r.corpo.recursos[0]).toEqual({ id: 'vida', rotulo: 'Vida', atual: 25, max: 25 });
     /* Sem elemento adicionado, os cinco elementos base não viram rolagem. */
     expect(r.corpo.acoes).toHaveLength(64);
-    expect(r.corpo.acoes.find((a: { id: string }) => a.id === 'corpo.destreza').expressao).toBe('1d20+7');
+    expect(r.corpo.acoes.find((a: { id: string }) => a.id === 'corpo.destreza').expressao).toBe('1d20');
     expect((await mestre.c('GET', `/api/fichas/${f.id}/resumo`)).status).toBe(200);
     expect((await colega.c('GET', `/api/fichas/${f.id}/resumo`)).status).toBe(404);
     expect((await intruso.c('GET', `/api/fichas/${f.id}/resumo`)).status).toBe(404);
