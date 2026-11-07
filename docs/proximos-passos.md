@@ -14,18 +14,19 @@
 
 Estas aguardam Arthur Baldo, que criou o sistema e decide as regras de dados.
 
-1. **Total de pontos de atributo:** os pontos de atributo também podem ir para armas e elementos, mas falta saber quantos pontos a ficha tem e como eles crescem. Sem isso, o site não controla esse total.
-2. **Coluna Outros:** veio da imagem de referência e continua somando na rolagem. Falta saber se fica.
-3. **Iniciativa:** foi tratada como rolagem de Destreza, então tem a vantagem dela e não soma o valor. Falta confirmar.
+1. **AP e PP no núcleo:** Arthur vai definir quanto cada estágio dá. Até lá, os totais são 25 AP e 20 PP, mais o bônus de cada ficha. A tabela antiga de SP saiu do site.
 
 ## Decisões tomadas
 
+- **Edição da ficha (7 de novembro de 2026):** o dono e o mestre editam tudo, inclusive núcleo, fadiga, bônus, limites e encerrar cena. Totais e limites só avisam, em destaque, e nenhum número bloqueia. Só `publica` continua com o mestre, porque decide quem vê a ficha dele. A fadiga guardada na saída da campanha continua voltando ao retornar, mas o dono já pode mudá-la depois.
+- **Pontos (7 de novembro de 2026):** a ficha começa com 25 AP, divididos entre atributos, armas e elementos, e 20 PP. O limite por perícia começa em 5, e o limite de atributos fica a critério do mestre.
+- **Armas e elementos (7 de novembro de 2026):** 1 dado de vantagem a cada 15 pontos e soma de 1/3 do valor, para baixo.
+- **Iniciativa e coluna Outros (7 de novembro de 2026):** a iniciativa é rolagem de Destreza, com vantagem e sem somar o valor. A coluna Outros fica e soma na rolagem.
 - **Vantagem de atributo (7 de novembro de 2026):** a cada 15 pontos, 1 dado de vantagem, que é mais um d20, ficando o maior. O dado adicional de 1d2 a 1d10 saiu. O valor do atributo não soma, nem na rolagem dele mesmo. Sorte é sem atributo. Veja [pericias.md](pericias.md).
 - **Névoa para o mestre (7 de novembro de 2026):** subiu de 55% para 85% de opacidade, porque dava para ver demais por trás. Para o jogador, ela já era totalmente opaca.
 - **Brecha da fadiga (6 de novembro de 2026):** quando a ficha sai de uma campanha, o servidor guarda a fadiga dela. Se a ficha voltar para a mesma campanha, a fadiga volta a esse valor, e o registro da ficha mostra a mudança. Em outra campanha, a ficha entra com o maior valor entre a fadiga atual e a da última saída, e o mestre de lá pode corrigir.
 - **Quem cria elemento (6 de novembro de 2026):** o dono da ficha e o mestre.
 - **Fusão e variação de elementos (6 de novembro de 2026):** partem de elementos base ou de elementos já criados na ficha. Um elemento usado em outro não pode ser removido antes dele.
-- **Encerrar cena (6 de novembro de 2026):** em campanha, só o mestre. Fora de campanha, o dono da ficha, como na fadiga.
 - **Imagens do token (6 de novembro de 2026):** o token não usa a foto da ficha. Tem três vagas: Normal, Machucado (abaixo da metade da vida) e Armado (por botão, do dono e do mestre). O machucado vem na frente do armado.
 - **Armas (6 de novembro de 2026):** a ficha tem Armas leves, Armas médias e Armas pesadas, sem as específicas. Valores das armas antigas não foram convertidos.
 - **Atributos e vida (6 de novembro de 2026):** Tenacidade saiu da ficha. O jogador pode mudar a vida máxima, e a diferença para a fórmula vira um ajuste, então vitalidade e núcleo continuam somando. Os limites que o mestre definir continuam valendo.

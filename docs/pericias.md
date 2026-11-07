@@ -9,12 +9,13 @@ A numeração é corrida, na ordem do código. O documento do sistema pulava de 
 ## Como funcionam
 
 - **Valor:** cada perícia guarda um valor por ficha, que começa em 0.
-- **Treino e Outros:** Treino é o valor da perícia e gasta SP. Outros é um bônus livre, sem gastar SP.
+- **Treino e Outros:** Treino é o valor da perícia e gasta PP. Outros é um bônus livre, sem gastar PP.
 - **Rolagem:** rolar uma perícia é d20 com a vantagem do atributo + bônus (Treino + Outros). O servidor lê os valores, e o navegador não escolhe o bônus.
 - **Atributo:** cada perícia usa o atributo da lista do sistema, que dá vantagem, mas o valor dele não soma no resultado. Sorte é sem atributo e rola sem vantagem.
-- **SP:** a soma do Treino de todas as perícias é o SP gasto. O SP total vem do estágio do núcleo mais o ajuste do mestre.
-- **Travas do jogador:** o jogador não sobe uma perícia além do SP total nem do limite que o mestre definir para ela.
-- **Mestre:** o mestre pode deixar um valor acima do limite. Depois disso, o jogador só pode baixar esse valor.
+- **PP (pontos de perícia):** a soma do Treino de todas as perícias é o PP gasto. A ficha começa com 20 PP, mais o bônus da ficha.
+- **AP (pontos de atributo):** a soma de atributos, armas e elementos, inclusive os criados, é o AP gasto. A ficha começa com 25 AP, mais o bônus da ficha.
+- **Limites:** cada perícia tem limite de 5, mais o bônus de limite da ficha, e o mestre o aumenta quando quiser. Também é possível definir o limite de uma perícia, de um atributo, de uma arma ou de um elemento.
+- **Edição:** o dono e o mestre editam toda a ficha. Totais e limites só avisam, em destaque: nenhum número bloqueia a edição, e a mesa confere.
 
 ## Vantagem
 
@@ -34,25 +35,25 @@ Exemplo: com 15 de Destreza e 5 de Esquiva, esquivar rola 2d20, fica o maior, e 
 - **Sorte:** é sem atributo e rola sem vantagem, por decisão de quem criou o sistema.
 - **Elementos e armas:** têm 1 dado de vantagem a cada 15 pontos e somam 1/3 do valor, para baixo. Com 15 de Fogo, rola 2d20, fica o maior, e soma 5.
 
-## SP e vida por estágio do núcleo
+## Vida por estágio do núcleo
 
-Cada estágio soma ao que os anteriores já deram.
+Cada estágio soma ao que os anteriores já deram. A tabela antiga de SP por estágio saiu do site: Arthur Baldo vai colocar AP e PP na progressão do núcleo.
 
-| Estágio | SP | SP acumulado | Vida | Vida acumulada |
-| --- | --- | --- | --- | --- |
-| Vermelho escuro | 15 | 15 | 0 | 0 |
-| Vermelho sólido | 5 | 20 | 2 | 2 |
-| Vermelho claro | 5 | 25 | 2 | 4 |
-| Laranja escuro | 7 | 32 | 3 | 7 |
-| Laranja sólido | 7 | 39 | 3 | 10 |
-| Laranja claro | 7 | 46 | 3 | 13 |
-| Amarelo escuro | 10 | 56 | 5 | 18 |
-| Amarelo sólido | 10 | 66 | 5 | 23 |
-| Amarelo claro | 10 | 76 | 5 | 28 |
-| Prata escuro | 15 | 91 | 10 | 38 |
-| Prata fosco | 15 | 106 | 10 | 48 |
-| Prata brilhante | 15 | 121 | 10 | 58 |
-| Branco | 40 | 161 | 40 | 98 |
+| Estágio | Vida | Vida acumulada |
+| --- | --- | --- |
+| Vermelho escuro | 0 | 0 |
+| Vermelho sólido | 2 | 2 |
+| Vermelho claro | 2 | 4 |
+| Laranja escuro | 3 | 7 |
+| Laranja sólido | 3 | 10 |
+| Laranja claro | 3 | 13 |
+| Amarelo escuro | 5 | 18 |
+| Amarelo sólido | 5 | 23 |
+| Amarelo claro | 5 | 28 |
+| Prata escuro | 10 | 38 |
+| Prata fosco | 10 | 48 |
+| Prata brilhante | 10 | 58 |
+| Branco | 40 | 98 |
 
 ## Lista
 
@@ -154,7 +155,6 @@ O documento e o código divergiam nestes pontos. Qualquer decisão pode mudar de
 | --- | --- |
 | Vida por estágio do núcleo | Segue o documento |
 | Dado adicional por perícia | Saiu: virou vantagem por atributo, por decisão de quem criou o sistema |
-| Vermelho escuro | Segue o código: dá 15 SP, e o documento dizia "nenhum efeito" |
 | Sorte | Segue o código: existe, e o documento não a citava |
 | Perícias adicionais | Foram distribuídas: Encantar e Extração de núcleo em Magia, Tecnologia em Conhecimento, Metalúrgica em Profissões e ofícios, Sorte em Exploração e utilidade |
 | Classe Magia | Criada a pedido, com as perícias mágicas que estavam em Profissões e ofícios |

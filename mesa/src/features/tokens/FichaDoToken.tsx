@@ -74,7 +74,6 @@ function FichaVinculada({ token, fichaId }: { token: Token; fichaId: string }) {
     window.setTimeout(() => useRoomStore.getState().setNotice(null), 3500)
   }
   const url = `/api/fichas/${fichaId}`
-  const mestre = useRoomStore((state) => state.role) === 'gm'
   /* A mana e a cena mudam pela mesma rota da página da ficha: as regras e os avisos continuam em um lugar só. */
   async function agir(acao: () => Promise<unknown>) {
     try {
@@ -172,23 +171,19 @@ function FichaVinculada({ token, fichaId }: { token: Token; fichaId: string }) {
         </details>
       )}
       <div className="mini-sheet-cena">
-        {mestre ? (
-          <label className="token-field">
-            Fadiga mental (%)
-            <input
-              key={data.fadiga}
-              type="number"
-              min="0"
-              max="100"
-              defaultValue={data.fadiga}
-              onBlur={(event) => { if (Number(event.target.value) !== data.fadiga) void agir(() => api('PATCH', url, { fadiga: Number(event.target.value) })) }}
-              onKeyDown={(event) => { if (event.key === 'Enter') event.currentTarget.blur() }}
-            />
-          </label>
-        ) : (
-          <p className="mini-sheet-note">Fadiga mental: <b>{data.fadiga}%</b>. Só o mestre muda.</p>
-        )}
-        {mestre && <button className="token-image-button" type="button" onClick={encerrarCena}>Encerrar cena</button>}
+        <label className="token-field">
+          Fadiga mental (%)
+          <input
+            key={data.fadiga}
+            type="number"
+            min="0"
+            max="100"
+            defaultValue={data.fadiga}
+            onBlur={(event) => { if (Number(event.target.value) !== data.fadiga) void agir(() => api('PATCH', url, { fadiga: Number(event.target.value) })) }}
+            onKeyDown={(event) => { if (event.key === 'Enter') event.currentTarget.blur() }}
+          />
+        </label>
+        <button className="token-image-button" type="button" onClick={encerrarCena}>Encerrar cena</button>
       </div>
       <button className="mini-sheet-text-button" type="button" onClick={desvincular}>Desvincular ficha</button>
     </div>

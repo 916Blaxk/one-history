@@ -17,8 +17,8 @@ function IconeD20() {
 }
 
 /* Uma tabela só, em ordem alfabética, para achar a perícia sem abrir categorias. A classe vira um filtro opcional. */
-export default function TabelaPericias({ f, souMestre, editandoLimites, aoMudarTreino, aoMudarOutros, aoMudarLimite, aoRolar }: {
-  f: R.DadosFicha; souMestre: boolean; editandoLimites: boolean;
+export default function TabelaPericias({ f, editandoLimites, aoMudarTreino, aoMudarOutros, aoMudarLimite, aoRolar }: {
+  f: R.DadosFicha; editandoLimites: boolean;
   aoMudarTreino: (k: string, v: unknown) => void;
   aoMudarOutros: (k: string, v: unknown) => void;
   aoMudarLimite: (chave: string, v: string) => void;
@@ -41,16 +41,16 @@ export default function TabelaPericias({ f, souMestre, editandoLimites, aoMudarT
         {itens.map(([k, rotulo, desc]) => {
           const treino = f.pericias[k]!, outros = f.periciasOutros[k] ?? 0, chave = R.chaveLimite('pericias', k), limite = f.limites[chave];
           const atributo = R.ATRIBUTO_DA_PERICIA[k], vantagem = R.vantagemDaRolagem(f, 'pericias', k);
-          const idCampo = `a-pericias-${k}`;
+          const idCampo = `a-pericias-${k}`, limiteAtual = R.limiteDoItem(f, 'pericias', k)!, acima = treino > limiteAtual;
           return (
-            <li className="pericia-linha" data-treinada={treino > 0} key={k}>
+            <li className="pericia-linha" data-treinada={treino > 0} data-acima={acima} key={k}>
               <button type="button" className="pericia-rolar" title={`Rolar ${vantagem ? `${vantagem + 1}d20, fica o maior,` : 'd20'} + ${treino + outros}`} aria-label={`Rolar d20 mais ${rotulo}`} onClick={() => aoRolar(k)}><IconeD20 /></button>
-              <label className="pericia-nome" htmlFor={idCampo} title={desc}>{rotulo}{limite !== undefined && !editandoLimites && <small>Máx. {limite}</small>}</label>
+              <label className="pericia-nome" htmlFor={idCampo} title={desc}>{rotulo}{(limite !== undefined || acima) && !editandoLimites && <small>Máx. {limiteAtual}</small>}</label>
               <span className="pericia-dados" data-vantagem={vantagem > 0} title={atributo ? `${NOME_ATRIBUTO[atributo]}: ${vantagem} de vantagem (1 a cada ${R.PONTOS_POR_VANTAGEM} pontos)` : 'Sem atributo definido'}>( {atributo ? SIGLA[atributo] : '—'}{vantagem > 0 && ` +${vantagem}`} )</span>
               <span className="pericia-bonus" aria-label={`Bônus de ${rotulo}: ${treino + outros}`}>( {treino + outros} )</span>
               <CampoNumero id={idCampo} min={0} valor={treino} aoMudar={v => aoMudarTreino(k, v)} />
               <CampoNumero aria-label={`Outros de ${rotulo}`} min={0} valor={outros} aoMudar={v => aoMudarOutros(k, v)} />
-              {souMestre && editandoLimites && (
+              {editandoLimites && (
                 <label className="campo-limite">
                   Limite de {rotulo}
                   <input type="number" inputMode="numeric" min={0} max={999} placeholder="Sem limite" value={limite ?? ''} onChange={ev => aoMudarLimite(chave, ev.target.value)} />

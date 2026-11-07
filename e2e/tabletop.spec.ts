@@ -322,12 +322,10 @@ test('mesa: mapa, névoa, combate, magia e ferramentas na mesma sessão', async 
   await jogador.getByRole('button', { name: 'Conjurar Bola de fogo' }).click();
   await expect(jogador.locator('.mini-sheet-identity')).toContainText('Mana: 20');
   await expect(jogador.getByLabel('Mana atual')).toHaveValue('20');
-  /* A fadiga é do mestre: o jogador só vê. */
-  await expect(jogador.getByLabel('Fadiga mental (%)')).toHaveCount(0);
+  /* O dono edita a fadiga e encerra a cena, como o mestre, e vê o que o mestre mudar. */
   await mestre.request.patch(`/api/fichas/${fichaId}`, { data: { fadiga: 60 } });
-  await expect(jogador.locator('.mini-sheet-cena')).toContainText('60%');
-  /* A cena também é do mestre: o jogador nem vê o botão. */
-  await expect(jogador.getByRole('button', { name: 'Encerrar cena' })).toHaveCount(0);
+  await expect(jogador.getByLabel('Fadiga mental (%)')).toHaveValue('60');
+  await expect(jogador.getByRole('button', { name: 'Encerrar cena' })).toBeVisible();
   await mestre.request.post(`/api/fichas/${fichaId}/encerrar-cena`, { data: {} });
   await expect.poll(async () => (await (await jogador.request.get(`/api/fichas/${fichaId}`)).json()).ficha.manaPerdida).toBeGreaterThan(0);
   /* O jogador não remove o token da ficha: a tecla nem pergunta. O mestre confirma e remove. */

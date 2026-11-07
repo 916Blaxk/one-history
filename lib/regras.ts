@@ -53,24 +53,27 @@ export const ESTAGIOS: Estagio[] = [
   { min: 100, nome: '???', txt: '' },
 ];
 
-export interface EstagioNucleo { nome: string; mana: number; gasto: number; sp: number; pv: number; txt?: string }
+export interface EstagioNucleo { nome: string; mana: number; gasto: number; pv: number; txt?: string }
 export const NUCLEOS: EstagioNucleo[] = [
-  { nome: 'Vermelho escuro', mana: 0, gasto: 0, sp: 15, pv: 0, txt: 'Seu núcleo acabou de se formar em seu corpo, cheio de impurezas do sangue. Ele fica entre os pulmões e acima do estômago. Você pode sentir as veias de mana passarem por seu corpo, o fortalecendo e tomando uma forma…' },
-  { nome: 'Vermelho sólido', mana: 2, gasto: 0, sp: 5, pv: 2 },
-  { nome: 'Vermelho claro', mana: 2, gasto: 0, sp: 5, pv: 2 },
-  { nome: 'Laranja escuro', mana: 3, gasto: 2, sp: 7, pv: 3 },
-  { nome: 'Laranja sólido', mana: 3, gasto: 0, sp: 7, pv: 3 },
-  { nome: 'Laranja claro', mana: 3, gasto: 0, sp: 7, pv: 3 },
-  { nome: 'Amarelo escuro', mana: 5, gasto: 3, sp: 10, pv: 5 },
-  { nome: 'Amarelo sólido', mana: 5, gasto: 0, sp: 10, pv: 5 },
-  { nome: 'Amarelo claro', mana: 5, gasto: 0, sp: 10, pv: 5 },
-  { nome: 'Prata escuro', mana: 10, gasto: 5, sp: 15, pv: 10 },
-  { nome: 'Prata fosco', mana: 10, gasto: 0, sp: 15, pv: 10 },
-  { nome: 'Prata brilhante', mana: 10, gasto: 0, sp: 15, pv: 10 },
-  { nome: 'Branco', mana: 50, gasto: 10, sp: 40, pv: 40 },
+  { nome: 'Vermelho escuro', mana: 0, gasto: 0, pv: 0, txt: 'Seu núcleo acabou de se formar em seu corpo, cheio de impurezas do sangue. Ele fica entre os pulmões e acima do estômago. Você pode sentir as veias de mana passarem por seu corpo, o fortalecendo e tomando uma forma…' },
+  { nome: 'Vermelho sólido', mana: 2, gasto: 0, pv: 2 },
+  { nome: 'Vermelho claro', mana: 2, gasto: 0, pv: 2 },
+  { nome: 'Laranja escuro', mana: 3, gasto: 2, pv: 3 },
+  { nome: 'Laranja sólido', mana: 3, gasto: 0, pv: 3 },
+  { nome: 'Laranja claro', mana: 3, gasto: 0, pv: 3 },
+  { nome: 'Amarelo escuro', mana: 5, gasto: 3, pv: 5 },
+  { nome: 'Amarelo sólido', mana: 5, gasto: 0, pv: 5 },
+  { nome: 'Amarelo claro', mana: 5, gasto: 0, pv: 5 },
+  { nome: 'Prata escuro', mana: 10, gasto: 5, pv: 10 },
+  { nome: 'Prata fosco', mana: 10, gasto: 0, pv: 10 },
+  { nome: 'Prata brilhante', mana: 10, gasto: 0, pv: 10 },
+  { nome: 'Branco', mana: 50, gasto: 10, pv: 40 },
 ];
 
-export interface AjustesMestre { vida: number; mana: number; sp: number }
+export const AP_INICIAL = 25;
+export const PP_INICIAL = 20;
+export const LIMITE_PERICIA_INICIAL = 5;
+export interface AjustesMestre { vida: number; mana: number; ap: number; pp: number; limitePericia: number }
 export interface Magia { id: string; nome: string; elemento: string; custo: number; dano: string; alcance: string; duracao: string; descricao: string }
 export const LIMITE_MAGIAS = 100;
 /* Variação de um elemento base ou fusão de dois. A origem é sempre um dos cinco elementos base. */
@@ -90,11 +93,11 @@ export interface DadosFicha {
   manaPerdida: number; fadiga: number; vidaAtual: number; manaAtual: number; nucleo: number;
   elementos: Record<string, number>; armas: Record<string, number>;
   corpo: Record<string, number>; mente: Record<string, number>; pericias: Record<string, number>;
-  /* Só o mestre da campanha altera estes dois. `limites` usa chaves "grupo.item"; sem chave, não há limite. */
+  /* `limites` usa chaves "grupo.item". Limite só avisa: nenhum número bloqueia a edição. */
   ajustes: AjustesMestre; limites: Record<string, number>;
   magias: Magia[];
   elementosCriados: ElementoCriado[];
-  /* Bônus livre de cada perícia. Soma na rolagem, mas não gasta SP, que vem do treino. */
+  /* Bônus livre de cada perícia. Soma na rolagem, mas não gasta PP, que vem do treino. */
   periciasOutros: Record<string, number>;
   /* Elementos base que o personagem tem. A ficha começa sem nenhum, e o jogador adiciona os dele. */
   elementosAtivos: string[];
@@ -108,15 +111,24 @@ type BaseMana = Pick<DadosFicha, 'mente' | 'tier' | 'manaPerdida' | 'nucleo' | '
 
 /* Cada estágio soma ao que os anteriores já deram. Fichas gravadas antes do núcleo não têm o campo e ficam no primeiro estágio. */
 export function bonusNucleo(estagioNucleo: number | undefined) {
-  const total = { mana: 0, gasto: 0, sp: 0, pv: 0 };
+  const total = { mana: 0, gasto: 0, pv: 0 };
   for (const n of NUCLEOS.slice(0, (estagioNucleo ?? 0) + 1)) {
-    total.mana += n.mana; total.gasto += n.gasto; total.sp += n.sp; total.pv += n.pv;
+    total.mana += n.mana; total.gasto += n.gasto; total.pv += n.pv;
   }
   return total;
 }
-export const spGastos = (f: Pick<DadosFicha, 'pericias'>) => Object.values(f.pericias).reduce((soma, v) => soma + v, 0);
-export const spTotal = (f: Pick<DadosFicha, 'nucleo' | 'ajustes'>) => Math.max(0, bonusNucleo(f.nucleo).sp + f.ajustes.sp);
+const somaValores = (r: Record<string, number>) => Object.values(r).reduce((soma, v) => soma + v, 0);
+export const ppGastos = (f: Pick<DadosFicha, 'pericias'>) => somaValores(f.pericias);
+export const ppTotal = (f: Pick<DadosFicha, 'ajustes'>) => Math.max(0, PP_INICIAL + f.ajustes.pp);
+/* Os pontos de atributo também podem ir para armas e elementos, inclusive os criados na ficha. */
+export const apGastos = (f: Pick<DadosFicha, 'corpo' | 'mente' | 'armas' | 'elementos' | 'elementosCriados'>) =>
+  somaValores(f.corpo) + somaValores(f.mente) + somaValores(f.armas) + somaValores(f.elementos) + f.elementosCriados.reduce((soma, e) => soma + e.valor, 0);
+export const apTotal = (f: Pick<DadosFicha, 'ajustes'>) => Math.max(0, AP_INICIAL + f.ajustes.ap);
 export const chaveLimite = (g: Grupo, k: string) => `${g}.${k}`;
+/* Toda perícia tem limite: o definido para ela ou o geral, que o mestre aumenta. Os demais só têm se alguém definir. */
+export function limiteDoItem(f: Pick<DadosFicha, 'limites' | 'ajustes'>, g: Grupo, k: string) {
+  return f.limites[chaveLimite(g, k)] ?? (g === 'pericias' ? Math.max(0, LIMITE_PERICIA_INICIAL + f.ajustes.limitePericia) : undefined);
+}
 export const chaveCriado = (id: string) => `criados.${id}`;
 export const fichaPrivada = (f: { donoId: string; dados: Pick<DadosFicha, 'publica'> }, mestreId: string) => f.donoId === mestreId && !f.dados.publica;
 export const PONTOS_POR_VANTAGEM = 15;
@@ -234,27 +246,7 @@ function normalizarHabilidades(entrada: unknown): Habilidade[] {
   });
 }
 
-/* O que o jogador não pode passar. Só corta o que subiu: valor que o mestre deixou acima do limite fica como está, e pode descer. */
-export function aplicarTravasDoJogador(nova: DadosFicha, antes: DadosFicha) {
-  for (const g of NOMES_GRUPOS) for (const [k] of GRUPOS[g]) {
-    const limite = nova.limites[chaveLimite(g, k)];
-    if (limite !== undefined && nova[g][k] > antes[g][k]) nova[g][k] = Math.max(antes[g][k], limite);
-  }
-  for (const criado of nova.elementosCriados) {
-    const limite = nova.limites[chaveCriado(criado.id)];
-    const antigo = antes.elementosCriados.find((e) => e.id === criado.id)?.valor ?? 0;
-    if (limite !== undefined && criado.valor > antigo) criado.valor = Math.max(antigo, limite);
-  }
-  let excesso = spGastos(nova) - spTotal(nova);
-  for (const [k] of GRUPOS.pericias) {
-    if (excesso <= 0) break;
-    const corte = Math.min(excesso, Math.max(0, nova.pericias[k] - antes.pericias[k]));
-    nova.pericias[k] -= corte;
-    excesso -= corte;
-  }
-}
-
-/* Transforma qualquer entrada em uma ficha válida: campos desconhecidos somem e números respeitam as travas. */
+/* Transforma qualquer entrada em uma ficha válida: campos desconhecidos somem e números ficam na faixa aceita. */
 export function normalizar(entrada: unknown): DadosFicha {
   const o = (entrada && typeof entrada === 'object' ? entrada : {}) as Record<string, any>;
   const elementosCriados = normalizarElementosCriados(o.elementosCriados);
@@ -271,7 +263,10 @@ export function normalizar(entrada: unknown): DadosFicha {
     ajustes: {
       vida: inteiro(o.ajustes?.vida ?? 0, -9999, 9999),
       mana: inteiro(o.ajustes?.mana ?? 0, -9999, 9999),
-      sp: inteiro(o.ajustes?.sp ?? 0, -9999, 9999),
+      ap: inteiro(o.ajustes?.ap ?? 0, -9999, 9999),
+      /* Fichas gravadas antes da troca de nome guardam o bônus em `sp`. */
+      pp: inteiro(o.ajustes?.pp ?? o.ajustes?.sp ?? 0, -9999, 9999),
+      limitePericia: inteiro(o.ajustes?.limitePericia ?? 0, -9999, 9999),
     },
     limites: {},
     magias: normalizarMagias(o.magias, elementosCriados),

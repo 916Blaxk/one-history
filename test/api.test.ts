@@ -269,26 +269,18 @@ describe('campanhas', () => {
     expect((await jog.c('GET', foto)).status).toBe(404);
   });
 
-  it('em campanha, só o mestre muda a fadiga; fora dela, o dono', async () => {
-    const { mestre, jog, c, codigo, f } = await mesa();
+  it('dono e mestre mudam a fadiga e encerram a cena, e quem é de fora não', async () => {
+    const { mestre, jog, intruso, c, codigo, f } = await mesa();
     expect((await jog.c('PATCH', `/api/fichas/${f.id}`, { fadiga: 30 })).corpo.ficha.fadiga).toBe(30);
     await jog.c('POST', `/api/convites/${codigo}/entrar`);
     await jog.c('POST', `/api/campanhas/${c.id}/fichas`, { fichaId: f.id });
-    const tentou = (await jog.c('PATCH', `/api/fichas/${f.id}`, { fadiga: 0, notas: 'segue valendo' })).corpo.ficha;
-    expect(tentou).toMatchObject({ fadiga: 30, notas: 'segue valendo' });
+    expect((await jog.c('PATCH', `/api/fichas/${f.id}`, { fadiga: 0 })).corpo.ficha.fadiga).toBe(0);
     expect((await mestre.c('PATCH', `/api/fichas/${f.id}`, { fadiga: 80 })).corpo.ficha.fadiga).toBe(80);
-  });
-
-  it('em campanha, só o mestre encerra a cena; fora dela, o dono', async () => {
-    const { mestre, jog, c, codigo, f } = await mesa();
     const encerrar = (quem: typeof jog.c) => quem('POST', `/api/fichas/${f.id}/encerrar-cena`);
     expect((await encerrar(jog.c)).status).toBe(200);
-    await jog.c('POST', `/api/convites/${codigo}/entrar`);
-    await jog.c('POST', `/api/campanhas/${c.id}/fichas`, { fichaId: f.id });
-    const antes = (await jog.c('GET', `/api/fichas/${f.id}`)).corpo.ficha.manaPerdida;
-    expect((await encerrar(jog.c)).status).toBe(403);
-    expect((await jog.c('GET', `/api/fichas/${f.id}`)).corpo.ficha.manaPerdida).toBe(antes);
     expect((await encerrar(mestre.c)).status).toBe(200);
+    expect((await encerrar(intruso.c)).status).toBe(404);
+    expect((await intruso.c('PATCH', `/api/fichas/${f.id}`, { fadiga: 1 })).status).toBe(404);
   });
 
   it('a fadiga volta ao valor da campanha quando a ficha retorna', async () => {
@@ -385,12 +377,14 @@ describe('campanhas', () => {
 
     const rolagem = (await jog.c('POST', `/api/fichas/${f.id}/rolar`, { atributo: 'criados.e1' })).corpo.rolagem;
     expect(rolagem.rotulo).toBe('Lava');
-    expect(rolagem.det).toMatch(/^d20 \(\d+\) \+ 3$/);
+    /* Lava tem 3 pontos, e elemento soma 1/3 do valor. */
+    expect(rolagem.det).toMatch(/^d20 \(\d+\) \+ 1$/);
     expect((await jog.c('POST', `/api/fichas/${f.id}/rolar`, { atributo: 'criados.nao-existe' })).status).toBe(400);
     expect((await jog.c('GET', `/api/fichas/${f.id}/resumo`)).corpo.acoes.some((a: { id: string; rotulo: string }) => a.id === 'criados.e2' && a.rotulo === 'Gelo')).toBe(true);
 
-    await mestre.c('PATCH', `/api/fichas/${f.id}`, { limites: { 'criados.e1': 4 } });
-    expect((await criar([{ ...lava, valor: 50 }, gelo])).corpo.ficha.elementosCriados[0].valor).toBe(4);
+    /* O limite fica guardado para o aviso na tela, sem cortar o valor. */
+    expect((await mestre.c('PATCH', `/api/fichas/${f.id}`, { limites: { 'criados.e1': 4 } })).corpo.ficha.limites).toEqual({ 'criados.e1': 4 });
+    expect((await criar([{ ...lava, valor: 50 }, gelo])).corpo.ficha.elementosCriados[0].valor).toBe(50);
 
     /* A magia guarda o dano e pode usar o elemento criado. Sem o elemento, ela não fica apontando para o nada. */
     const magia = { id: 'm1', nome: 'Erupção', elemento: 'e1', custo: 5, dano: '2d6+3', alcance: '', duracao: '', descricao: '' };
@@ -476,15 +470,15 @@ describe('campanhas', () => {
     expect((await jog.c('POST', `/api/fichas/${f.id}/rolar`, { atributo: 'constructor.x' })).status).toBe(400);
   });
 
-  it('só o mestre muda o núcleo; perícias são salvas e entram na rolagem', async () => {
+  it('dono e mestre mudam o núcleo; perícias são salvas e entram na rolagem', async () => {
     const { mestre, jog, c, codigo } = await mesa();
     await jog.c('POST', `/api/convites/${codigo}/entrar`);
-    const f = await novaFicha(jog.c, { nome: 'Núcleo', mente: { onipotencia: 7 }, nucleo: 12 });
+    const f = await novaFicha(jog.c, { nome: 'Núcleo', mente: { onipotencia: 7 } });
     expect(f.nucleo).toBe(0);
     expect(f.pericias.esquiva).toBe(0);
-    expect((await jog.c('PATCH', `/api/fichas/${f.id}`, { nucleo: 12 })).corpo.ficha.nucleo).toBe(0);
+    expect((await jog.c('PATCH', `/api/fichas/${f.id}`, { nucleo: 1 })).corpo.ficha.nucleo).toBe(1);
     await jog.c('POST', `/api/campanhas/${c.id}/fichas`, { fichaId: f.id });
-    expect((await jog.c('PATCH', `/api/fichas/${f.id}`, { nucleo: 12 })).corpo.ficha.nucleo).toBe(0);
+    expect((await jog.c('PATCH', `/api/fichas/${f.id}`, { nucleo: 2 })).corpo.ficha.nucleo).toBe(2);
 
     const doMestre = (await mestre.c('PATCH', `/api/fichas/${f.id}`, { nucleo: 3, manaAtual: 51 })).corpo.ficha;
     expect(doMestre.nucleo).toBe(3);
@@ -498,48 +492,41 @@ describe('campanhas', () => {
     expect(r.det).toMatch(/^d20 \(\d+\) \+ 4$/);
   });
 
-  it('só o mestre muda bônus e limites; o jogador para neles e nos SP', async () => {
+  it('dono e mestre editam bônus e limites, e nenhum número bloqueia a edição', async () => {
     const { mestre, jog, c, codigo, f } = await mesa();
     await jog.c('POST', `/api/convites/${codigo}/entrar`);
     await jog.c('POST', `/api/campanhas/${c.id}/fichas`, { fichaId: f.id });
 
-    const tentativa = (await jog.c('PATCH', `/api/fichas/${f.id}`, { ajustes: { sp: 500 }, limites: { 'corpo.tracao': 999 } })).corpo.ficha;
-    expect(tentativa.ajustes.sp).toBe(0);
-    expect(tentativa.limites).toEqual({});
+    const doDono = (await jog.c('PATCH', `/api/fichas/${f.id}`, { ajustes: { pp: 5 }, limites: { 'corpo.tracao': 3 } })).corpo.ficha;
+    expect(doDono.ajustes).toEqual({ vida: 0, mana: 0, ap: 0, pp: 5, limitePericia: 0 });
+    expect(doDono.limites).toEqual({ 'corpo.tracao': 3 });
 
-    const doMestre = (await mestre.c('PATCH', `/api/fichas/${f.id}`, { ajustes: { vida: 10, sp: 5 }, limites: { 'corpo.tracao': 3 } })).corpo.ficha;
-    expect(doMestre.ajustes).toEqual({ vida: 10, mana: 0, sp: 5 });
-    expect(doMestre.limites).toEqual({ 'corpo.tracao': 3 });
+    const doMestre = (await mestre.c('PATCH', `/api/fichas/${f.id}`, { ajustes: { vida: 10, ap: 2, limitePericia: 1 } })).corpo.ficha;
+    expect(doMestre.ajustes).toEqual({ vida: 10, mana: 0, ap: 2, pp: 5, limitePericia: 1 });
 
-    const cortada = (await jog.c('PATCH', `/api/fichas/${f.id}`, { corpo: { tracao: 9 }, pericias: { esquiva: 50 } })).corpo.ficha;
-    expect(cortada.corpo.tracao).toBe(3);
-    expect(cortada.pericias.esquiva).toBe(20);
-    expect(cortada.ajustes.vida).toBe(10);
-
-    const acima = (await mestre.c('PATCH', `/api/fichas/${f.id}`, { corpo: { tracao: 9 }, pericias: { esquiva: 50 } })).corpo.ficha;
+    /* Passar do limite e dos totais só gera aviso na tela: o valor é salvo. */
+    const acima = (await jog.c('PATCH', `/api/fichas/${f.id}`, { corpo: { tracao: 9 }, pericias: { esquiva: 50 } })).corpo.ficha;
     expect(acima.corpo.tracao).toBe(9);
     expect(acima.pericias.esquiva).toBe(50);
 
-    const desceu = (await jog.c('PATCH', `/api/fichas/${f.id}`, { pericias: { esquiva: 40 } })).corpo.ficha;
-    expect(desceu.pericias.esquiva).toBe(40);
-    const retirou = (await mestre.c('PATCH', `/api/fichas/${f.id}`, { limites: { 'corpo.tracao': null } })).corpo.ficha;
+    const retirou = (await jog.c('PATCH', `/api/fichas/${f.id}`, { limites: { 'corpo.tracao': null } })).corpo.ficha;
     expect(retirou.limites).toEqual({});
   });
 
-  it('ficha criada ou importada não traz bônus e não passa dos SP', async () => {
+  it('ficha criada ou importada mantém os valores, mas não se torna pública', async () => {
     const { c } = await novaConta('Importa');
-    const f = await novaFicha(c, { ajustes: { mana: 500, sp: 500 }, limites: { 'corpo.tracao': 1 }, pericias: { esquiva: 90 } });
-    expect(f.ajustes).toEqual({ vida: 0, mana: 0, sp: 0 });
-    expect(f.limites).toEqual({});
-    expect(f.pericias.esquiva).toBe(15);
+    const f = await novaFicha(c, { nucleo: 3, ajustes: { mana: 500, pp: 500 }, limites: { 'corpo.tracao': 1 }, pericias: { esquiva: 90 }, publica: true });
+    expect(f.nucleo).toBe(3);
+    expect(f.ajustes).toMatchObject({ mana: 500, pp: 500 });
+    expect(f.limites).toEqual({ 'corpo.tracao': 1 });
+    expect(f.pericias.esquiva).toBe(90);
+    expect(f.publica).toBe(false);
   });
 
-  it('fora de campanha o dono não muda bônus de mana e SP nem limites', async () => {
+  it('o jogador não muda se a ficha é pública: isso continua sendo do mestre', async () => {
     const { c } = await novaConta('Solo');
     const f = await novaFicha(c);
-    const r = (await c('PATCH', `/api/fichas/${f.id}`, { ajustes: { mana: 50, sp: 50 }, limites: { 'corpo.tracao': 1 } })).corpo.ficha;
-    expect(r.ajustes).toEqual({ vida: 0, mana: 0, sp: 0 });
-    expect(r.limites).toEqual({});
+    expect((await c('PATCH', `/api/fichas/${f.id}`, { publica: true })).corpo.ficha.publica).toBe(false);
   });
 
   it('perícia rola com treino e outros, e o servidor lê os dois da ficha', async () => {
@@ -565,9 +552,9 @@ describe('campanhas', () => {
     await jog.c('POST', `/api/convites/${codigo}/entrar`);
     await jog.c('POST', `/api/campanhas/${c.id}/fichas`, { fichaId: f.id });
     const url = `/api/fichas/${f.id}`;
-    /* 15 + vitalidade 0 × 2, e mais 25 de ajuste. Junto, o jogador não leva os outros bônus. */
-    const ajustada = (await jog.c('PATCH', url, { ajustes: { vida: 25, mana: 500, sp: 500 } })).corpo.ficha;
-    expect(ajustada.ajustes).toEqual({ vida: 25, mana: 0, sp: 0 });
+    /* 15 + vitalidade 0 × 2, e mais 25 de ajuste. */
+    const ajustada = (await jog.c('PATCH', url, { ajustes: { vida: 25 } })).corpo.ficha;
+    expect(ajustada.ajustes.vida).toBe(25);
     const comVitalidade = (await jog.c('PATCH', url, { corpo: { vitalidade: 5 } })).corpo.ficha;
     expect(comVitalidade.ajustes.vida).toBe(25);
     expect(comVitalidade.corpo.vitalidade).toBe(5);

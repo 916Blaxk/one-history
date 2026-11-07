@@ -287,7 +287,7 @@ test('perícias: existe a classe Magia, e as adicionais foram distribuídas', as
   await expect(p.locator('#a-pericias-esquiva')).toHaveCount(0);
   await p.getByLabel('Filtrar perícias').selectOption('Todas');
 
-  /* Treino gasta SP e acende a linha; Outros não gasta, e os dois somam no bônus e na rolagem. */
+  /* Treino gasta PP e acende a linha; Outros não gasta, e os dois somam no bônus e na rolagem. */
   const esquiva = p.locator('.pericia-linha').filter({ hasText: 'Esquiva' });
   await p.locator('#a-pericias-esquiva').fill('7');
   await p.locator('#a-pericias-esquiva').press('Enter');
@@ -295,7 +295,7 @@ test('perícias: existe a classe Magia, e as adicionais foram distribuídas', as
   await p.getByLabel('Outros de Esquiva').press('Enter');
   await expect(esquiva.locator('.pericia-bonus')).toHaveText('( 10 )');
   await expect(esquiva).toHaveAttribute('data-treinada', 'true');
-  await expect(p.getByText('7 de 15 SP usados')).toBeVisible();
+  await expect(p.getByText('7 de 20 PP usados')).toBeVisible();
   await expect(p.getByRole('status').filter({ hasText: 'Salvo' })).toBeVisible();
   await p.getByRole('button', { name: 'Rolar d20 mais Esquiva' }).click();
   await expect(p.locator('.chat-popup .msg-det')).toHaveText(/^d20 \(\d+\) \+ 10$/);
@@ -313,62 +313,79 @@ test('armas: a ficha traz as três categorias, sem as específicas', async ({ br
   await expect(p.locator('.chat-popup .msg-det')).toHaveText(/^d20 \(\d+\) \+ 1$/);
 });
 
-test('só o mestre muda o núcleo, que soma na mana; perícia conta SP e continua depois de recarregar', async ({ browser }) => {
+test('dono e mestre mudam o núcleo, que soma na mana; perícia conta PP e continua depois de recarregar', async ({ browser }) => {
   const p = await novaPessoa(browser, 'Mestra Nia');
   const jogador = await novaPessoa(browser, 'Jogador Noa');
   await criarFicha(jogador, 'Nucleada');
-  await expect(jogador.getByLabel('Estágio do núcleo')).toBeDisabled();
+  await expect(jogador.getByLabel('Estágio do núcleo')).toBeEnabled();
   const fichaId = await levarFichaParaMesa(p, jogador, 'Núcleos');
   await jogador.reload();
-  await expect(jogador.getByLabel('Estágio do núcleo')).toBeDisabled();
-  await expect(jogador.getByText('Só o mestre da campanha muda o estágio do núcleo.')).toBeVisible();
+  await expect(jogador.getByLabel('Estágio do núcleo')).toBeEnabled();
 
   await p.goto(`/fichas/${fichaId}`);
   await p.getByLabel('Estágio do núcleo').selectOption({ label: 'Laranja escuro' });
-  await expect(p.getByText('Total até aqui: +7 de mana, −2 de gasto universal de mana, 32 SP')).toBeVisible();
+  await expect(p.getByText('Total até aqui: +7 de mana, −2 de gasto universal de mana, +7 de vida')).toBeVisible();
   await expect(p.getByText(/\+ núcleo 7 = 37$/)).toBeVisible();
 
   await p.getByRole('tab', { name: 'Perícias' }).click();
   await p.locator('#a-pericias-esquiva').fill('4');
   await p.locator('#a-pericias-esquiva').press('Enter');
-  await expect(p.getByText('4 de 32 SP usados')).toBeVisible();
+  await expect(p.getByText('4 de 20 PP usados')).toBeVisible();
   await expect(p.getByRole('status').filter({ hasText: 'Salvo' })).toBeVisible();
 
   await p.reload();
   await expect(p.getByLabel('Estágio do núcleo')).toHaveValue('3');
   await p.getByRole('tab', { name: 'Perícias' }).click();
-  await expect(p.getByText('4 de 32 SP usados')).toBeVisible();
+  await expect(p.getByText('4 de 20 PP usados')).toBeVisible();
 });
 
-test('mestre define bônus e limites; jogador para neles e nos SP', async ({ browser }) => {
+test('totais e limites só avisam: dono e mestre passam deles, e o site mostra em destaque', async ({ browser }) => {
   const mestre = await novaPessoa(browser, 'Mestra Ina');
   const jogador = await novaPessoa(browser, 'Jogador Ivo');
-  await criarFicha(jogador, 'Travada');
+  await criarFicha(jogador, 'Livre');
   const fichaId = await levarFichaParaMesa(mestre, jogador, 'Limites');
-
-  /* O jogador não tem os controles do mestre e para nos 15 SP do primeiro estágio. */
   await jogador.reload();
-  await expect(jogador.getByLabel('Bônus do mestre em SP')).toHaveCount(0);
-  await expect(jogador.getByRole('button', { name: 'Definir limites' })).toHaveCount(0);
+
+  /* A ficha começa com 25 AP, e atributos, armas e elementos dividem os pontos. */
+  await expect(jogador.getByText('0 de 25 AP usados')).toBeVisible();
+  await jogador.locator('#a-corpo-tracao').fill('20');
+  await jogador.locator('#a-corpo-tracao').press('Enter');
+  await jogador.locator('#a-armas-leves').fill('10');
+  await jogador.locator('#a-armas-leves').press('Enter');
+  await expect(jogador.locator('#a-armas-leves')).toHaveValue('10');
+  await expect(jogador.getByText('30 de 25 AP usados')).toHaveClass(/sp-acima/);
+
+  /* A perícia começa com limite 5 e os PP com 20, mas o valor é salvo mesmo acima deles. */
   await jogador.getByRole('tab', { name: 'Perícias' }).click();
+  await expect(jogador.getByText('Limite por perícia: 5.')).toBeVisible();
+  const esquiva = jogador.locator('.pericia-linha').filter({ hasText: 'Esquiva' });
+  await jogador.locator('#a-pericias-esquiva').fill('5');
+  await jogador.locator('#a-pericias-esquiva').press('Enter');
+  await expect(esquiva).toHaveAttribute('data-acima', 'false');
   await jogador.locator('#a-pericias-esquiva').fill('40');
   await jogador.locator('#a-pericias-esquiva').press('Enter');
-  await expect(jogador.locator('#a-pericias-esquiva')).toHaveValue('15');
-  await expect(jogador.getByText('15 de 15 SP usados')).toBeVisible();
-  /* Sem SP sobrando, o treino não sobe. */
-  await jogador.locator('#a-pericias-aparar').fill('3');
-  await jogador.locator('#a-pericias-aparar').press('Enter');
-  await expect(jogador.locator('#a-pericias-aparar')).toHaveValue('0');
+  await expect(jogador.locator('#a-pericias-esquiva')).toHaveValue('40');
+  await expect(esquiva).toHaveAttribute('data-acima', 'true');
+  await expect(esquiva.getByText('Máx. 5')).toBeVisible();
+  await expect(jogador.getByText('40 de 20 PP usados')).toHaveClass(/sp-acima/);
   await expect(jogador.getByRole('status').filter({ hasText: 'Salvo' })).toBeVisible();
 
+  /* O jogador também tem os bônus e os limites. */
+  await jogador.getByLabel('Bônus em PP').fill('5');
+  await jogador.getByLabel('Bônus em PP').press('Enter');
+  await expect(jogador.getByText('40 de 25 PP usados')).toBeVisible();
+  await jogador.getByLabel('Bônus em vida').fill('10');
+  await jogador.getByLabel('Bônus em vida').press('Enter');
+  await expect(jogador.getByText('15 + vitalidade 0 × 2 + ajuste 10 = 25')).toBeVisible();
+  await expect(jogador.getByRole('button', { name: 'Definir limites' })).toBeVisible();
+  await expect(jogador.getByRole('status').filter({ hasText: 'Salvo' })).toBeVisible();
+
+  /* O mestre aumenta o limite geral e define o de uma perícia só. */
   await mestre.goto(`/fichas/${fichaId}`);
-  await mestre.getByLabel('Bônus do mestre em vida').fill('10');
-  await mestre.getByLabel('Bônus do mestre em vida').press('Enter');
-  await expect(mestre.getByText('15 + vitalidade 0 × 2 + ajuste 10 = 25')).toBeVisible();
   await mestre.getByRole('tab', { name: 'Perícias' }).click();
-  await mestre.getByLabel('Bônus do mestre em SP').fill('5');
-  await mestre.getByLabel('Bônus do mestre em SP').press('Enter');
-  await expect(mestre.getByText('15 de 20 SP usados')).toBeVisible();
+  await mestre.getByLabel('Bônus em limite por perícia').fill('2');
+  await mestre.getByLabel('Bônus em limite por perícia').press('Enter');
+  await expect(mestre.getByText('Limite por perícia: 7.')).toBeVisible();
   await mestre.getByRole('button', { name: 'Definir limites' }).click();
   await mestre.getByLabel('Limite de Aparar').fill('2');
   await expect(mestre.getByRole('status').filter({ hasText: 'Salvo' })).toBeVisible();
@@ -378,8 +395,8 @@ test('mestre define bônus e limites; jogador para neles e nos SP', async ({ bro
   await expect(jogador.getByText('Máx. 2')).toBeVisible();
   await jogador.locator('#a-pericias-aparar').fill('9');
   await jogador.locator('#a-pericias-aparar').press('Enter');
-  await expect(jogador.locator('#a-pericias-aparar')).toHaveValue('2');
-  await expect(jogador.getByText('17 de 20 SP usados')).toBeVisible();
+  await expect(jogador.locator('#a-pericias-aparar')).toHaveValue('9');
+  await expect(jogador.getByText('49 de 25 PP usados')).toBeVisible();
 });
 
 test('magias: adicionar, conjurar com desconto de mana e continuar depois de recarregar', async ({ browser }) => {
@@ -667,11 +684,12 @@ test('ficha: criar elemento, dano na magia e fadiga só com o mestre', async ({ 
   await jogador.request.post(`/api/convites/${detalhe.campanha.codigo}/entrar`, { data: {} });
   await jogador.request.post(`/api/campanhas/${campanha.id}/fichas`, { data: { fichaId } });
 
+  /* Em campanha, o dono continua mudando a fadiga, e o mestre também. */
   await jogador.reload();
-  await expect(jogador.getByText('Só o mestre da campanha muda a fadiga mental.')).toBeVisible();
-  await expect(jogador.locator('#r-fadiga')).toBeDisabled();
-  await expect(jogador.locator('#v-fadiga')).toBeDisabled();
-  await expect(jogador.getByRole('button', { name: /Sem fadiga/ })).toBeDisabled();
+  await expect(jogador.locator('#r-fadiga')).toBeEnabled();
+  await expect(jogador.locator('#v-fadiga')).toBeEnabled();
+  await expect(jogador.getByRole('button', { name: /Sem fadiga/ })).toBeEnabled();
+  await expect(jogador.getByRole('button', { name: 'Encerrar cena' })).toBeVisible();
 
   await mestre.goto(`/fichas/${fichaId}`);
   await expect(mestre.locator('#r-fadiga')).toBeEnabled();

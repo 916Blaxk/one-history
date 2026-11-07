@@ -53,10 +53,10 @@ describe('regras do sistema', () => {
     expect(ferido.vidaAtual).toBe(10);
   });
 
-  it('núcleo acumula mana, gasto universal, SP e vida dos estágios alcançados', () => {
-    expect(R.bonusNucleo(0)).toEqual({ mana: 0, gasto: 0, sp: 15, pv: 0 });
-    expect(R.bonusNucleo(3)).toEqual({ mana: 7, gasto: 2, sp: 32, pv: 7 });
-    expect(R.bonusNucleo(12)).toEqual({ mana: 108, gasto: 20, sp: 161, pv: 98 });
+  it('núcleo acumula mana, gasto universal e vida dos estágios alcançados', () => {
+    expect(R.bonusNucleo(0)).toEqual({ mana: 0, gasto: 0, pv: 0 });
+    expect(R.bonusNucleo(3)).toEqual({ mana: 7, gasto: 2, pv: 7 });
+    expect(R.bonusNucleo(12)).toEqual({ mana: 108, gasto: 20, pv: 98 });
     expect(R.vidaMax(R.normalizar({ corpo: { vitalidade: 5 }, nucleo: 3 }))).toBe(32);
     expect(R.manaMax(R.normalizar({ mente: { onipotencia: 7 }, tier: 1, nucleo: 3 }))).toBe(51);
   });
@@ -70,8 +70,8 @@ describe('regras do sistema', () => {
     expect(f.manaAtual).toBe(44);
   });
 
-  it('perícias somam os SP usados e o estágio do núcleo respeita o limite', () => {
-    expect(R.spGastos(R.normalizar({ pericias: { esquiva: 3, medicina: 2, inventada: 50 } }))).toBe(5);
+  it('perícias somam os PP usados e o estágio do núcleo respeita o limite', () => {
+    expect(R.ppGastos(R.normalizar({ pericias: { esquiva: 3, medicina: 2, inventada: 50 } }))).toBe(5);
     expect(R.normalizar({ nucleo: 99 }).nucleo).toBe(12);
   });
 
@@ -124,17 +124,32 @@ describe('regras do sistema', () => {
     expect(R.manaMax(f)).toBe(54);
     expect(R.aplicarFimDeCena(f).perda).toBe(5);
     expect(R.manaMax(f)).toBe(49);
-    expect(R.spTotal(f)).toBe(20);
+    /* Ficha gravada antes da troca de nome: o bônus de SP vira bônus de PP. */
+    expect(R.ppTotal(f)).toBe(25);
   });
 
-  it('jogador para no limite do mestre e nos SP, mas pode descer de um valor acima deles', () => {
-    const antes = R.normalizar({ corpo: { tracao: 1, destreza: 9 }, pericias: { esquiva: 14 }, limites: { 'corpo.tracao': 3, 'corpo.destreza': 2 } });
-    const nova = R.normalizar({ ...antes, corpo: { tracao: 8, destreza: 7 }, pericias: { esquiva: 14, medicina: 5 } });
-    R.aplicarTravasDoJogador(nova, antes);
-    expect(nova.corpo.tracao).toBe(3);
-    expect(nova.corpo.destreza).toBe(7);
-    expect(nova.pericias.medicina).toBe(1);
-    expect(R.spGastos(nova)).toBe(15);
+  it('a ficha começa com 25 AP e 20 PP, e atributos, armas e elementos dividem os AP', () => {
+    const vazia = R.normalizar({});
+    expect(R.apTotal(vazia)).toBe(25);
+    expect(R.ppTotal(vazia)).toBe(20);
+    expect(R.apGastos(vazia)).toBe(0);
+    const f = R.normalizar({
+      corpo: { tracao: 2 }, mente: { encanto: 3 }, armas: { leves: 4 }, elementos: { fogo: 5 }, pericias: { esquiva: 9 },
+      elementosCriados: [{ id: 'e1', nome: 'Lava', tipo: 'variacao', origens: ['fogo'], valor: 6 }],
+      ajustes: { ap: 10, pp: -30 },
+    });
+    expect(R.apGastos(f)).toBe(20);
+    expect(R.apTotal(f)).toBe(35);
+    expect(R.ppTotal(f)).toBe(0);
+  });
+
+  it('toda perícia tem limite: o dela ou o geral, e os demais itens só se definido', () => {
+    const f = R.normalizar({ limites: { 'pericias.aparar': 8, 'corpo.tracao': 3 }, ajustes: { limitePericia: 2 } });
+    expect(R.limiteDoItem(R.normalizar({}), 'pericias', 'esquiva')).toBe(5);
+    expect(R.limiteDoItem(f, 'pericias', 'esquiva')).toBe(7);
+    expect(R.limiteDoItem(f, 'pericias', 'aparar')).toBe(8);
+    expect(R.limiteDoItem(f, 'corpo', 'tracao')).toBe(3);
+    expect(R.limiteDoItem(f, 'corpo', 'destreza')).toBeUndefined();
   });
 
   it('limites só guardam itens que existem, e valor vazio remove o limite', () => {
@@ -186,10 +201,10 @@ describe('regras do sistema', () => {
     expect(R.ATRIBUTO_DA_PERICIA.seducao).toBe('encanto');
   });
 
-  it('outros soma na rolagem, mas os SP vêm do treino', () => {
+  it('outros soma na rolagem, mas os PP vêm do treino', () => {
     const f = R.normalizar({ pericias: { esquiva: 7 }, periciasOutros: { esquiva: 3, inventada: 9, aparar: -4 } });
     expect(f.periciasOutros).toEqual({ esquiva: 3 });
-    expect(R.spGastos(f)).toBe(7);
+    expect(R.ppGastos(f)).toBe(7);
     expect(lerAcao(f, 'pericias.esquiva')).toMatchObject({ valor: 10, vantagem: 0 });
   });
 

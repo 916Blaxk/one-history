@@ -18,9 +18,7 @@ const LIMITE_FICHAS = 200, LIMITE_CAMPANHAS = 50, LIMITE_MEMBROS = 60;
 const LIMITE_ROLAGENS = 500, PAGINA_CHAT = 50;
 const ALFABETO_CODIGO = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 const FOTO_VALIDA = /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/;
-const CAMPOS_FICHA = new Set(['player', 'nome', 'idade', 'raca', 'estilo', 'tier', 'inventario', 'notas', 'manaPerdida', 'fadiga', 'vidaAtual', 'manaAtual', 'magias', 'elementosCriados', 'elementosAtivos', 'habilidades', 'periciasOutros']);
-/* O núcleo define os SP: se o jogador pudesse mudá-lo, o limite de SP não valeria nada. */
-const CAMPOS_MESTRE = new Set(['ajustes', 'limites', 'nucleo', 'publica']);
+const CAMPOS_FICHA = new Set(['player', 'nome', 'idade', 'raca', 'estilo', 'tier', 'inventario', 'notas', 'manaPerdida', 'fadiga', 'vidaAtual', 'manaAtual', 'nucleo', 'magias', 'elementosCriados', 'elementosAtivos', 'habilidades', 'periciasOutros']);
 const JANELA_MS = 15 * 60 * 1000;
 
 export class Erro extends Error {
@@ -177,7 +175,7 @@ function resumoFicha(f: LinhaFicha, usuarioId: string, mestreId: string, nomes: 
     vidaAtual: f.dados.vidaAtual, vidaMax: R.vidaMax(f.dados), manaAtual: f.dados.manaAtual, manaMax: R.manaMax(f.dados),
   };
 }
-/* A fadiga é do mestre enquanto a ficha está na campanha. Fica guardada na saída para que tirar a ficha, mudar o valor e voltar não mude nada. É SQL para valer no mesmo batch, com a fadiga do momento da gravação. */
+/* A fadiga fica guardada na saída para a ficha voltar à campanha como estava. É SQL para valer no mesmo batch, com a fadiga do momento da gravação. */
 const ULTIMA_FADIGA = '__ultima';
 const soltarFichas = (campanhaId: string, condicao?: ReturnType<typeof and>) =>
   db.update(fichas).set({
@@ -408,9 +406,8 @@ function fotoDaEntrada(foto: unknown) {
 rota('POST', '/api/fichas', async ctx => {
   const [{ n }] = await db.select({ n: count() }).from(fichas).where(eq(fichas.donoId, ctx.usuario.id));
   if (n >= LIMITE_FICHAS) throw new Erro(400, `Sua conta chegou ao limite de ${LIMITE_FICHAS} fichas. Apague alguma para criar outra.`);
-  /* Quem cria ou importa uma ficha ainda não tem mestre: um arquivo editado não pode trazer núcleo, bônus nem passar dos SP. */
-  const dados = R.normalizar({ ...ctx.corpo.dados, ajustes: undefined, limites: undefined, nucleo: undefined, publica: undefined });
-  R.aplicarTravasDoJogador(dados, R.normalizar({}));
+  /* `publica` decide quem vê a ficha do mestre, e não vem de um arquivo. */
+  const dados = R.normalizar({ ...ctx.corpo.dados, publica: undefined });
   if (!dados.player) dados.player = ctx.usuario.nome;
   const foto = fotoDaEntrada(ctx.corpo.dados?.foto);
   const agora = Date.now();
@@ -457,20 +454,13 @@ rota('PATCH', '/api/fichas/:id', async ctx => {
   const f = await alterarFicha(ctx.params.id, l => {
     const base: Record<string, any> = { ...l.dados };
     for (const [k, v] of Object.entries(ctx.corpo)) {
-      /* Em campanha, a fadiga é decisão do mestre. Fora dela, não há mestre, e quem cuida é o dono. */
-      if (k === 'fadiga' && l.campanhaId && !souMestre) continue;
       const ehObjeto = v && typeof v === 'object';
-      if (k in R.GRUPOS && ehObjeto) base[k] = { ...base[k], ...v };
-      else if (CAMPOS_MESTRE.has(k)) {
-        if (souMestre) base[k] = ehObjeto ? { ...base[k], ...v } : v;
-        /* A vida máxima é livre para o jogador: dos ajustes, ele só muda a parte da vida. */
-        else if (k === 'ajustes' && ehObjeto && 'vida' in v) base.ajustes = { ...base.ajustes, vida: v.vida };
-      }
+      /* Dono e mestre editam tudo na ficha. `publica` não é dado do personagem: decide quem vê a ficha do mestre. */
+      if (k === 'publica') { if (souMestre) base[k] = v; }
+      else if ((k in R.GRUPOS || k === 'ajustes' || k === 'limites') && ehObjeto) base[k] = { ...base[k], ...v };
       else if (CAMPOS_FICHA.has(k)) base[k] = v;
     }
-    const nova = R.normalizar(base);
-    if (!souMestre) R.aplicarTravasDoJogador(nova, R.normalizar(l.dados));
-    l.dados = R.normalizar(nova);
+    l.dados = R.normalizar(base);
   }, extras);
   return { ficha: await comContexto(f, ctx.usuario) };
 });
@@ -487,9 +477,7 @@ rota('DELETE', '/api/fichas/:id', async ctx => {
 });
 
 rota('POST', '/api/fichas/:id/encerrar-cena', async ctx => {
-  const ficha = await fichaEditavel(ctx.params.id, ctx.usuario);
-  /* Em campanha, a cena é decisão do mestre. Fora dela, não há mestre, e quem cuida é o dono. */
-  if (ficha.campanhaId && !await mestreDaFicha(ficha, ctx.usuario)) throw new Erro(403, 'Só o mestre da campanha encerra a cena.');
+  await fichaEditavel(ctx.params.id, ctx.usuario);
   let mensagem = '';
   const f = await alterarFicha(ctx.params.id, l => {
     const r = R.aplicarFimDeCena(l.dados);

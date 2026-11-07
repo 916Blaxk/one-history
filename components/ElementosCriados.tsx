@@ -19,8 +19,8 @@ export function origemDoElemento(e: Pick<R.ElementoCriado, 'tipo' | 'origens'>, 
   return e.tipo === 'fusao' ? `Fusão de ${nomeOrigem(e.origens[0]!, criados)} e ${nomeOrigem(e.origens[1]!, criados)}` : `Variação de ${nomeOrigem(e.origens[0]!, criados)}`;
 }
 
-export default function ElementosCriados({ f, souMestre, editandoLimites, aoMudar, aoMudarLimite, aoRolar }: {
-  f: R.DadosFicha; souMestre: boolean; editandoLimites: boolean;
+export default function ElementosCriados({ f, editandoLimites, aoMudar, aoMudarLimite, aoRolar }: {
+  f: R.DadosFicha; editandoLimites: boolean;
   aoMudar: (lista: R.ElementoCriado[]) => void;
   aoMudarLimite: (chave: string, valor: string) => void;
   aoRolar: (atributo: string) => void;
@@ -55,12 +55,7 @@ export default function ElementosCriados({ f, souMestre, editandoLimites, aoMuda
     setCriando(false);
   }
   function mudarValor(e: R.ElementoCriado, pedido: unknown) {
-    let valor = R.inteiro(pedido, 0, 999);
-    const limite = f.limites[R.chaveCriado(e.id)];
-    if (!souMestre && limite !== undefined && valor > e.valor && valor > limite) {
-      valor = Math.max(e.valor, limite);
-      toast.error('Esse valor passa do limite do mestre.');
-    }
+    const valor = R.inteiro(pedido, 0, 999);
     aoMudar(lista.map(o => (o.id === e.id ? { ...o, valor } : o)));
   }
 
@@ -69,18 +64,18 @@ export default function ElementosCriados({ f, souMestre, editandoLimites, aoMuda
       {lista.map(e => {
         const chave = R.chaveCriado(e.id), limite = f.limites[chave], idCampo = `a-criado-${e.id}`;
         return (
-          <div className="attr" key={e.id}>
+          <div className="attr" data-acima={limite !== undefined && e.valor > limite} key={e.id}>
             <label htmlFor={idCampo}><PontoElemento e={e} criados={lista} />{e.nome}<small>{origemDoElemento(e, lista)}</small>{limite !== undefined && !editandoLimites && <small>Máx. {limite}</small>}</label>
             <div className="passo">
               <button type="button" aria-label={`Diminuir ${e.nome}`} onClick={() => mudarValor(e, e.valor - 1)}>−</button>
               <CampoNumero id={idCampo} min={0} valor={e.valor} aoMudar={v => mudarValor(e, v)} />
-              <button type="button" disabled={!souMestre && limite !== undefined && e.valor >= limite} aria-label={`Aumentar ${e.nome}`} onClick={() => mudarValor(e, e.valor + 1)}>+</button>
+              <button type="button" aria-label={`Aumentar ${e.nome}`} onClick={() => mudarValor(e, e.valor + 1)}>+</button>
             </div>
             <button type="button" className="rolar" title={`Rolar ${R.vantagemDosPontos(e.valor) ? `${R.vantagemDosPontos(e.valor) + 1}d20, fica o maior` : 'd20'}${R.somaDosPontos(e.valor) ? `, + ${R.somaDosPontos(e.valor)}` : ''}`} aria-label={`Rolar d20 mais ${e.nome}`} onClick={() => aoRolar(`criados.${e.id}`)}>d20</button>
             <div className="elemento-remover">
               <BotaoConfirmar className="btn btn-pequeno" rotulo={`Remover ${e.nome}`} confirmar="Confirmar: remover" aoConfirmar={() => remover(e)} />
             </div>
-            {souMestre && editandoLimites && (
+            {editandoLimites && (
               <label className="campo-limite">
                 Limite de {e.nome}
                 <input type="number" inputMode="numeric" min={0} max={999} placeholder="Sem limite" value={limite ?? ''} onChange={ev => aoMudarLimite(chave, ev.target.value)} />
