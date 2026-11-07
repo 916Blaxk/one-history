@@ -32,7 +32,7 @@ Exemplo: com 15 de Destreza e 5 de Esquiva, esquivar rola 2d20, fica o maior, e 
 
 - **Atributos:** rolar o próprio atributo tem a vantagem dele e não soma nada. Com 15 de Destreza, rola 2d20 e fica o maior. A iniciativa é uma rolagem de Destreza.
 - **Sorte:** é sem atributo e rola sem vantagem, por decisão de quem criou o sistema.
-- **Elementos e armas:** rolam d20 + valor, sem vantagem. Os pontos de atributo também podem ser distribuídos neles, mas o site ainda não controla esse total.
+- **Elementos e armas:** têm 1 dado de vantagem a cada 15 pontos e somam 1/3 do valor, para baixo. Com 15 de Fogo, rola 2d20, fica o maior, e soma 5.
 
 ## SP e vida por estágio do núcleo
 

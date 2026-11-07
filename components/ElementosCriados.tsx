@@ -76,7 +76,7 @@ export default function ElementosCriados({ f, souMestre, editandoLimites, aoMuda
               <CampoNumero id={idCampo} min={0} valor={e.valor} aoMudar={v => mudarValor(e, v)} />
               <button type="button" disabled={!souMestre && limite !== undefined && e.valor >= limite} aria-label={`Aumentar ${e.nome}`} onClick={() => mudarValor(e, e.valor + 1)}>+</button>
             </div>
-            <button type="button" className="rolar" title={`Rolar d20 + ${e.nome}`} aria-label={`Rolar d20 mais ${e.nome}`} onClick={() => aoRolar(`criados.${e.id}`)}>d20</button>
+            <button type="button" className="rolar" title={`Rolar ${R.vantagemDosPontos(e.valor) ? `${R.vantagemDosPontos(e.valor) + 1}d20, fica o maior` : 'd20'}${R.somaDosPontos(e.valor) ? `, + ${R.somaDosPontos(e.valor)}` : ''}`} aria-label={`Rolar d20 mais ${e.nome}`} onClick={() => aoRolar(`criados.${e.id}`)}>d20</button>
             <div className="elemento-remover">
               <BotaoConfirmar className="btn btn-pequeno" rotulo={`Remover ${e.nome}`} confirmar="Confirmar: remover" aoConfirmar={() => remover(e)} />
             </div>

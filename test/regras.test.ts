@@ -101,10 +101,15 @@ describe('regras do sistema', () => {
     expect(acoesDeRolagem(f).find(a => a.id === 'corpo.tracao')!.expressao).toBe('1d20');
   });
 
-  it('elementos e armas não ganham vantagem de atributo', () => {
-    const f = R.normalizar({ corpo: { destreza: 45, tracao: 45 }, mente: { onipotencia: 45 }, armas: { leves: 3 }, elementos: { fogo: 3 } });
-    expect(lerAcao(f, 'armas.leves')).toMatchObject({ valor: 3, vantagem: 0 });
-    expect(lerAcao(f, 'elementos.fogo')).toMatchObject({ valor: 3, vantagem: 0 });
+  it('armas e elementos têm vantagem a cada 15 e somam 1/3 do valor, para baixo', () => {
+    const lava = { id: 'e1', nome: 'Lava', tipo: 'fusao', origens: ['fogo', 'terra'], valor: 31 };
+    const f = R.normalizar({ corpo: { destreza: 45 }, elementos: { fogo: 15 }, armas: { leves: 4, medias: 2 }, elementosCriados: [lava] });
+    expect(lerAcao(f, 'elementos.fogo')).toMatchObject({ valor: 5, vantagem: 1 });
+    expect(lerAcao(f, 'armas.leves')).toMatchObject({ valor: 1, vantagem: 0 });
+    expect(lerAcao(f, 'armas.medias')).toMatchObject({ valor: 0, vantagem: 0 });
+    expect(lerAcao(f, 'criados.e1')).toMatchObject({ valor: 10, vantagem: 2 });
+    expect(acoesDeRolagem(R.normalizar({ ...f, elementosAtivos: ['fogo'] })).find(a => a.id === 'elementos.fogo')!.expressao).toBe('2d20kh1+5');
+    expect(acoesDeRolagem(f).find(a => a.id === 'criados.e1')!.expressao).toBe('3d20kh1+10');
   });
 
   it('toda perícia tem descrição', () => {

@@ -19,12 +19,6 @@ export function expressaoDaRolagem(valor: number, vantagem = 0) {
   return valor < 0 ? `${dados}-${-valor}` : dados;
 }
 
-/* O que soma no resultado, sempre do que está guardado na ficha. */
-function somaDaRolagem(d: R.DadosFicha, g: R.Grupo, k: string) {
-  if (!R.somaNaRolagem(g)) return 0;
-  return d[g][k]! + (g === 'pericias' ? d.periciasOutros[k] ?? 0 : 0);
-}
-
 /* Aceita só "grupo.item" que exista: o texto vem do navegador. */
 export function itemDaAcao(acao: string) {
   const [g, k] = acao.split('.') as [R.Grupo, string];
@@ -37,26 +31,27 @@ export function itemDaAcao(acao: string) {
 export function lerAcao(d: R.DadosFicha, acao: string) {
   if (acao.startsWith('criados.')) {
     const criado = d.elementosCriados.find(e => R.chaveCriado(e.id) === acao);
-    return criado ? { grupo: 'elementos' as const, rotulo: criado.nome, valor: criado.valor, vantagem: 0 } : null;
+    return criado ? { grupo: 'elementos' as const, rotulo: criado.nome, valor: R.somaDosPontos(criado.valor), vantagem: R.vantagemDosPontos(criado.valor) } : null;
   }
   const item = itemDaAcao(acao);
   if (!item) return null;
   return {
     grupo: item.grupo, rotulo: item.rotulo,
-    valor: somaDaRolagem(d, item.grupo, item.chave),
+    valor: R.somaDaRolagem(d, item.grupo, item.chave),
     vantagem: R.vantagemDaRolagem(d, item.grupo, item.chave),
   };
 }
 
 export function acoesDeRolagem(d: R.DadosFicha): AcaoRolagem[] {
-  const criados = d.elementosCriados.map(e => ({
-    id: R.chaveCriado(e.id), grupo: 'elementos' as const, categoria: NOME_GRUPO.elementos, rotulo: e.nome, valor: e.valor, expressao: expressaoDaRolagem(e.valor),
-  }));
+  const criados = d.elementosCriados.map(e => {
+    const valor = R.somaDosPontos(e.valor);
+    return { id: R.chaveCriado(e.id), grupo: 'elementos' as const, categoria: NOME_GRUPO.elementos, rotulo: e.nome, valor, expressao: expressaoDaRolagem(valor, R.vantagemDosPontos(e.valor)) };
+  });
   /* Elemento que o personagem não tem não vira rolagem na mesa. */
   const itensDe = (g: R.Grupo): readonly (readonly string[])[] => (g === 'elementos' ? R.elementosDaFicha(d) : R.GRUPOS[g]);
   return [...criados, ...R.NOMES_GRUPOS.flatMap(g => itensDe(g).map(item => {
     const [k, rotulo] = item;
-    const valor = somaDaRolagem(d, g, k);
+    const valor = R.somaDaRolagem(d, g, k);
     return {
       id: `${g}.${k}`, grupo: g, categoria: g === 'pericias' ? CATEGORIA_PERICIA.get(k) ?? NOME_GRUPO[g] : NOME_GRUPO[g],
       rotulo, valor, expressao: expressaoDaRolagem(valor, R.vantagemDaRolagem(d, g, k)),

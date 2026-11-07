@@ -310,7 +310,7 @@ test('armas: a ficha traz as três categorias, sem as específicas', async ({ br
   await p.locator('#a-armas-pesadas').press('Enter');
   await p.getByRole('button', { name: 'Rolar d20 mais Armas pesadas' }).click();
   await expect(p.locator('.chat-popup .msg-rotulo')).toHaveText('Armas pesadas');
-  await expect(p.locator('.chat-popup .msg-det')).toHaveText(/^d20 \(\d+\) \+ 4$/);
+  await expect(p.locator('.chat-popup .msg-det')).toHaveText(/^d20 \(\d+\) \+ 1$/);
 });
 
 test('só o mestre muda o núcleo, que soma na mana; perícia conta SP e continua depois de recarregar', async ({ browser }) => {

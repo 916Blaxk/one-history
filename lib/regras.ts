@@ -120,12 +120,20 @@ export const chaveLimite = (g: Grupo, k: string) => `${g}.${k}`;
 export const chaveCriado = (id: string) => `criados.${id}`;
 export const fichaPrivada = (f: { donoId: string; dados: Pick<DadosFicha, 'publica'> }, mestreId: string) => f.donoId === mestreId && !f.dados.publica;
 export const PONTOS_POR_VANTAGEM = 15;
+export const vantagemDosPontos = (pontos: number) => Math.floor(pontos / PONTOS_POR_VANTAGEM);
+/* Armas e elementos somam 1/3 do valor, para baixo: com 15, são 1 dado de vantagem e +5. */
+export const somaDosPontos = (pontos: number) => Math.floor(pontos / 3);
+/* Regra do criador do sistema. A perícia usa os pontos do atributo dela, e Sorte não tem atributo. */
+export function vantagemDaRolagem(f: Pick<DadosFicha, 'corpo' | 'mente' | 'elementos' | 'armas'>, grupo: Grupo, chave: string) {
+  if (grupo !== 'pericias') return vantagemDosPontos(f[grupo][chave] ?? 0);
+  const atributo = ATRIBUTO_DA_PERICIA[chave];
+  return atributo ? vantagemDosPontos(f.corpo[atributo] ?? f.mente[atributo] ?? 0) : 0;
+}
 /* Atributo é bruto: dá vantagem, mas o valor dele não soma no resultado, nem na rolagem dele mesmo. */
-export const somaNaRolagem = (g: Grupo) => g !== 'corpo' && g !== 'mente';
-/* Regra do criador do sistema: a cada 15 pontos no atributo, 1 dado de vantagem, seja na rolagem do atributo ou na de uma perícia dele. Elementos e armas não têm atributo definido. */
-export function vantagemDaRolagem(f: Pick<DadosFicha, 'corpo' | 'mente'>, grupo: Grupo, chave: string) {
-  const atributo = grupo === 'pericias' ? ATRIBUTO_DA_PERICIA[chave] : grupo === 'corpo' || grupo === 'mente' ? chave : undefined;
-  return atributo ? Math.floor((f.corpo[atributo] ?? f.mente[atributo] ?? 0) / PONTOS_POR_VANTAGEM) : 0;
+export function somaDaRolagem(f: Pick<DadosFicha, 'elementos' | 'armas' | 'pericias' | 'periciasOutros'>, grupo: Grupo, chave: string) {
+  if (grupo === 'corpo' || grupo === 'mente') return 0;
+  if (grupo === 'pericias') return f.pericias[chave]! + (f.periciasOutros[chave] ?? 0);
+  return somaDosPontos(f[grupo][chave] ?? 0);
 }
 /* O gasto universal do núcleo desconta do custo de toda magia, sem deixar o custo negativo. */
 export const custoMagia = (f: Pick<DadosFicha, 'nucleo'>, m: Pick<Magia, 'custo'>) => Math.max(0, m.custo - bonusNucleo(f.nucleo).gasto);
