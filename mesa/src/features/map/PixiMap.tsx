@@ -25,8 +25,8 @@ import {
 const MIN_ZOOM = 0.2
 const MAX_ZOOM = 4
 const clampZoom = (zoom: number) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, zoom))
-/* O mestre precisa ver o que está por baixo para preparar; o jogador não pode. */
-const ALFA_NEVOA_MESTRE = 0.55
+/* O mestre ainda distingue o que está por baixo para preparar, mas a névoa precisa parecer cobertura. O jogador não vê nada. */
+const ALFA_NEVOA_MESTRE = 0.85
 const ALFA_CENARIO_OCULTO = 0.65
 const FOLGA_CAMADA_MUNDO = 256
 const INTERVALO_TRACO_MS = 40
