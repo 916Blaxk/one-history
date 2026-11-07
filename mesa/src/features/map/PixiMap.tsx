@@ -25,8 +25,6 @@ import {
 const MIN_ZOOM = 0.2
 const MAX_ZOOM = 4
 const clampZoom = (zoom: number) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, zoom))
-/* O mestre ainda distingue o que está por baixo para preparar, mas a névoa precisa parecer cobertura. O jogador não vê nada. */
-const ALFA_NEVOA_MESTRE = 0.85
 const ALFA_CENARIO_OCULTO = 0.65
 const FOLGA_CAMADA_MUNDO = 256
 const INTERVALO_TRACO_MS = 40
@@ -361,7 +359,6 @@ export function PixiMap({
       }
 
       const renderNevoa = (state: ReturnType<typeof useUiStore.getState>) => {
-        const alfa = !isRoomMode() || useRoomStore.getState().role === 'gm' ? ALFA_NEVOA_MESTRE : 1
         const vivas = new Set<string>()
         for (const [camada, ops] of Object.entries(state.nevoa)) {
           if (!ops.length) continue
@@ -379,7 +376,6 @@ export function PixiMap({
           }
           view.atualizar(ops, limites)
           view.posicionar(scene?.x ?? 0, scene?.y ?? 0, scene ? escalaDe(scene) : 1)
-          view.sprite.alpha = alfa
           vivas.add(camada)
         }
         for (const [camada, view] of camadasNevoa) {

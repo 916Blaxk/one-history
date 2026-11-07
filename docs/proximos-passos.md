@@ -23,7 +23,7 @@ Estas aguardam Arthur Baldo, que criou o sistema e decide as regras de dados.
 - **Armas e elementos (7 de novembro de 2026):** 1 dado de vantagem a cada 15 pontos e soma de 1/3 do valor, para baixo.
 - **Iniciativa e coluna Outros (7 de novembro de 2026):** a iniciativa é rolagem de Destreza, com vantagem e sem somar o valor. A coluna Outros fica e soma na rolagem.
 - **Vantagem de atributo (7 de novembro de 2026):** a cada 15 pontos, 1 dado de vantagem, que é mais um d20, ficando o maior. O dado adicional de 1d2 a 1d10 saiu. O valor do atributo não soma, nem na rolagem dele mesmo. Sorte é sem atributo. Veja [pericias.md](pericias.md).
-- **Névoa para o mestre (7 de novembro de 2026):** subiu de 55% para 85% de opacidade, porque dava para ver demais por trás. Para o jogador, ela já era totalmente opaca.
+- **Névoa para o mestre (7 de novembro de 2026):** agora é 100% opaca, como para o jogador, a pedido do usuário. O mestre também não vê o mapa nem os tokens sob a névoa, e usa Revelar para abrir o caminho.
 - **Brecha da fadiga (6 de novembro de 2026):** quando a ficha sai de uma campanha, o servidor guarda a fadiga dela. Se a ficha voltar para a mesma campanha, a fadiga volta a esse valor, e o registro da ficha mostra a mudança. Em outra campanha, a ficha entra com o maior valor entre a fadiga atual e a da última saída, e o mestre de lá pode corrigir.
 - **Quem cria elemento (6 de novembro de 2026):** o dono da ficha e o mestre.
 - **Fusão e variação de elementos (6 de novembro de 2026):** partem de elementos base ou de elementos já criados na ficha. Um elemento usado em outro não pode ser removido antes dele.

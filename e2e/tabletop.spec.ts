@@ -209,8 +209,8 @@ test('mesa: o mestre prepara o cenário oculto com névoa livre e mostra quando 
 
   mestre.once('dialog', d => void d.accept());
   await mestre.getByRole('button', { name: 'Cobrir de névoa: caverna' }).click();
-  /* O vermelho do mapa tem r = 224: para o mestre, a névoa precisa cobrir quase tudo. */
-  await expect.poll(async () => (await corNaTela(mestre, ACIMA.x, ACIMA.y)).r).toBeLessThan(60);
+  /* O vermelho do mapa tem r = 224: a névoa cobre por inteiro, também para o mestre. */
+  await expect.poll(async () => (await corNaTela(mestre, ACIMA.x, ACIMA.y)).r).toBeLessThan(25);
   const coberto = await corNaTela(mestre, CENTRO.x, CENTRO.y);
 
   /* O pincel abre um caminho estreito, que não segue a grade. */
@@ -221,7 +221,7 @@ test('mesa: o mestre prepara o cenário oculto com névoa livre e mostra quando 
   await mestre.mouse.up();
   await mestre.getByRole('button', { name: 'Revelar', exact: true }).click();
   await expect.poll(async () => (await corNaTela(mestre, CENTRO.x, CENTRO.y)).r).toBeGreaterThan(coberto.r + 20);
-  expect((await corNaTela(mestre, ACIMA.x, ACIMA.y)).r).toBeLessThan(60);
+  expect((await corNaTela(mestre, ACIMA.x, ACIMA.y)).r).toBeLessThan(25);
   expect((await corNaTela(jogador, CENTRO.x, CENTRO.y)).r).toBeLessThan(40);
 
   /* Ao mostrar, o jogador vai direto ao cenário, com a névoa já opaca fora do caminho. */
