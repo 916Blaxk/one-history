@@ -13,7 +13,7 @@ A numeração é corrida, na ordem do código. O documento do sistema pulava de 
 - **Rolagem:** rolar uma perícia é d20 com a vantagem do atributo + bônus (Treino + Outros). O servidor lê os valores, e o navegador não escolhe o bônus.
 - **Atributo:** cada perícia usa o atributo da lista do sistema, que dá vantagem, mas o valor dele não soma no resultado. Sorte é sem atributo e rola sem vantagem.
 - **PP (pontos de perícia):** a soma do Treino de todas as perícias é o PP gasto. A ficha começa com 20 PP, mais o bônus da ficha.
-- **AP (pontos de atributo):** a soma de atributos, armas e elementos, inclusive os criados, é o AP gasto. A ficha começa com 25 AP, mais o bônus da ficha.
+- **AP (pontos de atributo):** a soma de atributos, armas e elementos, inclusive os criados, é o AP gasto. A ficha começa com 25 AP, mais o que o núcleo der e o bônus da ficha.
 - **Limites:** cada perícia tem limite de 5, mais o bônus de limite da ficha, e o mestre o aumenta quando quiser. Também é possível definir o limite de uma perícia, de um atributo, de uma arma ou de um elemento.
 - **Edição:** o dono e o mestre editam toda a ficha. Totais e limites só avisam, em destaque: nenhum número bloqueia a edição, e a mesa confere.
 
@@ -35,25 +35,28 @@ Exemplo: com 15 de Destreza e 5 de Esquiva, esquivar rola 2d20, fica o maior, e 
 - **Sorte:** é sem atributo e rola sem vantagem, por decisão de quem criou o sistema.
 - **Elementos e armas:** têm 1 dado de vantagem a cada 15 pontos e somam 1/3 do valor, para baixo. Com 15 de Fogo, rola 2d20, fica o maior, e soma 5.
 
-## Vida por estágio do núcleo
+## Progressão do núcleo
 
-Cada estágio soma ao que os anteriores já deram. A tabela antiga de SP por estágio saiu do site: Arthur Baldo vai colocar AP e PP na progressão do núcleo.
+Tabela passada por Arthur Baldo em 7 de novembro de 2026. Cada estágio soma ao que os anteriores já deram, e o total de AP parte dos 25 iniciais.
 
-| Estágio | Vida | Vida acumulada |
-| --- | --- | --- |
-| Vermelho escuro | 0 | 0 |
-| Vermelho sólido | 2 | 2 |
-| Vermelho claro | 2 | 4 |
-| Laranja escuro | 3 | 7 |
-| Laranja sólido | 3 | 10 |
-| Laranja claro | 3 | 13 |
-| Amarelo escuro | 5 | 18 |
-| Amarelo sólido | 5 | 23 |
-| Amarelo claro | 5 | 28 |
-| Prata escuro | 10 | 38 |
-| Prata fosco | 10 | 48 |
-| Prata brilhante | 10 | 58 |
-| Branco | 40 | 98 |
+| Estágio | Mana | Gasto universal | AP | AP total |
+| --- | --- | --- | --- | --- |
+| Vermelho escuro | 0 | 0 | 0 | 25 |
+| Vermelho sólido | +2 | 0 | +7 | 32 |
+| Vermelho claro | +2 | 0 | +7 | 39 |
+| Laranja escuro | +3 | −2 | +10 | 49 |
+| Laranja sólido | +3 | 0 | +10 | 59 |
+| Laranja claro | +3 | 0 | +10 | 69 |
+| Amarelo escuro | +5 | −3 | +10 | 79 |
+| Amarelo sólido | +5 | 0 | +15 | 94 |
+| Amarelo claro | +5 | 0 | +15 | 109 |
+| Prata escuro | +10 | −5 | +15 | 124 |
+| Prata fosco | +10 | 0 | +20 | 144 |
+| Prata brilhante | +10 | 0 | +20 | 164 |
+| Branco | +50 | −10 | +50 | 214 |
+
+- **Vida:** o núcleo não dá mais vida. Ela vem de pontos de atributo, pela Vitalidade, ou de itens.
+- **PP:** o núcleo não dá PP. O mestre distribui ao longo do RPG, pelo campo de bônus da ficha.
 
 ## Lista
 
@@ -153,7 +156,7 @@ O documento e o código divergiam nestes pontos. Qualquer decisão pode mudar de
 
 | Assunto | Decisão |
 | --- | --- |
-| Vida por estágio do núcleo | Segue o documento |
+| Vida por estágio do núcleo | Saiu, por decisão de quem criou o sistema |
 | Dado adicional por perícia | Saiu: virou vantagem por atributo, por decisão de quem criou o sistema |
 | Sorte | Segue o código: existe, e o documento não a citava |
 | Perícias adicionais | Foram distribuídas: Encantar e Extração de núcleo em Magia, Tecnologia em Conhecimento, Metalúrgica em Profissões e ofícios, Sorte em Exploração e utilidade |

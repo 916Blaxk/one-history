@@ -53,11 +53,15 @@ describe('regras do sistema', () => {
     expect(ferido.vidaAtual).toBe(10);
   });
 
-  it('núcleo acumula mana, gasto universal e vida dos estágios alcançados', () => {
-    expect(R.bonusNucleo(0)).toEqual({ mana: 0, gasto: 0, pv: 0 });
-    expect(R.bonusNucleo(3)).toEqual({ mana: 7, gasto: 2, pv: 7 });
-    expect(R.bonusNucleo(12)).toEqual({ mana: 108, gasto: 20, pv: 98 });
-    expect(R.vidaMax(R.normalizar({ corpo: { vitalidade: 5 }, nucleo: 3 }))).toBe(32);
+  it('núcleo acumula mana, gasto universal e AP dos estágios alcançados, e não dá vida nem PP', () => {
+    expect(R.bonusNucleo(0)).toEqual({ mana: 0, gasto: 0, ap: 0 });
+    expect(R.bonusNucleo(3)).toEqual({ mana: 7, gasto: 2, ap: 24 });
+    expect(R.bonusNucleo(12)).toEqual({ mana: 108, gasto: 20, ap: 189 });
+    expect(R.apTotal(R.normalizar({ nucleo: 0 }))).toBe(25);
+    expect(R.apTotal(R.normalizar({ nucleo: 3, ajustes: { ap: 1 } }))).toBe(50);
+    expect(R.apTotal(R.normalizar({ nucleo: 12 }))).toBe(214);
+    expect(R.ppTotal(R.normalizar({ nucleo: 12 }))).toBe(20);
+    expect(R.vidaMax(R.normalizar({ corpo: { vitalidade: 5 }, nucleo: 12 }))).toBe(25);
     expect(R.manaMax(R.normalizar({ mente: { onipotencia: 7 }, tier: 1, nucleo: 3 }))).toBe(51);
   });
 

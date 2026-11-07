@@ -324,8 +324,9 @@ test('dono e mestre mudam o núcleo, que soma na mana; perícia conta PP e conti
 
   await p.goto(`/fichas/${fichaId}`);
   await p.getByLabel('Estágio do núcleo').selectOption({ label: 'Laranja escuro' });
-  await expect(p.getByText('Total até aqui: +7 de mana, −2 de gasto universal de mana, +7 de vida')).toBeVisible();
+  await expect(p.getByText('Total até aqui: +7 de mana, −2 de gasto universal de mana, +24 AP')).toBeVisible();
   await expect(p.getByText(/\+ núcleo 7 = 37$/)).toBeVisible();
+  await expect(p.getByText('0 de 49 AP usados')).toBeVisible();
 
   await p.getByRole('tab', { name: 'Perícias' }).click();
   await p.locator('#a-pericias-esquiva').fill('4');

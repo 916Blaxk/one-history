@@ -53,21 +53,22 @@ export const ESTAGIOS: Estagio[] = [
   { min: 100, nome: '???', txt: '' },
 ];
 
-export interface EstagioNucleo { nome: string; mana: number; gasto: number; pv: number; txt?: string }
+/* Vida não vem mais do núcleo: agora vem de pontos de atributo ou de itens. PP também não: o mestre distribui ao longo do RPG. */
+export interface EstagioNucleo { nome: string; mana: number; gasto: number; ap: number; txt?: string }
 export const NUCLEOS: EstagioNucleo[] = [
-  { nome: 'Vermelho escuro', mana: 0, gasto: 0, pv: 0, txt: 'Seu núcleo acabou de se formar em seu corpo, cheio de impurezas do sangue. Ele fica entre os pulmões e acima do estômago. Você pode sentir as veias de mana passarem por seu corpo, o fortalecendo e tomando uma forma…' },
-  { nome: 'Vermelho sólido', mana: 2, gasto: 0, pv: 2 },
-  { nome: 'Vermelho claro', mana: 2, gasto: 0, pv: 2 },
-  { nome: 'Laranja escuro', mana: 3, gasto: 2, pv: 3 },
-  { nome: 'Laranja sólido', mana: 3, gasto: 0, pv: 3 },
-  { nome: 'Laranja claro', mana: 3, gasto: 0, pv: 3 },
-  { nome: 'Amarelo escuro', mana: 5, gasto: 3, pv: 5 },
-  { nome: 'Amarelo sólido', mana: 5, gasto: 0, pv: 5 },
-  { nome: 'Amarelo claro', mana: 5, gasto: 0, pv: 5 },
-  { nome: 'Prata escuro', mana: 10, gasto: 5, pv: 10 },
-  { nome: 'Prata fosco', mana: 10, gasto: 0, pv: 10 },
-  { nome: 'Prata brilhante', mana: 10, gasto: 0, pv: 10 },
-  { nome: 'Branco', mana: 50, gasto: 10, pv: 40 },
+  { nome: 'Vermelho escuro', mana: 0, gasto: 0, ap: 0, txt: 'Seu núcleo acabou de se formar em seu corpo, cheio de impurezas do sangue. Ele fica entre os pulmões e acima do estômago. Você pode sentir as veias de mana passarem por seu corpo, o fortalecendo e tomando uma forma…' },
+  { nome: 'Vermelho sólido', mana: 2, gasto: 0, ap: 7 },
+  { nome: 'Vermelho claro', mana: 2, gasto: 0, ap: 7 },
+  { nome: 'Laranja escuro', mana: 3, gasto: 2, ap: 10 },
+  { nome: 'Laranja sólido', mana: 3, gasto: 0, ap: 10 },
+  { nome: 'Laranja claro', mana: 3, gasto: 0, ap: 10 },
+  { nome: 'Amarelo escuro', mana: 5, gasto: 3, ap: 10 },
+  { nome: 'Amarelo sólido', mana: 5, gasto: 0, ap: 15 },
+  { nome: 'Amarelo claro', mana: 5, gasto: 0, ap: 15 },
+  { nome: 'Prata escuro', mana: 10, gasto: 5, ap: 15 },
+  { nome: 'Prata fosco', mana: 10, gasto: 0, ap: 20 },
+  { nome: 'Prata brilhante', mana: 10, gasto: 0, ap: 20 },
+  { nome: 'Branco', mana: 50, gasto: 10, ap: 50 },
 ];
 
 export const AP_INICIAL = 25;
@@ -106,14 +107,14 @@ export interface DadosFicha {
   publica: boolean;
 }
 
-type BaseVida = Pick<DadosFicha, 'corpo' | 'ajustes' | 'nucleo'>;
+type BaseVida = Pick<DadosFicha, 'corpo' | 'ajustes'>;
 type BaseMana = Pick<DadosFicha, 'mente' | 'tier' | 'manaPerdida' | 'nucleo' | 'ajustes'>;
 
 /* Cada estágio soma ao que os anteriores já deram. Fichas gravadas antes do núcleo não têm o campo e ficam no primeiro estágio. */
 export function bonusNucleo(estagioNucleo: number | undefined) {
-  const total = { mana: 0, gasto: 0, pv: 0 };
+  const total = { mana: 0, gasto: 0, ap: 0 };
   for (const n of NUCLEOS.slice(0, (estagioNucleo ?? 0) + 1)) {
-    total.mana += n.mana; total.gasto += n.gasto; total.pv += n.pv;
+    total.mana += n.mana; total.gasto += n.gasto; total.ap += n.ap;
   }
   return total;
 }
@@ -123,7 +124,7 @@ export const ppTotal = (f: Pick<DadosFicha, 'ajustes'>) => Math.max(0, PP_INICIA
 /* Os pontos de atributo também podem ir para armas e elementos, inclusive os criados na ficha. */
 export const apGastos = (f: Pick<DadosFicha, 'corpo' | 'mente' | 'armas' | 'elementos' | 'elementosCriados'>) =>
   somaValores(f.corpo) + somaValores(f.mente) + somaValores(f.armas) + somaValores(f.elementos) + f.elementosCriados.reduce((soma, e) => soma + e.valor, 0);
-export const apTotal = (f: Pick<DadosFicha, 'ajustes'>) => Math.max(0, AP_INICIAL + f.ajustes.ap);
+export const apTotal = (f: Pick<DadosFicha, 'nucleo' | 'ajustes'>) => Math.max(0, AP_INICIAL + bonusNucleo(f.nucleo).ap + f.ajustes.ap);
 export const chaveLimite = (g: Grupo, k: string) => `${g}.${k}`;
 /* Toda perícia tem limite: o definido para ela ou o geral, que o mestre aumenta. Os demais só têm se alguém definir. */
 export function limiteDoItem(f: Pick<DadosFicha, 'limites' | 'ajustes'>, g: Grupo, k: string) {
@@ -150,8 +151,8 @@ export function somaDaRolagem(f: Pick<DadosFicha, 'elementos' | 'armas' | 'peric
 /* O gasto universal do núcleo desconta do custo de toda magia, sem deixar o custo negativo. */
 export const custoMagia = (f: Pick<DadosFicha, 'nucleo'>, m: Pick<Magia, 'custo'>) => Math.max(0, m.custo - bonusNucleo(f.nucleo).gasto);
 
-/* O ajuste do mestre fica por cima da fórmula: subir atributo ou núcleo continua valendo. Fichas antigas não têm `ajustes`. */
-export const vidaMax = (f: BaseVida) => Math.max(0, 15 + f.corpo.vitalidade * 2 + bonusNucleo(f.nucleo).pv + (f.ajustes?.vida ?? 0));
+/* O ajuste fica por cima da fórmula: subir atributo continua valendo. Fichas antigas não têm `ajustes`. */
+export const vidaMax = (f: BaseVida) => Math.max(0, 15 + f.corpo.vitalidade * 2 + (f.ajustes?.vida ?? 0));
 /* Todo arredondamento do sistema é para baixo. O 1e-9 evita que 10 × 2,3 vire 22,999… e perca um ponto. */
 export const manaBase = (f: Omit<BaseMana, 'manaPerdida'>) => Math.floor(30 + f.mente.onipotencia * TIERS[f.tier] + 1e-9) + bonusNucleo(f.nucleo).mana + (f.ajustes?.mana ?? 0);
 export const manaMax = (f: BaseMana) => Math.max(0, manaBase(f) - f.manaPerdida);

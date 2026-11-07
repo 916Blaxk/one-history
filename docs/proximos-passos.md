@@ -14,9 +14,11 @@
 
 Estas aguardam Arthur Baldo, que criou o sistema e decide as regras de dados.
 
-1. **AP e PP no núcleo:** Arthur vai definir quanto cada estágio dá. Até lá, os totais são 25 AP e 20 PP, mais o bônus de cada ficha. A tabela antiga de SP saiu do site.
+1. **Prata escuro:** a tabela de Arthur traz "+10pv" nesse estágio, mas a mesma mensagem diz que a vida por estágio foi removida. O site não dá essa vida. Falta confirmar.
 
 ## Decisões tomadas
+
+- **Progressão do núcleo (7 de novembro de 2026):** cada estágio dá AP, além de mana e gasto universal, e não dá mais vida nem PP. Veja [pericias.md](pericias.md).
 
 - **Edição da ficha (7 de novembro de 2026):** o dono e o mestre editam tudo, inclusive núcleo, fadiga, bônus, limites e encerrar cena. Totais e limites só avisam, em destaque, e nenhum número bloqueia. Só `publica` continua com o mestre, porque decide quem vê a ficha dele. A fadiga guardada na saída da campanha continua voltando ao retornar, mas o dono já pode mudá-la depois.
 - **Pontos (7 de novembro de 2026):** a ficha começa com 25 AP, divididos entre atributos, armas e elementos, e 20 PP. O limite por perícia começa em 5, e o limite de atributos fica a critério do mestre.

@@ -55,7 +55,7 @@ export default function EditorFicha({ f, ed, chat }: {
     mudarComMaximos(c => { c[g][k] = R.inteiro(v, 0, 999); }, c => ({ [g]: { [k]: c[g][k] } }));
   const mudarAjuste = (chave: keyof R.AjustesMestre, v: unknown) =>
     mudarComMaximos(c => { c.ajustes[chave] = R.inteiro(v, -9999, 9999); }, c => ({ ajustes: { [chave]: c.ajustes[chave] } }));
-  /* A pessoa digita o total, e a diferença para a fórmula vira o ajuste: subir vitalidade ou núcleo continua somando. */
+  /* A pessoa digita o total, e a diferença para a fórmula vira o ajuste: subir vitalidade continua somando. */
   const mudarVidaMaxima = (v: unknown) => mudarAjuste('vida', R.inteiro(v, 0, 99999) - (vm - f.ajustes.vida));
   const elementosDaFicha = R.elementosDaFicha(f);
   function adicionarElemento(k: string) {
@@ -285,7 +285,7 @@ export default function EditorFicha({ f, ed, chat }: {
               </select>
             </div>
             {R.NUCLEOS[f.nucleo].txt && <p className="formula">{R.NUCLEOS[f.nucleo].txt}</p>}
-            <p className="formula">Total até aqui: +{bonus.mana} de mana, −{bonus.gasto} de gasto universal de mana, +{bonus.pv} de vida</p>
+            <p className="formula">Total até aqui: +{bonus.mana} de mana, −{bonus.gasto} de gasto universal de mana, +{bonus.ap} AP</p>
           </div>
                       {([['inventario', 'Inventário'], ['notas', 'Anotações']] as const).map(([k, rotulo]) => (
             <div className="campo" key={k}>
@@ -385,7 +385,7 @@ export default function EditorFicha({ f, ed, chat }: {
         </section>
 
         <aside className="col-cena" aria-label="Em cena">
-          {blocoVital('vidaAtual', 'Vida', 'cor-vida', f.vidaAtual, vm, `15 + vitalidade ${f.corpo.vitalidade} × 2${bonus.pv ? ` + núcleo ${bonus.pv}` : ''}${parcelaAjuste(f.ajustes.vida)} = ${vm}`, campoBonus('vida', 'vida'))}
+          {blocoVital('vidaAtual', 'Vida', 'cor-vida', f.vidaAtual, vm, `15 + vitalidade ${f.corpo.vitalidade} × 2${parcelaAjuste(f.ajustes.vida)} = ${vm}`, campoBonus('vida', 'vida'))}
           {blocoVital('manaAtual', 'Mana', 'cor-mana', f.manaAtual, mm,
             `30 + onipotência ${f.mente.onipotencia} × ${virgula(R.TIERS[f.tier])} (tier ${f.tier})${bonus.mana ? ` + núcleo ${bonus.mana}` : ''}${parcelaAjuste(f.ajustes.mana)} = ${base}${f.manaPerdida ? `, menos ${f.manaPerdida} perdida = ${mm}` : ''}`,
             <>
