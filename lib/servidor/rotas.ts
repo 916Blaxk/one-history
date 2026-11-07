@@ -5,7 +5,7 @@ import { rollDice } from '../../mesa/src/features/chat/dice-parser';
 import type { DiceRollResult } from '../../mesa/src/features/chat/dice-types';
 import { normalizarEnquadramento } from '../enquadramento';
 import * as R from '../regras';
-import { lerAcao, resumoDaFicha } from '../resumoFicha';
+import { expressaoDaRolagem, lerAcao, resumoDaFicha } from '../resumoFicha';
 import type { Ficha, Mensagem, PaginaChat, Papel, ResumoFicha } from '../tipos';
 import { avisarMesa } from './barramento';
 import { db } from './db';
@@ -205,14 +205,20 @@ async function removerMembro(campanhaId: string, usuarioId: string) {
   ]);
   avisarMesa({ tipo: 'campanha', campanhaId });
 }
-function rolar(lados: number, bonus: number, adicional = 0) {
+function rolar(lados: number, bonus: number) {
   if (!R.DADOS.includes(lados)) throw new Erro(400, 'Esse dado não existe no rolador. Use d4, d6, d8, d10, d12, d20 ou d100.');
-  const expressao = `1d${lados}${adicional ? `+1d${adicional}` : ''}${bonus > 0 ? `+${bonus}` : bonus < 0 ? `-${-bonus}` : ''}`;
-  const detalhe = rollDice(expressao);
-  return { d: detalhe.groups[0].dice[0].rolls[0], lados, adicional, dAdicional: adicional ? detalhe.groups[1].dice[0].rolls[0] : 0, bonus, total: detalhe.total, expressao, detalhe };
+  const expressao = `1d${lados}${bonus > 0 ? `+${bonus}` : bonus < 0 ? `-${-bonus}` : ''}`;
+  return { expressao, detalhe: rollDice(expressao) };
 }
-const detalheRolagem = (r: ReturnType<typeof rolar>) =>
-  `d${r.lados} (${r.d})${r.adicional ? ` + d${r.adicional} (${r.dAdicional})` : ''}${r.bonus ? ` ${r.bonus > 0 ? '+' : '−'} ${Math.abs(r.bonus)}` : ''}`;
+function rolarDaFicha(valor: number, vantagem: number) {
+  const expressao = expressaoDaRolagem(valor, vantagem);
+  return { expressao, detalhe: rollDice(expressao) };
+}
+/* Com vantagem, mostra todos os d20: quem joga precisa ver qual valeu. */
+export function detalheRolagem(r: DiceRollResult) {
+  const g = r.groups[0], rolados = g.dice.flatMap(d => d.rolls).join(', ');
+  return `${g.count > 1 ? `${g.count}d${g.sides}, fica o maior` : `d${g.sides}`} (${rolados})${g.modifier ? ` ${g.modifier > 0 ? '+' : '−'} ${Math.abs(g.modifier)}` : ''}`;
+}
 /* O mesmo texto de uma rolagem, para expressões que só a mesa aceita: o chat de dados do site mostra só isto. */
 export function textoDaRolagem(r: DiceRollResult) {
   const partes = r.groups.map(g => {
@@ -244,8 +250,9 @@ async function registrarRolagem(
   campanhaId: string | null, fichaId: string | null, usuario: UsuarioSessao,
   autor: string, rotulo: string, r: ReturnType<typeof rolar>, fotoV = 0,
 ): Promise<Mensagem> {
-  const linha = await gravarRolagem({ campanhaId, fichaId, usuarioId: usuario.id, autor, rotulo, det: detalheRolagem(r), total: r.total, expressao: r.expressao, detalhe: r.detalhe });
-  return { id: linha.id, em: linha.em, autor, rotulo, det: linha.det, total: r.total, minha: true, fichaId, fotoV };
+  const total = r.detalhe.total;
+  const linha = await gravarRolagem({ campanhaId, fichaId, usuarioId: usuario.id, autor, rotulo, det: detalheRolagem(r.detalhe), total, expressao: r.expressao, detalhe: r.detalhe });
+  return { id: linha.id, em: linha.em, autor, rotulo, det: linha.det, total, minha: true, fichaId, fotoV };
 }
 
 /* Página do histórico, da mais antiga para a mais nova. `antes` é o cursor "em_id" da mensagem mais antiga já carregada. */
@@ -499,11 +506,11 @@ rota('POST', '/api/fichas/:id/rolar', async ctx => {
   let rotulo = '';
   let r: ReturnType<typeof rolar>;
   if (ctx.corpo.atributo) {
-    /* Rolagem de atributo é sempre d20 + o valor guardado na ficha, e a de perícia soma o dado adicional: o navegador não escolhe o bônus. */
+    /* Valor e vantagem vêm do que está guardado na ficha: o navegador não escolhe o bônus. */
     const item = lerAcao(R.normalizar(f.dados), String(ctx.corpo.atributo));
     if (!item) throw new Erro(400, 'Esse atributo não existe na ficha.');
     rotulo = item.rotulo;
-    r = rolar(20, item.valor, item.grupo === 'pericias' ? R.dadoAdicional(item.treino) : 0);
+    r = rolarDaFicha(item.valor, item.vantagem);
   } else {
     r = rolar(Number(ctx.corpo.lados), R.inteiro(ctx.corpo.bonus, -999, 999));
   }

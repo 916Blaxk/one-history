@@ -731,9 +731,8 @@ button,a,input,select,textarea,.rol-item,.painel,.magia,.attr{transition:border-
 .pericia-linha input[type=number]::-webkit-inner-spin-button,.pericia-linha input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
 .pericia-linha input[type=number]:focus{outline:none;box-shadow:0 2px 0 var(--primary)}
 .pericia-linha .campo-limite{grid-column:2 / -1}
-.pericia-linha[data-dado="2"],.pericia-linha[data-dado="4"]{color:var(--success)}
-.pericia-linha[data-dado="6"],.pericia-linha[data-dado="8"]{color:var(--primary-claro)}
-.pericia-linha[data-dado="10"]{color:var(--gold)}
+.pericia-linha[data-treinada="true"]{color:var(--success)}
+.pericia-dados[data-vantagem="true"]{color:var(--gold);font-weight:600}
 @media (max-width:480px){
   .pericia-linha{grid-template-columns:26px minmax(0,1fr) 54px 40px 40px 40px;gap:4px 5px}
   .pericia-rolar{width:26px;height:26px;padding:2px}

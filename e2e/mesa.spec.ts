@@ -288,11 +288,11 @@ test('perícias: existe a classe Magia, e as adicionais foram distribuídas', as
   await p.getByLabel('Outros de Esquiva').fill('3');
   await p.getByLabel('Outros de Esquiva').press('Enter');
   await expect(esquiva.locator('.pericia-bonus')).toHaveText('( 10 )');
-  await expect(esquiva).toHaveAttribute('data-dado', '4');
+  await expect(esquiva).toHaveAttribute('data-treinada', 'true');
   await expect(p.getByText('7 de 15 SP usados')).toBeVisible();
   await expect(p.getByRole('status').filter({ hasText: 'Salvo' })).toBeVisible();
   await p.getByRole('button', { name: 'Rolar d20 mais Esquiva' }).click();
-  await expect(p.locator('.chat-popup .msg-det')).toHaveText(/^d20 \(\d+\) \+ d4 \(\d\) \+ 10$/);
+  await expect(p.locator('.chat-popup .msg-det')).toHaveText(/^d20 \(\d+\) \+ 10$/);
 });
 
 test('armas: a ficha traz as três categorias, sem as específicas', async ({ browser }) => {

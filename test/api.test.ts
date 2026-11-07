@@ -495,7 +495,7 @@ describe('campanhas', () => {
     expect(salva.pericias.medicina).toBe(0);
     const r = (await jog.c('POST', `/api/fichas/${f.id}/rolar`, { atributo: 'pericias.esquiva' })).corpo.rolagem;
     expect(r.rotulo).toBe('Esquiva');
-    expect(r.det).toMatch(/^d20 \(\d+\) \+ d2 \([12]\) \+ 4$/);
+    expect(r.det).toMatch(/^d20 \(\d+\) \+ 4$/);
   });
 
   it('só o mestre muda bônus e limites; o jogador para neles e nos SP', async () => {
@@ -548,7 +548,16 @@ describe('campanhas', () => {
     const salva = (await c('PATCH', `/api/fichas/${f.id}`, { pericias: { esquiva: 7 }, periciasOutros: { esquiva: 3 } })).corpo.ficha;
     expect(salva.periciasOutros).toEqual({ esquiva: 3 });
     const { rolagem } = (await c('POST', `/api/fichas/${f.id}/rolar`, { atributo: 'pericias.esquiva', bonus: 500 })).corpo;
-    expect(rolagem.det).toMatch(/^d20 \(\d+\) \+ d4 \(\d\) \+ 10$/);
+    expect(rolagem.det).toMatch(/^d20 \(\d+\) \+ 10$/);
+  });
+
+  it('com 15 de Destreza, Esquiva rola 2 d20, fica o maior e soma só a perícia', async () => {
+    const { c } = await novaConta('Vantagem');
+    const f = await novaFicha(c, { corpo: { destreza: 15 } });
+    await c('PATCH', `/api/fichas/${f.id}`, { pericias: { esquiva: 5 } });
+    const { rolagem } = (await c('POST', `/api/fichas/${f.id}/rolar`, { atributo: 'pericias.esquiva' })).corpo;
+    const [, a, b] = rolagem.det.match(/^2d20, fica o maior \((\d+), (\d+)\) \+ 5$/);
+    expect(rolagem.total).toBe(Math.max(Number(a), Number(b)) + 5);
   });
 
   it('o jogador muda a vida máxima, e o cálculo continua somando', async () => {

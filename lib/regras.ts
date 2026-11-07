@@ -12,7 +12,7 @@ export const PERICIAS: readonly { categoria: string; itens: readonly (readonly [
 
 export type AtributoPericia = 'destreza' | 'tracao' | 'onisciencia' | 'onipotencia' | 'encanto';
 const deAtributo = (atributo: AtributoPericia, chaves: string) => Object.fromEntries(chaves.split(' ').map(k => [k, atributo]));
-/* O atributo de cada perícia, da lista do sistema. Por enquanto só aparece na ficha: a rolagem não soma, até quem criou o sistema decidir. Sorte não está na lista. */
+/* O atributo de cada perícia, da lista do sistema. Ele dá vantagem na rolagem, mas seu valor não soma no resultado. Sorte não está na lista. */
 export const ATRIBUTO_DA_PERICIA: Readonly<Record<string, AtributoPericia | undefined>> = {
   ...deAtributo('destreza', 'lutaDesarmada esquiva acrobacia escalada natacao corrida equilibrio furtividade arrombamento truques pilotagem danca'),
   ...deAtributo('tracao', 'aparar arremesso'),
@@ -94,7 +94,7 @@ export interface DadosFicha {
   ajustes: AjustesMestre; limites: Record<string, number>;
   magias: Magia[];
   elementosCriados: ElementoCriado[];
-  /* Bônus livre de cada perícia. Soma na rolagem, mas não gasta SP nem muda o dado adicional, que vêm do treino. */
+  /* Bônus livre de cada perícia. Soma na rolagem, mas não gasta SP, que vem do treino. */
   periciasOutros: Record<string, number>;
   /* Elementos base que o personagem tem. A ficha começa sem nenhum, e o jogador adiciona os dele. */
   elementosAtivos: string[];
@@ -119,8 +119,12 @@ export const spTotal = (f: Pick<DadosFicha, 'nucleo' | 'ajustes'>) => Math.max(0
 export const chaveLimite = (g: Grupo, k: string) => `${g}.${k}`;
 export const chaveCriado = (id: string) => `criados.${id}`;
 export const fichaPrivada = (f: { donoId: string; dados: Pick<DadosFicha, 'publica'> }, mestreId: string) => f.donoId === mestreId && !f.dados.publica;
-/* Lados do dado que a perícia soma à rolagem. O documento do sistema vai até 25; acima disso, o mestre pode liberar o valor, e o dado fica no maior. */
-export const dadoAdicional = (valor: number) => (valor <= 0 ? 0 : valor <= 5 ? 2 : valor <= 10 ? 4 : valor <= 15 ? 6 : valor <= 20 ? 8 : 10);
+export const PONTOS_POR_VANTAGEM = 15;
+/* Regra do criador do sistema: a cada 15 pontos no atributo, 1 dado de vantagem, seja na rolagem do atributo ou na de uma perícia dele. Elementos e armas não têm atributo definido. */
+export function vantagemDaRolagem(f: Pick<DadosFicha, 'corpo' | 'mente'>, grupo: Grupo, chave: string) {
+  const atributo = grupo === 'pericias' ? ATRIBUTO_DA_PERICIA[chave] : grupo === 'corpo' || grupo === 'mente' ? chave : undefined;
+  return atributo ? Math.floor((f.corpo[atributo] ?? f.mente[atributo] ?? 0) / PONTOS_POR_VANTAGEM) : 0;
+}
 /* O gasto universal do núcleo desconta do custo de toda magia, sem deixar o custo negativo. */
 export const custoMagia = (f: Pick<DadosFicha, 'nucleo'>, m: Pick<Magia, 'custo'>) => Math.max(0, m.custo - bonusNucleo(f.nucleo).gasto);
 

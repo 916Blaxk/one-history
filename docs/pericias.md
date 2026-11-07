@@ -9,27 +9,29 @@ A numeração é corrida, na ordem do código. O documento do sistema pulava de 
 ## Como funcionam
 
 - **Valor:** cada perícia guarda um valor por ficha, que começa em 0.
-- **Treino e Outros:** Treino é o valor da perícia: gasta SP e define o dado adicional. Outros é um bônus livre, sem gastar SP.
-- **Rolagem:** rolar uma perícia é d20 + dado adicional do treino + bônus (Treino + Outros). O servidor lê os valores, e o navegador não escolhe o bônus.
-- **Atributo:** cada perícia mostra o atributo da lista do sistema, mas ele não soma na rolagem. Aguarda a decisão de quem criou o sistema. Sorte não está na lista.
+- **Treino e Outros:** Treino é o valor da perícia e gasta SP. Outros é um bônus livre, sem gastar SP.
+- **Rolagem:** rolar uma perícia é d20 com a vantagem do atributo + bônus (Treino + Outros). O servidor lê os valores, e o navegador não escolhe o bônus.
+- **Atributo:** cada perícia usa o atributo da lista do sistema, que dá vantagem, mas o valor dele não soma no resultado. Sorte não está na lista e rola sem vantagem.
 - **SP:** a soma do Treino de todas as perícias é o SP gasto. O SP total vem do estágio do núcleo mais o ajuste do mestre.
 - **Travas do jogador:** o jogador não sobe uma perícia além do SP total nem do limite que o mestre definir para ela.
 - **Mestre:** o mestre pode deixar um valor acima do limite. Depois disso, o jogador só pode baixar esse valor.
 
-## Dado adicional
+## Vantagem
 
-Só as perícias têm dado adicional. Elementos, armas, corpo e mente rolam d20 + valor.
+Regra passada por Arthur Baldo, que criou o sistema, em 7 de novembro de 2026. Substitui a tabela de dado adicional (1d2 a 1d10).
 
-| Valor da perícia | Dado |
-| --- | --- |
-| 0 | Nenhum |
-| 1 a 5 | 1d2 |
-| 6 a 10 | 1d4 |
-| 11 a 15 | 1d6 |
-| 16 a 20 | 1d8 |
-| 21 ou mais | 1d10 |
+A cada 15 pontos em um atributo, a rolagem desse atributo e das perícias dele ganha 1 dado de vantagem. Cada vantagem rola mais um d20, e fica o maior.
 
-O documento do sistema vai até 25. Acima disso, o dado continua em 1d10.
+| Atributo | Vantagem | Dados |
+| --- | --- | --- |
+| 0 a 14 | 0 | 1d20 |
+| 15 a 29 | 1 | 2d20, fica o maior |
+| 30 a 44 | 2 | 3d20, fica o maior |
+
+Exemplo: com 15 de Destreza e 5 de Esquiva, esquivar rola 2d20, fica o maior, e soma 5.
+
+- **Atributos:** rolar o próprio atributo tem a vantagem dele e soma o valor. A iniciativa é uma rolagem de Destreza.
+- **Elementos e armas:** rolam d20 + valor, sem vantagem.
 
 ## SP e vida por estágio do núcleo
 
@@ -150,7 +152,7 @@ O documento e o código divergiam nestes pontos. Qualquer decisão pode mudar de
 | Assunto | Decisão |
 | --- | --- |
 | Vida por estágio do núcleo | Segue o documento |
-| Dado adicional por perícia | Segue o documento |
+| Dado adicional por perícia | Saiu: virou vantagem por atributo, por decisão de quem criou o sistema |
 | Vermelho escuro | Segue o código: dá 15 SP, e o documento dizia "nenhum efeito" |
 | Sorte | Segue o código: existe, e o documento não a citava |
 | Perícias adicionais | Foram distribuídas: Encantar e Extração de núcleo em Magia, Tecnologia em Conhecimento, Metalúrgica em Profissões e ofícios, Sorte em Exploração e utilidade |

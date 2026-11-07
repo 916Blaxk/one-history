@@ -14,9 +14,9 @@ import {
 import { avancarVez, tirarDoCombate } from '../src/shared/combate.js'
 import { CAMADA_MUNDO, MAX_NUMEROS_NEVOA, MAX_OPS_NEVOA, celulasParaOps, tamanhoDaNevoa } from '../src/shared/nevoa.js'
 import * as R from '../../lib/regras'
-import { expressaoAtributo, expressaoDaAcao, lerAcao } from '../../lib/resumoFicha'
+import { expressaoDaRolagem, lerAcao } from '../../lib/resumoFicha'
 import { ouvirMesa, type EventoMesa } from '../../lib/servidor/barramento'
-import { alterarFicha, gravarRolagem, textoDaRolagem } from '../../lib/servidor/rotas'
+import { alterarFicha, detalheRolagem, gravarRolagem, textoDaRolagem } from '../../lib/servidor/rotas'
 import { COOKIE, usuarioDoToken } from '../../lib/servidor/sessao'
 import {
   campanhaExiste, carregarHistorico, carregarMesa, gravarMensagem, lerAcesso, lerFicha, lerFichasDaCampanha, lerMembros, rolagemParaChat, salvarMesa, type EstadoMesa,
@@ -446,20 +446,20 @@ async function revalidarVinculos(room: RoomState) {
   for (const fichaId of fichas) await sincronizarFicha(room, fichaId)
 }
 
-/* Iniciativa é d20 + Destreza da ficha vinculada. Token oculto rola em segredo: o chat é de todos. */
+/* Iniciativa é uma rolagem de Destreza da ficha vinculada, com a vantagem dela. Token oculto rola em segredo: o chat é de todos. */
 async function rolarIniciativa(room: RoomState, player: RoomPlayer, tokenId: string) {
   const token = room.tokens.get(tokenId)
   const entrada = room.combate?.lista.find((item) => item.tokenId === tokenId)
   if (!token || !entrada) return
   const ficha = token.characterId ? await lerFicha(token.characterId) : null
-  const expressao = expressaoAtributo(ficha?.dados.corpo.destreza ?? 0)
+  const expressao = expressaoDaRolagem(ficha?.dados.corpo.destreza ?? 0, ficha ? R.vantagemDaRolagem(ficha.dados, 'corpo', 'destreza') : 0)
   const roll = rollDice(expressao)
   entrada.iniciativa = roll.total
   if (token.hidden) return
   await gravarRolagem({
     campanhaId: room.code, fichaId: null, usuarioId: player.id,
     autor: token.fotoFichaPrivada && token.nomeDaFicha ? NOME_FICHA_PRIVADA : token.name,
-    rotulo: 'Iniciativa', det: textoDaRolagem(roll), total: roll.total, expressao, detalhe: roll,
+    rotulo: 'Iniciativa', det: detalheRolagem(roll), total: roll.total, expressao, detalhe: roll,
   })
 }
 
@@ -813,13 +813,13 @@ async function handleCommand(socket: TableSocket, room: RoomState, player: RoomP
       const item = lerAcao(ficha.dados, message.acao)
       if (!item) return deny(socket)
       /* O bônus vem da ficha guardada: o navegador só diz qual atributo rolar. */
-      const expression = expressaoDaAcao(item.grupo, item.valor, item.treino)
+      const expression = expressaoDaRolagem(item.valor, item.vantagem)
       const roll = rollDice(expression)
       /* Todos da mesa veem a rolagem: o nome e o id entregariam a ficha privada. */
       const privada = R.fichaPrivada(ficha, room.mestreId)
       await gravarRolagem({
         campanhaId: room.code, fichaId: privada ? null : ficha.id, usuarioId: player.id, autor: privada ? 'Mestre' : ficha.dados.nome || 'Sem nome',
-        rotulo: item.rotulo, det: textoDaRolagem(roll), total: roll.total, expressao: expression, detalhe: roll,
+        rotulo: item.rotulo, det: detalheRolagem(roll), total: roll.total, expressao: expression, detalhe: roll,
       })
       return
     }

@@ -159,7 +159,7 @@ export default function EditorFicha({ f, ed, chat }: {
           <CampoNumero id={idCampo} min={0} valor={f[g][k]} aoMudar={v => mudarAttr(g, k, v)} />
           <button type="button" disabled={travado} aria-label={`Aumentar ${rotulo}`} onClick={() => mudarAttr(g, k, f[g][k] + 1)}>+</button>
         </div>
-        <button type="button" className="rolar" title={`Rolar d20${g === 'pericias' && R.dadoAdicional(f[g][k]) ? ` + d${R.dadoAdicional(f[g][k])}` : ''} + ${rotulo}`} aria-label={`Rolar d20 mais ${rotulo}`} onClick={() => rolar({ atributo: `${g}.${k}` })}>d20</button>
+        <button type="button" className="rolar" title={`Rolar ${R.vantagemDaRolagem(f, g, k) ? `${R.vantagemDaRolagem(f, g, k) + 1}d20, fica o maior,` : 'd20'} + ${rotulo}`} aria-label={`Rolar d20 mais ${rotulo}`} onClick={() => rolar({ atributo: `${g}.${k}` })}>d20</button>
         {cor && <span className="attr-barra" aria-hidden="true"><i style={{ width: `${Math.min(100, f[g][k] / TETO_DA_BARRA * 100)}%` }} /></span>}
         {cor && <div className="elemento-remover"><BotaoConfirmar className="btn btn-pequeno" rotulo={`Remover ${rotulo}`} confirmar="Confirmar: remover" aoConfirmar={() => removerElemento(k)} /></div>}
         {souMestre && editandoLimites && (

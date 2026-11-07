@@ -12,16 +12,11 @@ export interface ResumoDaFicha {
 const NOME_GRUPO: Record<R.Grupo, string> = { elementos: 'Elementos', armas: 'Armas', corpo: 'Corpo', mente: 'Mente', pericias: 'Perícias' };
 const CATEGORIA_PERICIA = new Map(R.PERICIAS.flatMap(c => c.itens.map(([k]) => [k, c.categoria] as const)));
 
-/* A rolagem de atributo é sempre d20 + o valor guardado na ficha. */
-export function expressaoAtributo(valor: number) {
-  if (valor > 0) return `1d20+${valor}`;
-  return valor < 0 ? `1d20-${-valor}` : '1d20';
-}
-
-/* Só perícia tem dado adicional: atributos, armas, corpo e mente continuam em d20 + valor. */
-export function expressaoDaAcao(grupo: R.Grupo, valor: number, treino = valor) {
-  const dado = grupo === 'pericias' ? R.dadoAdicional(treino) : 0;
-  return dado ? `1d20+1d${dado}+${valor}` : expressaoAtributo(valor);
+/* Cada vantagem rola mais um d20, e fica o maior. O valor da ficha soma no resultado. */
+export function expressaoDaRolagem(valor: number, vantagem = 0) {
+  const dados = vantagem > 0 ? `${vantagem + 1}d20kh1` : '1d20';
+  if (valor > 0) return `${dados}+${valor}`;
+  return valor < 0 ? `${dados}-${-valor}` : dados;
 }
 
 /* Aceita só "grupo.item" que exista: o texto vem do navegador. */
@@ -36,18 +31,21 @@ export function itemDaAcao(acao: string) {
 export function lerAcao(d: R.DadosFicha, acao: string) {
   if (acao.startsWith('criados.')) {
     const criado = d.elementosCriados.find(e => R.chaveCriado(e.id) === acao);
-    return criado ? { grupo: 'elementos' as const, rotulo: criado.nome, valor: criado.valor, treino: criado.valor } : null;
+    return criado ? { grupo: 'elementos' as const, rotulo: criado.nome, valor: criado.valor, vantagem: 0 } : null;
   }
   const item = itemDaAcao(acao);
   if (!item) return null;
-  /* `valor` é o que soma na rolagem; o dado adicional vem só do treino. */
   const treino = d[item.grupo][item.chave]!;
-  return { grupo: item.grupo, rotulo: item.rotulo, valor: treino + (item.grupo === 'pericias' ? d.periciasOutros[item.chave] ?? 0 : 0), treino };
+  return {
+    grupo: item.grupo, rotulo: item.rotulo,
+    valor: treino + (item.grupo === 'pericias' ? d.periciasOutros[item.chave] ?? 0 : 0),
+    vantagem: R.vantagemDaRolagem(d, item.grupo, item.chave),
+  };
 }
 
 export function acoesDeRolagem(d: R.DadosFicha): AcaoRolagem[] {
   const criados = d.elementosCriados.map(e => ({
-    id: R.chaveCriado(e.id), grupo: 'elementos' as const, categoria: NOME_GRUPO.elementos, rotulo: e.nome, valor: e.valor, expressao: expressaoAtributo(e.valor),
+    id: R.chaveCriado(e.id), grupo: 'elementos' as const, categoria: NOME_GRUPO.elementos, rotulo: e.nome, valor: e.valor, expressao: expressaoDaRolagem(e.valor),
   }));
   /* Elemento que o personagem não tem não vira rolagem na mesa. */
   const itensDe = (g: R.Grupo): readonly (readonly string[])[] => (g === 'elementos' ? R.elementosDaFicha(d) : R.GRUPOS[g]);
@@ -56,7 +54,7 @@ export function acoesDeRolagem(d: R.DadosFicha): AcaoRolagem[] {
     const treino = d[g][k]!, valor = treino + (g === 'pericias' ? d.periciasOutros[k] ?? 0 : 0);
     return {
       id: `${g}.${k}`, grupo: g, categoria: g === 'pericias' ? CATEGORIA_PERICIA.get(k) ?? NOME_GRUPO[g] : NOME_GRUPO[g],
-      rotulo, valor, expressao: expressaoDaAcao(g, valor, treino),
+      rotulo, valor, expressao: expressaoDaRolagem(valor, R.vantagemDaRolagem(d, g, k)),
     };
   }))];
 }

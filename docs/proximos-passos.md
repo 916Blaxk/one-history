@@ -1,6 +1,6 @@
 # Próximos passos
 
-Última atualização: 6 de novembro de 2026.
+Última atualização: 7 de novembro de 2026.
 
 ## Situação
 
@@ -12,12 +12,17 @@
 
 ## Decisões em aberto
 
-1. **Perícia acima de 25:** hoje, o dado adicional fica em 1d10. Aguarda a pessoa que criou o sistema, que decide as regras de dados.
-2. **Atributo na rolagem de perícia:** a ficha mostra o atributo de cada perícia, mas ele não soma. Também aguarda essa pessoa.
-3. **Sorte:** não veio na lista de atributos das perícias e aparece sem atributo.
+Estas aguardam Arthur Baldo, que criou o sistema e decide as regras de dados.
+
+1. **Vantagem, a confirmar:** a regra foi aplicada com três leituras dele que o texto não deixa explícitas: o dado adicional de 1d2 a 1d10 saiu; vantagem é rolar mais um d20 e ficar com o maior; e rolar o próprio atributo tem vantagem e ainda soma o valor.
+2. **Elementos e armas:** ele disse que "usam pontos de atributos". Hoje rolam d20 + valor, sem vantagem e sem ligação com atributo.
+3. **Sorte:** não veio na lista de atributos das perícias e rola sem vantagem.
+4. **Coluna Outros:** veio da imagem de referência e continua somando na rolagem.
 
 ## Decisões tomadas
 
+- **Vantagem de atributo (7 de novembro de 2026):** a cada 15 pontos, 1 dado de vantagem. Veja [pericias.md](pericias.md).
+- **Névoa para o mestre (7 de novembro de 2026):** subiu de 55% para 85% de opacidade, porque dava para ver demais por trás. Para o jogador, ela já era totalmente opaca.
 - **Brecha da fadiga (6 de novembro de 2026):** quando a ficha sai de uma campanha, o servidor guarda a fadiga dela. Se a ficha voltar para a mesma campanha, a fadiga volta a esse valor, e o registro da ficha mostra a mudança. Em outra campanha, a ficha entra com o maior valor entre a fadiga atual e a da última saída, e o mestre de lá pode corrigir.
 - **Quem cria elemento (6 de novembro de 2026):** o dono da ficha e o mestre.
 - **Fusão e variação de elementos (6 de novembro de 2026):** partem de elementos base ou de elementos já criados na ficha. Um elemento usado em outro não pode ser removido antes dele.

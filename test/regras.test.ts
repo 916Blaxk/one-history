@@ -1,4 +1,4 @@
-import { expressaoDaAcao, lerAcao } from '../lib/resumoFicha';
+import { expressaoDaRolagem, lerAcao } from '../lib/resumoFicha';
 import { describe, expect, it } from 'vitest';
 import * as R from '../lib/regras';
 
@@ -75,12 +75,29 @@ describe('regras do sistema', () => {
     expect(R.normalizar({ nucleo: 99 }).nucleo).toBe(12);
   });
 
-  it('dado adicional segue a faixa da perícia e só vale para perícia', () => {
-    const faixas: [number, number][] = [[0, 0], [1, 2], [5, 2], [6, 4], [10, 4], [11, 6], [15, 6], [16, 8], [20, 8], [21, 10], [25, 10], [50, 10]];
-    for (const [valor, lados] of faixas) expect(R.dadoAdicional(valor)).toBe(lados);
-    expect(expressaoDaAcao('pericias', 7)).toBe('1d20+1d4+7');
-    expect(expressaoDaAcao('pericias', 0)).toBe('1d20');
-    expect(expressaoDaAcao('corpo', 7)).toBe('1d20+7');
+  it('cada 15 pontos no atributo dão 1 dado de vantagem', () => {
+    const faixas: [number, number][] = [[0, 0], [14, 0], [15, 1], [29, 1], [30, 2], [999, 66]];
+    for (const [pontos, vantagem] of faixas) expect(R.vantagemDaRolagem(R.normalizar({ corpo: { destreza: pontos } }), 'corpo', 'destreza')).toBe(vantagem);
+    expect(expressaoDaRolagem(7)).toBe('1d20+7');
+    expect(expressaoDaRolagem(0)).toBe('1d20');
+    expect(expressaoDaRolagem(5, 1)).toBe('2d20kh1+5');
+    expect(expressaoDaRolagem(0, 2)).toBe('3d20kh1');
+  });
+
+  it('exemplo do sistema: 15 de Destreza e 5 de Esquiva rolam com 1 de vantagem e somam 5', () => {
+    const f = R.normalizar({ corpo: { destreza: 15 }, pericias: { esquiva: 5, aparar: 5, sorte: 5 } });
+    expect(lerAcao(f, 'pericias.esquiva')).toMatchObject({ valor: 5, vantagem: 1 });
+    /* Aparar é de Tração, e o valor do atributo não soma na perícia. */
+    expect(lerAcao(f, 'pericias.aparar')).toMatchObject({ valor: 5, vantagem: 0 });
+    /* Sorte não tem atributo definido. */
+    expect(lerAcao(f, 'pericias.sorte')).toMatchObject({ valor: 5, vantagem: 0 });
+    expect(lerAcao(f, 'corpo.destreza')).toMatchObject({ valor: 15, vantagem: 1 });
+  });
+
+  it('elementos e armas não ganham vantagem de atributo', () => {
+    const f = R.normalizar({ corpo: { destreza: 45, tracao: 45 }, mente: { onipotencia: 45 }, armas: { leves: 3 }, elementos: { fogo: 3 } });
+    expect(lerAcao(f, 'armas.leves')).toMatchObject({ valor: 3, vantagem: 0 });
+    expect(lerAcao(f, 'elementos.fogo')).toMatchObject({ valor: 3, vantagem: 0 });
   });
 
   it('toda perícia tem descrição', () => {
@@ -157,12 +174,11 @@ describe('regras do sistema', () => {
     expect(R.ATRIBUTO_DA_PERICIA.seducao).toBe('encanto');
   });
 
-  it('outros soma na rolagem, mas o dado adicional e os SP vêm do treino', () => {
+  it('outros soma na rolagem, mas os SP vêm do treino', () => {
     const f = R.normalizar({ pericias: { esquiva: 7 }, periciasOutros: { esquiva: 3, inventada: 9, aparar: -4 } });
     expect(f.periciasOutros).toEqual({ esquiva: 3 });
     expect(R.spGastos(f)).toBe(7);
-    expect(lerAcao(f, 'pericias.esquiva')).toMatchObject({ valor: 10, treino: 7 });
-    expect(expressaoDaAcao('pericias', 10, 7)).toBe('1d20+1d4+10');
+    expect(lerAcao(f, 'pericias.esquiva')).toMatchObject({ valor: 10, vantagem: 0 });
   });
 
   it('habilidades são limpas: só nome e descrição, com id único', () => {

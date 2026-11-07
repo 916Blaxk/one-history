@@ -40,13 +40,13 @@ export default function TabelaPericias({ f, souMestre, editandoLimites, aoMudarT
       <ul>
         {itens.map(([k, rotulo, desc]) => {
           const treino = f.pericias[k]!, outros = f.periciasOutros[k] ?? 0, chave = R.chaveLimite('pericias', k), limite = f.limites[chave];
-          const atributo = R.ATRIBUTO_DA_PERICIA[k], dado = R.dadoAdicional(treino);
+          const atributo = R.ATRIBUTO_DA_PERICIA[k], vantagem = R.vantagemDaRolagem(f, 'pericias', k);
           const idCampo = `a-pericias-${k}`;
           return (
-            <li className="pericia-linha" data-dado={dado} key={k}>
-              <button type="button" className="pericia-rolar" title={`Rolar d20${dado ? ` + d${dado}` : ''} + ${treino + outros}`} aria-label={`Rolar d20 mais ${rotulo}`} onClick={() => aoRolar(k)}><IconeD20 /></button>
+            <li className="pericia-linha" data-treinada={treino > 0} key={k}>
+              <button type="button" className="pericia-rolar" title={`Rolar ${vantagem ? `${vantagem + 1}d20, fica o maior,` : 'd20'} + ${treino + outros}`} aria-label={`Rolar d20 mais ${rotulo}`} onClick={() => aoRolar(k)}><IconeD20 /></button>
               <label className="pericia-nome" htmlFor={idCampo} title={desc}>{rotulo}{limite !== undefined && !editandoLimites && <small>Máx. {limite}</small>}</label>
-              <span className="pericia-dados" title={atributo ? NOME_ATRIBUTO[atributo] : 'Sem atributo definido'}>( {atributo ? SIGLA[atributo] : '—'} )</span>
+              <span className="pericia-dados" data-vantagem={vantagem > 0} title={atributo ? `${NOME_ATRIBUTO[atributo]}: ${vantagem} de vantagem (1 a cada ${R.PONTOS_POR_VANTAGEM} pontos)` : 'Sem atributo definido'}>( {atributo ? SIGLA[atributo] : '—'}{vantagem > 0 && ` +${vantagem}`} )</span>
               <span className="pericia-bonus" aria-label={`Bônus de ${rotulo}: ${treino + outros}`}>( {treino + outros} )</span>
               <CampoNumero id={idCampo} min={0} valor={treino} aoMudar={v => aoMudarTreino(k, v)} />
               <CampoNumero aria-label={`Outros de ${rotulo}`} min={0} valor={outros} aoMudar={v => aoMudarOutros(k, v)} />
