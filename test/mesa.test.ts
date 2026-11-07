@@ -235,6 +235,91 @@ describe('papéis vêm do banco', () => {
     expect((await entrar(mestre, id)).snapshot.nevoa.prep).toHaveLength(3);
   });
 
+  it('token do mestre pertence ao cenário onde foi solto: aparece, some e se move com ele', async () => {
+    const { mestre, jogador, id } = await mesaCompleta();
+    const m = await entrar(mestre, id);
+    const j = await entrar(jogador, id);
+    const barreira = async (texto: string) => {
+      m.comando({ type: 'chat:send', message: { type: 'normal', text: texto } });
+      await ate(() => j.eventos.some(e => e.message?.text === texto));
+    };
+    m.comando({ type: 'scene:add', scene: { id: 'caverna', imageUrl: PIXEL, x: 1000, y: 0, width: 400, height: 400, nome: 'Caverna', oculto: true } });
+    await ate(() => m.eventos.some(e => e.type === 'scene:added'));
+
+    const goblin = await criarToken(m, { name: 'Goblin', x: 1000, y: 0 });
+    const chefe = await criarToken(m, { name: 'Chefe', x: 1100, y: 0, hidden: true });
+    const solto = await criarToken(m, { name: 'Solto', x: 0, y: 0 });
+    const heroi = await criarToken(j, { name: 'Herói', x: 1050, y: 0 });
+    expect(m.ultimoToken(goblin).cenarioId).toBe('caverna');
+    expect(m.ultimoToken(solto).cenarioId).toBeUndefined();
+    await ate(() => j.ultimoToken(solto));
+    await barreira('criados');
+    /* O goblin não foi marcado como oculto, mas o cenário está. O personagem do jogador não entra nessa regra. */
+    expect(j.ultimoToken(goblin)).toBeUndefined();
+    expect(j.ultimoToken(heroi).cenarioId).toBeUndefined();
+    const chegouDepois = await entrar(jogador, id);
+    /* Kael é o personagem do jogador, criado com a mesa de teste. */
+    expect(chegouDepois.snapshot.tokens.map((t: any) => t.name).sort()).toEqual(['Herói', 'Kael', 'Solto']);
+    chegouDepois.fechar();
+
+    /* O navegador não escolhe o cenário: nem ao criar, nem ao editar. */
+    const falso = await criarToken(m, { name: 'Falso', x: 0, y: 0, cenarioId: 'caverna' });
+    expect(m.ultimoToken(falso).cenarioId).toBeUndefined();
+    m.comando({ type: 'token:update', id: falso, changes: { cenarioId: 'caverna' } });
+    await ate(() => m.eventos.some(e => e.type === 'permission:error'));
+
+    /* Mover o cenário oculto leva o token, sem contar nada ao jogador. */
+    m.comando({ type: 'scene:move', id: 'caverna', x: 1030, y: 10 });
+    const movido = await ate(() => m.eventos.find(e => e.type === 'scene:moved'));
+    expect(movido.posicoes).toEqual(expect.arrayContaining([{ id: goblin, x: 1030, y: 10 }]));
+    await barreira('movido oculto');
+    expect(j.eventos.some(e => e.type === 'scene:moved')).toBe(false);
+
+    /* Ao mostrar, o cenário e os tokens chegam juntos, menos o que continua oculto. */
+    m.comando({ type: 'scene:update', id: 'caverna', oculto: false });
+    await ate(() => j.ultimoToken(goblin));
+    expect(j.eventos.some(e => e.type === 'scene:added' && e.scene.id === 'caverna')).toBe(true);
+    expect(j.ultimoToken(goblin).x).toBe(1030);
+    expect(j.ultimoToken(chefe)).toBeUndefined();
+
+    /* Com o cenário à vista, mover continua levando o token, e a posição do oculto não sai para o jogador. */
+    m.comando({ type: 'scene:move', id: 'caverna', x: 1040, y: 10 });
+    const noJogador = await ate(() => j.eventos.find(e => e.type === 'scene:moved'));
+    expect(noJogador.posicoes).toEqual([{ id: goblin, x: 1040, y: 10 }]);
+
+    /* Combate que começa com o cenário escondido não entrega quem está nele, nem por iniciativa. */
+    m.comando({ type: 'scene:update', id: 'caverna', oculto: true });
+    await ate(() => !j.ultimoToken(goblin));
+    expect(j.ultimoToken(heroi)).toBeDefined();
+    m.comando({ type: 'combate:iniciar' });
+    const combate = await ate(() => j.eventos.find(e => e.type === 'combate:estado' && e.combate));
+    expect(combate.combate.lista.map((e: any) => e.tokenId)).not.toContain(goblin);
+    expect(combate.combate.lista.map((e: any) => e.tokenId)).toContain(heroi);
+    m.comando({ type: 'combate:encerrar' });
+
+    /* Arrastar para fora do cenário oculto revela o token; soltar de volta esconde. */
+    m.comando({ type: 'token:move', id: goblin, position: { x: 0, y: 0 }, final: true });
+    await ate(() => j.ultimoToken(goblin));
+    expect(m.ultimoToken(goblin).cenarioId).toBeUndefined();
+    m.comando({ type: 'token:move', id: goblin, position: { x: 1040, y: 10 }, final: true });
+    await ate(() => !j.ultimoToken(goblin));
+    expect(m.ultimoToken(goblin).cenarioId).toBe('caverna');
+
+    /* Dar o token a um jogador o tira do cenário: ninguém perde o próprio personagem de vista. */
+    m.comando({ type: 'token:update', id: goblin, changes: { ownerIds: [jogador.id] } });
+    await ate(() => j.ultimoToken(goblin));
+    expect(m.ultimoToken(goblin).cenarioId).toBeUndefined();
+
+    /* Apagar o cenário oculto não revela o que estava nele. */
+    const capanga = await criarToken(m, { name: 'Capanga', x: 1040, y: 10 });
+    m.comando({ type: 'scene:remove', id: 'caverna' });
+    await ate(() => m.ultimoToken(capanga).hidden === true);
+    expect(m.ultimoToken(capanga).cenarioId).toBeUndefined();
+    await barreira('apagado');
+    expect(j.ultimoToken(capanga)).toBeUndefined();
+    expect(j.ultimoToken(goblin)).toBeDefined();
+  });
+
   it('token vinculado acompanha os status da ficha, sem a foto dela', async () => {
     const { mestre, jogador, ficha, id } = await mesaCompleta();
     const m = await entrar(mestre, id);

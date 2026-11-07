@@ -124,6 +124,7 @@ export function useRoomConnection(campanhaId: string) {
           break
         case 'scene:moved':
           useUiStore.setState((state) => ({ scenes: state.scenes.map((scene) => scene.id === message.id ? { ...scene, x: message.x, y: message.y } : scene) }))
+          for (const { id, x, y } of message.posicoes ?? []) useTokenStore.getState().applyRoomPosition(id, { x, y })
           break
         case 'scene:removed':
           useUiStore.setState((state) => ({ scenes: state.scenes.filter((scene) => scene.id !== message.id) }))

@@ -18,6 +18,7 @@ Estas aguardam Arthur Baldo, que criou o sistema e decide as regras de dados.
 
 ## Decisões tomadas
 
+- **Tokens ligados ao cenário (7 de novembro de 2026):** o token do mestre pertence ao cenário onde foi criado ou solto. Com o cenário oculto, os jogadores não recebem o token. Ao mostrar, ele aparece junto, menos os marcados como ocultos, e acompanha o cenário quando ele é movido, sem encaixar na grade. Personagens de jogador ficam fora dessa regra. Apagar um cenário oculto deixa os tokens dele ocultos. Tokens antigos só entram em um cenário quando forem arrastados de novo.
 - **Progressão do núcleo (7 de novembro de 2026):** cada estágio dá AP, além de mana e gasto universal, e não dá mais vida nem PP. Veja [pericias.md](pericias.md).
 
 - **Edição da ficha (7 de novembro de 2026):** o dono e o mestre editam tudo, inclusive núcleo, fadiga, bônus, limites e encerrar cena. Totais e limites só avisam, em destaque, e nenhum número bloqueia. Só `publica` continua com o mestre, porque decide quem vê a ficha dele. A fadiga guardada na saída da campanha continua voltando ao retornar, mas o dono já pode mudá-la depois.

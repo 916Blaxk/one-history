@@ -33,6 +33,8 @@ export type Token = {
   ownerIds: string[]
   hidden: boolean
   createdByPlayerKey?: string
+  /* O cenário onde o token foi solto: aparece e se move com ele. Só o servidor preenche, e token de jogador não tem. */
+  cenarioId?: string
 }
 
 export type TokenSprite = {

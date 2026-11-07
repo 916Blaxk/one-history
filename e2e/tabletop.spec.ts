@@ -238,6 +238,8 @@ test('mesa: o mestre prepara o cenário oculto com névoa livre e mostra quando 
   /* Largura e altura mudam separadas. */
   await mestre.getByRole('button', { name: 'Novo token' }).first().click();
   await expect(mestre.getByLabel('Largura do token')).toBeVisible();
+  /* O token novo nasce no cenário à vista, e a ficha do token diz isso ao mestre. */
+  await expect(mestre.getByText('Neste cenário: caverna.')).toBeVisible();
   await mestre.getByLabel('Largura do token').fill('1.5');
   await mestre.getByLabel('Altura do token').fill('3');
   await expect(mestre.locator('.range-control', { hasText: 'Largura' })).toContainText('1,5 células');

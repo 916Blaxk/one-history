@@ -11,6 +11,7 @@ import type {
 import {
   GM_TOKEN_FIELDS, NULLABLE_TOKEN_FIELDS, PLAYER_TOKEN_FIELDS, can, validCharacterId, validRollLabel,
 } from '../src/shared/permissions.js'
+import { cenarioNoPonto } from '../src/shared/cenarios.js'
 import { avancarVez, tirarDoCombate } from '../src/shared/combate.js'
 import { CAMADA_MUNDO, MAX_NUMEROS_NEVOA, MAX_OPS_NEVOA, celulasParaOps, tamanhoDaNevoa } from '../src/shared/nevoa.js'
 import * as R from '../../lib/regras'
@@ -107,7 +108,8 @@ function validToken(value: unknown, sprites: TokenSprite[]): value is Token {
     (value.armado === undefined || typeof value.armado === 'boolean') &&
     (value.sangrando === undefined || typeof value.sangrando === 'boolean') &&
     (value.condicoes === undefined || (Array.isArray(value.condicoes) && value.condicoes.length <= 10 && value.condicoes.every((c) => typeof c === 'string' && c.length >= 1 && c.length <= 24))) &&
-    (value.nomeDaFicha === undefined || typeof value.nomeDaFicha === 'boolean')
+    (value.nomeDaFicha === undefined || typeof value.nomeDaFicha === 'boolean') &&
+    (value.cenarioId === undefined || (typeof value.cenarioId === 'string' && value.cenarioId.length <= 80))
     && Array.isArray(value.ownerIds) && value.ownerIds.length <= 100 &&
     value.ownerIds.every((id) => typeof id === 'string' && id.length <= 100) &&
     typeof value.hidden === 'boolean' &&
@@ -205,7 +207,7 @@ class RoomState {
   /* `leve`: a imagem de cada cenário sobe uma vez só. O navegador já a tem, e reenviar várias a cada ajuste trava a mesa. */
   snapshot(player: RoomPlayer, leve = false): RoomSnapshot {
     const cenas = player.role === 'gm' ? this.scenes : this.scenes.filter((scene) => !scene.oculto)
-    const tokens = [...this.tokens.values()].filter((token) => !token.hidden || player.role === 'gm')
+    const tokens = [...this.tokens.values()].filter((token) => visivelPara(this, token, player))
     const ids = new Set(tokens.map((token) => token.id))
     return {
       tokens: tokens.map((token) => visaoDoToken(this, token, player)),
@@ -222,6 +224,25 @@ class RoomState {
     }
   }
 }
+
+/* Personagem de jogador fica fora dos cenários: ninguém pode perder o próprio token de vista. */
+const tokenDeJogador = (room: RoomState, token: Token) => token.ownerIds.some((id) => id !== room.mestreId)
+/* Único critério do que o jogador não recebe de um token: oculto por ele mesmo ou pelo cenário onde está. */
+function tokenOculto(room: RoomState, token: Token) {
+  if (token.hidden) return true
+  return Boolean(token.cenarioId && !tokenDeJogador(room, token) && room.scenes.some((scene) => scene.id === token.cenarioId && scene.oculto))
+}
+const visivelPara = (room: RoomState, token: Token, player: RoomPlayer) => player.role === 'gm' || !tokenOculto(room, token)
+/* O cenário vem sempre da posição guardada no servidor: o navegador não escolhe, porque isso esconde ou revela o token. */
+function comCenario(room: RoomState, token: Token): Token {
+  const cenario = tokenDeJogador(room, token) ? undefined : cenarioNoPonto(room.scenes, token.x, token.y)
+  const atualizado = { ...token }
+  if (cenario) atualizado.cenarioId = cenario.id
+  else delete atualizado.cenarioId
+  return atualizado
+}
+const tokensDoCenario = (room: RoomState, cenarioId: string) =>
+  [...room.tokens.values()].filter((token) => token.cenarioId === cenarioId && !tokenDeJogador(room, token))
 
 /* A vida e a mana de uma ficha só saem do servidor para o mestre e o dono, como no resto do site. */
 function visaoDoToken(room: RoomState, token: Token, player: RoomPlayer): Token {
@@ -242,7 +263,7 @@ const carregando = new Map<string, Promise<RoomState>>()
 /* Token oculto não aparece na ordem de quem não pode vê-lo, nem quando é a vez dele. */
 function visaoDoCombate(room: RoomState, player: RoomPlayer): Combate | null {
   if (!room.combate) return null
-  const visivel = (id: string) => { const token = room.tokens.get(id); return Boolean(token && (player.role === 'gm' || !token.hidden)) }
+  const visivel = (id: string) => { const token = room.tokens.get(id); return Boolean(token && visivelPara(room, token, player)) }
   return {
     rodada: room.combate.rodada,
     vez: room.combate.vez && visivel(room.combate.vez) ? room.combate.vez : null,
@@ -296,7 +317,7 @@ function broadcastSnapshots(room: RoomState) {
 }
 function broadcastVisible(room: RoomState, message: Extract<ServerRoomMessage, { token: Token }>, token: Token) {
   for (const player of room.players.values()) {
-    if (player.status === 'connected' && (!token.hidden || player.role === 'gm')) {
+    if (player.status === 'connected' && visivelPara(room, token, player)) {
       io.to(playerRoom(room.code, player.id)).emit('room:event', { ...message, token: visaoDoToken(room, message.token, player) })
     }
   }
@@ -429,14 +450,14 @@ async function criarTokensDasFichas(room: RoomState) {
     const x = (cenario?.x ?? 0) + (vaga % TOKENS_NOVOS_POR_LINHA - CELULAS_ATE_TOKEN_NOVO) * celula
     const y = (cenario?.y ?? 0) + (Math.floor(vaga / TOKENS_NOVOS_POR_LINHA) + CELULAS_ATE_TOKEN_NOVO) * celula
     const privada = R.fichaPrivada(ficha, room.mestreId)
-    const token: Token = {
+    const token = comCenario(room, {
       id: crypto.randomUUID(), name: nomeParaToken(ficha.dados),
       x: snap(x, 1, celula), y: snap(y, 1, celula), size: 1, rotation: 0,
       spriteIds: [], activeSpriteId: null, flipX: false, color: CORES_TOKEN_AUTOMATICO[vaga % CORES_TOKEN_AUTOMATICO.length]!,
       characterId: ficha.id, ...valoresDaFicha(room, ficha),
       ownerIds: ficha.donoId === room.mestreId ? [] : [ficha.donoId],
       hidden: privada, automatico: true, nomeDaFicha: true,
-    }
+    })
     room.tokens.set(token.id, token); room.sprites.set(token.id, [])
     broadcastVisible(room, { type: 'token:added', token, sprites: [], playerId: '' }, token)
   }
@@ -455,7 +476,7 @@ async function rolarIniciativa(room: RoomState, player: RoomPlayer, tokenId: str
   const expressao = expressaoDaRolagem(0, ficha ? R.vantagemDaRolagem(ficha.dados, 'corpo', 'destreza') : 0)
   const roll = rollDice(expressao)
   entrada.iniciativa = roll.total
-  if (token.hidden) return
+  if (tokenOculto(room, token)) return
   await gravarRolagem({
     campanhaId: room.code, fichaId: null, usuarioId: player.id,
     autor: token.fotoFichaPrivada && token.nomeDaFicha ? NOME_FICHA_PRIVADA : token.name,
@@ -471,15 +492,16 @@ async function handleCommand(socket: TableSocket, room: RoomState, player: RoomP
       if (room.tokens.size >= MAX_TOKENS_PER_ROOM || room.tokens.has(message.token.id) ||
           (player.role !== 'gm' && count >= 5)) return
       const ownerIds = Array.isArray(message.token.ownerIds) ? message.token.ownerIds : []
-      const token: Token = {
+      const pedido: Token = {
         ...message.token,
         ownerIds: player.role === 'gm' ? ownerIds.filter((id) => room.players.has(id)) : [player.id],
         hidden: player.role === 'gm' && message.token.hidden,
         createdByPlayerKey: player.id,
       }
       /* O vínculo com a ficha passa sempre pela checagem de token:update. */
-      delete token.characterId; delete token.fotoFichaPrivada; delete token.automatico; delete token.nomeDaFicha; delete token.sangrando; delete token.spriteSangrandoId; delete token.spriteArmadoId; delete token.armado
-      if (!validToken(token, message.sprites)) return
+      delete pedido.characterId; delete pedido.fotoFichaPrivada; delete pedido.automatico; delete pedido.nomeDaFicha; delete pedido.sangrando; delete pedido.spriteSangrandoId; delete pedido.spriteArmadoId; delete pedido.armado; delete pedido.cenarioId
+      if (!validToken(pedido, message.sprites)) return
+      const token = comCenario(room, pedido)
       room.tokens.set(token.id, token); room.sprites.set(token.id, message.sprites)
       broadcastVisible(room, { type: 'token:added', token, sprites: message.sprites, playerId: socket.id }, token); return
     }
@@ -522,14 +544,17 @@ async function handleCommand(socket: TableSocket, room: RoomState, player: RoomP
         }
       }
 
-      const updated = { ...current }
+      let updated = { ...current }
       for (const [key, value] of Object.entries(changes)) {
         if (value === null) delete (updated as unknown as Record<string, unknown>)[key]
         else (updated as unknown as Record<string, unknown>)[key] = value
       }
       if (!validToken(updated, sprites) || updated.ownerIds.some((id) => !room.players.has(id))) return
+      if ('x' in changes || 'y' in changes) updated = comCenario(room, updated)
+      /* Virou personagem de jogador: sai do cenário e não volta a sumir com ele. */
+      else if (tokenDeJogador(room, updated)) delete updated.cenarioId
       room.tokens.set(message.id, updated)
-      if (current.hidden !== updated.hidden || current.ownerIds.join() !== updated.ownerIds.join()) broadcastSnapshots(room)
+      if (tokenOculto(room, current) !== tokenOculto(room, updated) || current.ownerIds.join() !== updated.ownerIds.join()) broadcastSnapshots(room)
       else if (Object.keys(changes).length) broadcastVisible(room, { type: 'token:updated', token: updated, sprites }, updated)
       if (fichaId && (pedidoFicha.vidaAtual !== undefined || pedidoFicha.manaAtual !== undefined)) {
         /* Grava como o site grava: normalizar() corta no máximo, e o aviso de ficha alterada atualiza todos os tokens. */
@@ -591,8 +616,12 @@ async function handleCommand(socket: TableSocket, room: RoomState, player: RoomP
       const now = Date.now(); if (!message.final && now - (room.lastMoveAt.get(player.id) ?? 0) < 35) return
       room.lastMoveAt.set(player.id, now)
       const position = message.final && room.grid.enabled ? { x: snap(message.position.x, token.size, room.grid.cellSize), y: snap(message.position.y, alturaDoToken(token), room.grid.cellSize) } : message.position
-      room.tokens.set(message.id, { ...token, ...position })
-      if (!token.hidden) {
+      const movido = message.final ? comCenario(room, { ...token, ...position }) : { ...token, ...position }
+      room.tokens.set(message.id, movido)
+      /* Soltou em outro cenário, e isso muda quem vê o token: quem passa a ver precisa recebê-lo inteiro. */
+      if (tokenOculto(room, token) !== tokenOculto(room, movido)) { broadcastSnapshots(room); return }
+      if (movido.cenarioId !== token.cenarioId) io.to(playerRoom(room.code, room.mestreId)).emit('room:event', { type: 'token:updated', token: movido, sprites: room.sprites.get(movido.id) ?? [] })
+      if (!tokenOculto(room, movido)) {
         socket.to(room.code).emit('room:event', { type: 'token:moved', id: message.id, position, final: message.final, playerId: socket.id })
       } else {
         for (const gm of room.players.values()) {
@@ -611,7 +640,7 @@ async function handleCommand(socket: TableSocket, room: RoomState, player: RoomP
       /* O controle da grade dispara vários comandos por segundo: nada de imagem aqui. */
       for (const alvo of room.players.values()) {
         if (alvo.status !== 'connected') continue
-        const posicoes = [...room.tokens.values()].filter((token) => alvo.role === 'gm' || !token.hidden).map(({ id, x, y }) => ({ id, x, y }))
+        const posicoes = [...room.tokens.values()].filter((token) => visivelPara(room, token, alvo)).map(({ id, x, y }) => ({ id, x, y }))
         io.to(playerRoom(room.code, alvo.id)).emit('room:event', { type: 'grid:updated', grid: room.grid, posicoes })
       }
       return
@@ -625,7 +654,16 @@ async function handleCommand(socket: TableSocket, room: RoomState, player: RoomP
       if (!can(player.role, 'fog:update')) return deny(socket)
       const scene = room.scenes.find((item) => item.id === message.id); if (!scene) return
       room.scenes = room.scenes.map((item) => item.id === scene.id ? { ...item, x: message.x, y: message.y } : item)
-      paraQuemVe(room, Boolean(scene.oculto), { type: 'scene:moved', id: message.id, x: message.x, y: message.y }); return
+      /* Sem encaixar na grade: este comando vem a cada movimento do arraste, e o token precisa manter o lugar no mapa. */
+      const dx = message.x - scene.x, dy = message.y - scene.y
+      const levados = tokensDoCenario(room, scene.id).map((token) => ({ ...token, x: token.x + dx, y: token.y + dy }))
+      for (const token of levados) room.tokens.set(token.id, token)
+      for (const alvo of room.players.values()) {
+        if (alvo.status !== 'connected' || (scene.oculto && alvo.role !== 'gm')) continue
+        const posicoes = levados.filter((token) => visivelPara(room, token, alvo)).map(({ id, x, y }) => ({ id, x, y }))
+        io.to(playerRoom(room.code, alvo.id)).emit('room:event', { type: 'scene:moved', id: message.id, x: message.x, y: message.y, posicoes })
+      }
+      return
     }
     case 'scene:update': {
       if (!can(player.role, 'fog:update')) return deny(socket)
@@ -646,14 +684,25 @@ async function handleCommand(socket: TableSocket, room: RoomState, player: RoomP
           ? { type: 'scene:removed', id: scene.id }
           : { type: 'scene:added', scene: atualizado, nevoa: room.nevoa[scene.id] ?? [], focar: true })
       } else if (!atualizado.oculto) paraJogadores(room, aviso)
+      /* Depois do cenário: os tokens dele chegam ou somem junto, e a ordem do combate acompanha. */
+      if (Boolean(scene.oculto) !== Boolean(atualizado.oculto) && tokensDoCenario(room, scene.id).length) broadcastSnapshots(room)
       return
     }
     case 'scene:remove': {
       if (!can(player.role, 'fog:update')) return deny(socket)
       const scene = room.scenes.find((item) => item.id === message.id); if (!scene) return
+      /* Apagar um cenário oculto não pode revelar o que estava preparado nele: os tokens continuam ocultos, agora por conta própria. */
+      const orfaos = [...room.tokens.values()].filter((token) => token.cenarioId === scene.id)
+      for (const token of orfaos) {
+        const solto = { ...token, hidden: token.hidden || (Boolean(scene.oculto) && !tokenDeJogador(room, token)) }
+        delete solto.cenarioId
+        room.tokens.set(token.id, solto)
+      }
       room.scenes = room.scenes.filter((item) => item.id !== message.id)
       delete room.nevoa[message.id]
-      paraQuemVe(room, Boolean(scene.oculto), { type: 'scene:removed', id: message.id }); return
+      paraQuemVe(room, Boolean(scene.oculto), { type: 'scene:removed', id: message.id })
+      if (orfaos.length) broadcastSnapshots(room)
+      return
     }
     case 'fog:traco': {
       if (!can(player.role, 'fog:update')) return deny(socket)
@@ -695,7 +744,7 @@ async function handleCommand(socket: TableSocket, room: RoomState, player: RoomP
       if (room.combate) return
       room.combate = {
         rodada: 1, vez: null,
-        lista: [...room.tokens.values()].filter((token) => !token.hidden).map((token) => ({ tokenId: token.id, iniciativa: null })),
+        lista: [...room.tokens.values()].filter((token) => !tokenOculto(room, token)).map((token) => ({ tokenId: token.id, iniciativa: null })),
       }
       enviarCombate(room)
       return

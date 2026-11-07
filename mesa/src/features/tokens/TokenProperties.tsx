@@ -32,6 +32,7 @@ export function TokenProperties({
   const players = useRoomStore((state) => state.players)
   const playerKey = useRoomStore((state) => state.playerKey)
   const role = useRoomStore((state) => state.role)
+  const cenarioDoToken = useUiStore((state) => state.scenes.find((scene) => scene.id === token?.cenarioId))
   const mobileMode = mobileOpen !== undefined
   const contentVisible = mobileMode ? mobileOpen : !collapsed
   const dragHandlers = useBottomSheetDismiss(Boolean(mobileOpen), onMobileClose)
@@ -195,6 +196,12 @@ export function TokenProperties({
                 />
                 <span>Oculto para jogadores</span>
               </label>
+              {cenarioDoToken && (
+                <p className="mini-sheet-note">
+                  Neste cenário: {cenarioDoToken.nome || 'sem nome'}.
+                  {cenarioDoToken.oculto ? ' Aparece quando ele for mostrado.' : ''}
+                </p>
+              )}
             </>
           )}
           <label className="token-field token-rotation">

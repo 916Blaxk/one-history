@@ -8,6 +8,7 @@ import { isRoomMode, sendRoomCommand, sendRoomMove } from '@mesa/features/rooms/
 import { useRoomStore } from '@mesa/features/rooms/room-store'
 import { spriteDoToken, type TokenSprite } from '@mesa/features/tokens/token-types'
 import type { OpNevoa, RoomScene } from '@mesa/shared/room-protocol'
+import { acertouCena, escalaDe } from '@mesa/shared/cenarios'
 import { CAMADA_MUNDO, limitesDaOp } from '@mesa/shared/nevoa'
 import { can } from '@mesa/shared/permissions'
 import { CamadaNevoa, type Limites } from '@mesa/features/map/camada-nevoa'
@@ -30,9 +31,6 @@ const FOLGA_CAMADA_MUNDO = 256
 const INTERVALO_TRACO_MS = 40
 const MAX_NUMEROS_POR_ENVIO = 250
 const DURACAO_PING_MS = 2200
-const escalaDe = (scene: RoomScene) => scene.escala ?? 1
-const acertouCena = (scene: RoomScene, x: number, y: number) =>
-  Math.abs(x - scene.x) <= (scene.width * escalaDe(scene)) / 2 && Math.abs(y - scene.y) <= (scene.height * escalaDe(scene)) / 2
 
 export function PixiMap({
   onMapInteraction,

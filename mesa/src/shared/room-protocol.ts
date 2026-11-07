@@ -106,7 +106,7 @@ export type ServerRoomMessage =
   | { type: 'mapa:ping'; x: number; y: number }
   | { type: 'mapa:focar'; x: number; y: number }
   | { type: 'combate:estado'; combate: Combate | null }
-  | { type: 'scene:moved'; id: string; x: number; y: number }
+  | { type: 'scene:moved'; id: string; x: number; y: number; posicoes?: { id: string; x: number; y: number }[] }
   | { type: 'scene:removed'; id: string }
   | { type: 'fog:traco'; camada: string; op: OpNevoa }
   | { type: 'fog:camada'; camada: string; ops: OpNevoa[] }
