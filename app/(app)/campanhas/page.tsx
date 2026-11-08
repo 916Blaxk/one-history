@@ -48,7 +48,7 @@ export default function PaginaCampanhas() {
     setErroCriar('');
     setCriando(true);
     try {
-      const { campanha } = await api('POST', '/api/campanhas', Object.fromEntries(new FormData(ev.currentTarget)));
+      const { campanha } = await api<{ campanha: { id: string } }>('POST', '/api/campanhas', Object.fromEntries(new FormData(ev.currentTarget)));
       router.push(`/campanhas/${campanha.id}`);
     } catch (e) {
       setErroCriar(mensagem(e));

@@ -25,7 +25,7 @@ export default function PaginaConvite() {
     setEntrando(true);
     setErro('');
     try {
-      const { campanha } = await api('POST', `/api/convites/${encodeURIComponent(codigo)}/entrar`);
+      const { campanha } = await api<{ campanha: { id: string } }>('POST', `/api/convites/${encodeURIComponent(codigo)}/entrar`);
       router.push(`/campanhas/${campanha.id}`);
     } catch (e) {
       setErro(mensagem(e));

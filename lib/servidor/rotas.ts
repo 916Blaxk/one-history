@@ -29,7 +29,7 @@ type UsuarioSessao = NonNullable<Awaited<ReturnType<typeof usuarioDoToken>>>;
 interface Ctx {
   req: Request;
   params: Record<string, string>;
-  corpo: Record<string, any>;
+  corpo: Record<string, unknown>;
   usuario: UsuarioSessao;
   token: string | undefined;
   ip: string;
@@ -407,9 +407,10 @@ rota('POST', '/api/fichas', async ctx => {
   const [{ n }] = await db.select({ n: count() }).from(fichas).where(eq(fichas.donoId, ctx.usuario.id));
   if (n >= LIMITE_FICHAS) throw new Erro(400, `Sua conta chegou ao limite de ${LIMITE_FICHAS} fichas. Apague alguma para criar outra.`);
   /* `publica` decide quem vê a ficha do mestre, e não vem de um arquivo. */
-  const dados = R.normalizar({ ...ctx.corpo.dados, publica: undefined });
+  const entrada = (ctx.corpo.dados && typeof ctx.corpo.dados === 'object' ? ctx.corpo.dados : {}) as Record<string, unknown>;
+  const dados = R.normalizar({ ...entrada, publica: undefined });
   if (!dados.player) dados.player = ctx.usuario.nome;
-  const foto = fotoDaEntrada(ctx.corpo.dados?.foto);
+  const foto = fotoDaEntrada(entrada.foto);
   const agora = Date.now();
   const linha = { id: novoId('f'), donoId: ctx.usuario.id, campanhaId: null, dados, registro: [], foto, fotoV: foto ? agora : 0, criadoEm: agora, atualizado: agora };
   await db.insert(fichas).values(linha);
@@ -452,12 +453,12 @@ rota('PATCH', '/api/fichas/:id', async ctx => {
     extras.fotoAjuste = extras.fotoOriginal ? normalizarEnquadramento(ctx.corpo.fotoAjuste) : null;
   }
   const f = await alterarFicha(ctx.params.id, l => {
-    const base: Record<string, any> = { ...l.dados };
+    const base: Record<string, unknown> = { ...l.dados };
     for (const [k, v] of Object.entries(ctx.corpo)) {
       const ehObjeto = v && typeof v === 'object';
       /* Dono e mestre editam tudo na ficha. `publica` não é dado do personagem: decide quem vê a ficha do mestre. */
       if (k === 'publica') { if (souMestre) base[k] = v; }
-      else if ((k in R.GRUPOS || k === 'ajustes' || k === 'limites') && ehObjeto) base[k] = { ...base[k], ...v };
+      else if ((k in R.GRUPOS || k === 'ajustes' || k === 'limites') && ehObjeto) base[k] = { ...(base[k] as object), ...v };
       else if (CAMPOS_FICHA.has(k)) base[k] = v;
     }
     l.dados = R.normalizar(base);
@@ -685,7 +686,7 @@ async function lerCorpo(req: Request) {
   try {
     const o = JSON.parse(bruto);
     if (!o || typeof o !== 'object' || Array.isArray(o)) throw 0;
-    return o as Record<string, any>;
+    return o as Record<string, unknown>;
   } catch { throw new Erro(400, 'Os dados enviados não estão em um formato válido.'); }
 }
 function responderJson(status: number, obj: unknown, cookie?: string | null) {
@@ -711,7 +712,7 @@ export async function atender(req: Request): Promise<Response> {
     }
     if (!encontrada) throw new Erro(404, 'Rota não encontrada.');
     const { r, m } = encontrada;
-    let corpo: Record<string, any> = {};
+    let corpo: Record<string, unknown> = {};
     if (req.method !== 'GET') { conferirOrigem(req); corpo = await lerCorpo(req); }
     const token = lerCookie(req);
     const usuario = await usuarioDoToken(token);

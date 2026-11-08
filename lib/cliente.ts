@@ -3,7 +3,7 @@ export class ErroApi extends Error {
   constructor(public status: number, mensagem: string) { super(mensagem); }
 }
 
-export async function api<T = any>(metodo: string, url: string, corpo?: unknown): Promise<T> {
+export async function api<T = unknown>(metodo: string, url: string, corpo?: unknown): Promise<T> {
   const leitura = metodo === 'GET';
   let r: Response;
   try {

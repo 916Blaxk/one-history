@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { api, buscar, mensagem } from './cliente';
 import type { Ficha } from './tipos';
 
-export type Patch = Record<string, any>;
+export type Patch = Record<string, unknown>;
 
 function mesclar(a: Patch | null, b: Patch | null): Patch | null {
   if (!a) return b;

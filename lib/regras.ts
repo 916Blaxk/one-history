@@ -184,6 +184,7 @@ export function inteiro(v: unknown, min: number, max: number) {
   return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : min;
 }
 const texto = (v: unknown, lim: number) => (typeof v === 'string' ? v.slice(0, lim) : '');
+const objeto = (v: unknown) => (v && typeof v === 'object' ? v : {}) as Record<string, unknown>;
 
 /* Os elementos base por trás de um elemento, atravessando fusões de fusões. */
 export function basesDoElemento(chave: string, criados: readonly ElementoCriado[]): string[] {
@@ -249,12 +250,13 @@ function normalizarHabilidades(entrada: unknown): Habilidade[] {
 
 /* Transforma qualquer entrada em uma ficha válida: campos desconhecidos somem e números ficam na faixa aceita. */
 export function normalizar(entrada: unknown): DadosFicha {
-  const o = (entrada && typeof entrada === 'object' ? entrada : {}) as Record<string, any>;
+  const o = objeto(entrada);
+  const ajustes = objeto(o.ajustes), limites = objeto(o.limites), outrosPericias = objeto(o.periciasOutros);
   const elementosCriados = normalizarElementosCriados(o.elementosCriados);
   const f: DadosFicha = {
     player: texto(o.player, 80), nome: texto(o.nome, 80), idade: texto(String(o.idade ?? ''), 20),
     raca: texto(o.raca, 60), estilo: texto(o.estilo, 80),
-    tier: TIERS[o.tier] ? Number(o.tier) : 1,
+    tier: TIERS[Number(o.tier)] ? Number(o.tier) : 1,
     inventario: texto(o.inventario, 8000), notas: texto(o.notas, 12000),
     manaPerdida: inteiro(o.manaPerdida, 0, 99999),
     fadiga: inteiro(o.fadiga, 0, 100),
@@ -262,32 +264,32 @@ export function normalizar(entrada: unknown): DadosFicha {
     vidaAtual: 0, manaAtual: 0,
     elementos: {}, armas: {}, corpo: {}, mente: {}, pericias: {},
     ajustes: {
-      vida: inteiro(o.ajustes?.vida ?? 0, -9999, 9999),
-      mana: inteiro(o.ajustes?.mana ?? 0, -9999, 9999),
-      ap: inteiro(o.ajustes?.ap ?? 0, -9999, 9999),
+      vida: inteiro(ajustes.vida ?? 0, -9999, 9999),
+      mana: inteiro(ajustes.mana ?? 0, -9999, 9999),
+      ap: inteiro(ajustes.ap ?? 0, -9999, 9999),
       /* Fichas gravadas antes da troca de nome guardam o bônus em `sp`. */
-      pp: inteiro(o.ajustes?.pp ?? o.ajustes?.sp ?? 0, -9999, 9999),
-      limitePericia: inteiro(o.ajustes?.limitePericia ?? 0, -9999, 9999),
+      pp: inteiro(ajustes.pp ?? ajustes.sp ?? 0, -9999, 9999),
+      limitePericia: inteiro(ajustes.limitePericia ?? 0, -9999, 9999),
     },
     limites: {},
     magias: normalizarMagias(o.magias, elementosCriados),
     elementosCriados,
     periciasOutros: {},
-    elementosAtivos: Array.isArray(o.elementosAtivos) ? GRUPOS.elementos.map(([k]) => k as string).filter(k => o.elementosAtivos.includes(k)) : [],
+    elementosAtivos: Array.isArray(o.elementosAtivos) ? GRUPOS.elementos.map(([k]) => k as string).filter(k => (o.elementosAtivos as unknown[]).includes(k)) : [],
     habilidades: normalizarHabilidades(o.habilidades),
     publica: o.publica === true,
   };
   for (const g of NOMES_GRUPOS) for (const [k] of GRUPOS[g]) {
-    f[g][k] = inteiro(o[g]?.[k], 0, 999);
-    const limite = o.limites?.[chaveLimite(g, k)];
+    f[g][k] = inteiro(objeto(o[g])[k], 0, 999);
+    const limite = limites[chaveLimite(g, k)];
     if (limite !== undefined && limite !== null && limite !== '') f.limites[chaveLimite(g, k)] = inteiro(limite, 0, 999);
   }
   for (const [k] of GRUPOS.pericias) {
-    const outros = inteiro(o.periciasOutros?.[k] ?? 0, 0, 999);
+    const outros = inteiro(outrosPericias[k] ?? 0, 0, 999);
     if (outros) f.periciasOutros[k] = outros;
   }
   for (const { id } of elementosCriados) {
-    const limite = o.limites?.[chaveCriado(id)];
+    const limite = limites[chaveCriado(id)];
     if (limite !== undefined && limite !== null && limite !== '') f.limites[chaveCriado(id)] = inteiro(limite, 0, 999);
   }
   f.vidaAtual = inteiro(o.vidaAtual ?? vidaMax(f), 0, vidaMax(f));

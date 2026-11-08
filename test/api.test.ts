@@ -24,7 +24,7 @@ function cliente() {
     });
     const definido = r.headers.get('set-cookie');
     if (definido) cookie = definido.split(';')[0];
-    return { status: r.status, corpo: await r.json().catch(() => null) as any, cookieBruto: definido };
+    return { status: r.status, corpo: await r.json().catch(() => null), cookieBruto: definido };
   };
 }
 type Cliente = ReturnType<typeof cliente>;
@@ -625,7 +625,7 @@ describe('chat de dados', () => {
     const f = await novaFicha(a.c, { nome: 'Solo' });
     const r = (await a.c('POST', `/api/fichas/${f.id}/rolar`, { lados: 20, bonus: 2 })).corpo.rolagem;
     const chat = (await a.c('GET', `/api/fichas/${f.id}/chat`)).corpo;
-    expect(chat.mensagens.map((m: any) => m.id)).toEqual([r.id]);
+    expect(chat.mensagens.map((m: { id: string }) => m.id)).toEqual([r.id]);
     expect(chat.mensagens[0].minha).toBe(true);
     expect((await b.c('GET', `/api/fichas/${f.id}/chat`)).status).toBe(404);
     expect((await cliente()('GET', `/api/fichas/${f.id}/chat`)).status).toBe(401);
@@ -638,9 +638,9 @@ describe('chat de dados', () => {
     await jog.c('POST', `/api/fichas/${f.id}/rolar`, { lados: 20 });
     await mestre.c('POST', `/api/campanhas/${c.id}/rolar`, { lados: 6, bonus: 1 });
     const visao = (await jog.c('GET', `/api/campanhas/${c.id}/chat`)).corpo.mensagens;
-    expect(visao.map((m: any) => [m.autor, m.minha])).toEqual([['Kael', true], ['Mestre', false]]);
+    expect(visao.map((m: { autor: string; minha: boolean }) => [m.autor, m.minha])).toEqual([['Kael', true], ['Mestre', false]]);
     const doMestre = (await mestre.c('GET', `/api/campanhas/${c.id}/chat`)).corpo.mensagens;
-    expect(doMestre.map((m: any) => m.minha)).toEqual([false, true]);
+    expect(doMestre.map((m: { minha: boolean }) => m.minha)).toEqual([false, true]);
     expect(JSON.stringify(doMestre)).not.toContain('usuarioId');
     expect((await intruso.c('GET', `/api/campanhas/${c.id}/chat`)).status).toBe(404);
     /* Depois de removido, o jogador perde o chat. */
@@ -669,7 +669,7 @@ describe('chat de dados', () => {
     for (let i = 0; i < 505; i++) criadas.push((await a.c('POST', `/api/fichas/${f.id}/rolar`, { lados: 20 })).corpo.rolagem.id);
 
     const url = `/api/fichas/${f.id}/chat`;
-    const lidas: any[] = [];
+    const lidas: { id: string; em: number }[] = [];
     let pagina = (await a.c('GET', url)).corpo;
     expect(pagina.mensagens).toHaveLength(50);
     expect(pagina.temMais).toBe(true);

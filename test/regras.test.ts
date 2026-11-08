@@ -220,7 +220,7 @@ describe('regras do sistema', () => {
   });
 
   it('normalizar descarta campos desconhecidos e trava os limites', () => {
-    const f = R.normalizar({ hack: 1, fadiga: 500, tier: 9, corpo: { tracao: -3 }, nome: 5 }) as unknown as Record<string, any>;
+    const f = R.normalizar({ hack: 1, fadiga: 500, tier: 9, corpo: { tracao: -3 }, nome: 5 }) as unknown as Record<string, unknown> & { corpo: Record<string, number> };
     expect(f.hack).toBeUndefined();
     expect(f.fadiga).toBe(100);
     expect(f.tier).toBe(1);
