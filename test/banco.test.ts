@@ -55,6 +55,54 @@ describe('cópia do banco', () => {
   });
 });
 
+describe('restauração', () => {
+  const contar = async (arquivo: string) => {
+    const c = createClient({ url: `file:${arquivo.replaceAll('\\', '/')}` });
+    const n = Number((await c.execute('SELECT count(*) AS n FROM mesa_imagens')).rows[0].n);
+    c.close();
+    return n;
+  };
+
+  it('troca o banco pela cópia e guarda o anterior fora do rodízio', async () => {
+    /* Montado em outra pasta e copiado: no Windows, o banco aberto aqui ficaria preso e o script não conseguiria trocá-lo. */
+    const vivo = await bancoComDados('preparo/one-history.db');
+    await vivo.execute("INSERT INTO mesa_imagens (campanha_id, id, dados) VALUES ('c', 'k', 'só no atual')");
+    const copia = await fazerBackup(vivo, path.join(pasta, 'preparo', 'backups'));
+    await vivo.execute("INSERT INTO mesa_imagens (campanha_id, id, dados) VALUES ('c', 'l', 'depois da cópia')");
+    vivo.close();
+    fs.mkdirSync(path.join(pasta, 'restaura'));
+    fs.copyFileSync(path.join(pasta, 'preparo', 'one-history.db'), path.join(pasta, 'restaura', 'one-history.db'));
+    fs.copyFileSync(copia!, path.join(pasta, 'restaura', 'restaurar.db'));
+
+    const r = rodar('scripts/restaurar.mjs', [], { DATABASE_URL: url('restaura/one-history.db') });
+    expect(r.stderr).toBe('');
+    expect(r.status).toBe(0);
+    expect(fs.existsSync(path.join(pasta, 'restaura', 'restaurar.db'))).toBe(false);
+    expect(await contar(path.join(pasta, 'restaura', 'one-history.db'))).toBe(3);
+    const guardados = fs.readdirSync(path.join(pasta, 'restaura', 'backups')).filter(n => n.endsWith('.db'));
+    expect(guardados).toHaveLength(1);
+    expect(guardados[0]).toMatch(/^antes-da-restauracao-[\d-]+\.db$/);
+    expect(await contar(path.join(pasta, 'restaura', 'backups', guardados[0]))).toBe(4);
+    expect(rodar('scripts/migrar.mjs', [], { DATABASE_URL: url('restaura/one-history.db') }).status).toBe(0);
+  });
+
+  it('recusa uma cópia que não é do One History e mantém o banco atual', async () => {
+    (await bancoComDados('recusa/one-history.db')).close();
+    fs.writeFileSync(path.join(pasta, 'recusa', 'restaurar.db'), 'isto não é um banco');
+    const r = rodar('scripts/restaurar.mjs', [], { DATABASE_URL: url('recusa/one-history.db') });
+    expect(r.status).toBe(0);
+    expect(r.stderr).toContain('Restauração cancelada');
+    expect(fs.existsSync(path.join(pasta, 'recusa', 'restaurar.db.ruim'))).toBe(true);
+    expect(await contar(path.join(pasta, 'recusa', 'one-history.db'))).toBe(2);
+  });
+
+  it('sem cópia, não mexe em nada', () => {
+    const r = rodar('scripts/restaurar.mjs', [], { DATABASE_URL: url('nada/one-history.db') });
+    expect(r.status).toBe(0);
+    expect(fs.existsSync(path.join(pasta, 'nada'))).toBe(false);
+  });
+});
+
 describe('backup automático', () => {
   it('gera uma cópia que abre e guarda só as mais recentes', async () => {
     const c = await bancoComDados('vivo.db');

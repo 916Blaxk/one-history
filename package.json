@@ -12,7 +12,7 @@
     "predev": "npm run db:migrar",
     "dev": "node --import tsx servidor.ts --dev",
     "build": "npm run db:migrar && next build",
-    "prestart": "npm run db:migrar",
+    "prestart": "node scripts/restaurar.mjs && npm run db:migrar",
     "start": "node --import tsx servidor.ts",
     "senha": "node scripts/redefinir-senha.mjs",
     "test": "vitest run",

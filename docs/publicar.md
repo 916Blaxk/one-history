@@ -94,6 +94,21 @@ Para configurar em um PC:
 
 Para desfazer, apague a tarefa, rode `railway ssh keys remove` e apague a chave. A chave dá acesso completo ao servidor, não só ao download: remova-a se o PC deixar de ser usado por você.
 
+### Restaurar uma cópia
+
+Não troque o arquivo do banco com o site no ar: o servidor o mantém aberto e seguiria gravando no arquivo antigo. A troca acontece ao iniciar, antes das migrações, pelo `scripts/restaurar.mjs`.
+
+1. Avise a mesa: tudo o que for gravado depois da cópia escolhida se perde.
+2. Envie a cópia: `node scripts/enviar-restauracao.mjs Documentos\one-history-backups\one-history-<data>.db`. O script confere o arquivo, envia como `/data/restaurar.db` e compara o que chegou. Nada muda até o reinício.
+3. No painel do Railway, reinicie o serviço (Restart).
+4. Confira no log: `Banco anterior guardado em /data/backups/antes-da-restauracao-<data>.db` e `Banco restaurado`. Entre no site e veja fichas e campanhas.
+
+O banco que saiu fica em `/data/backups/antes-da-restauracao-<data>.db`, fora do rodízio das cópias automáticas, então não é apagado sozinho. Para voltar a ele, baixe-o e envie de novo pelo passo 2. Apague-o pelo SSH quando não precisar mais, porque ocupa espaço no volume.
+
+Se a cópia não passar na conferência, vira `/data/restaurar.db.ruim`, o log mostra `Restauração cancelada` e o site sobe com o banco atual.
+
+Testado em 8 de novembro de 2026 no PC, com a cópia de 6 de novembro: as migrações rodaram sobre ela e as fichas e campanhas apareceram depois do login. Ainda não foi feito no Railway.
+
 ## Passar do volume para o Turso
 
 1. Crie o banco no Turso, como no passo 1, e pare de usar o site.

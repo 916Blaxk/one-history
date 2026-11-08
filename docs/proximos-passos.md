@@ -1,6 +1,6 @@
 # Próximos passos
 
-Última atualização: 7 de novembro de 2026.
+Última atualização: 8 de novembro de 2026.
 
 ## Situação
 
@@ -42,6 +42,7 @@ Estas aguardam Arthur Baldo, que criou o sistema e decide as regras de dados.
 
 - **Turso:** opcional, para ver e editar os dados com mais facilidade. O caminho está em [publicar.md](publicar.md).
 - **Backup externo:** o PC do usuário baixa a cópia mais recente a cada 2 dias, pelo Agendador de Tarefas. Veja [publicar.md](publicar.md). Conferir de vez em quando `Documentos\one-history-backups\baixar-backup.log`.
+- **Restauração no Railway:** testada no PC em 8 de novembro de 2026, com o passo a passo em [publicar.md](publicar.md). Falta um ensaio real no Railway, que perde o que for gravado depois da cópia escolhida.
 - **Plano do Railway:** conferir preço e limite no painel.
 - **Verificação de saúde:** definir o caminho `/entrar` nas configurações do serviço no Railway.
 - **Google Doc do sistema:** renumerar as perícias e incluir Sorte.
