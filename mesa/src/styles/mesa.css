@@ -2191,3 +2191,123 @@ button:disabled {
   font-size: 0.8em;
   color: #b9a0fb;
 }
+
+/* Biblioteca de monstros: lista compacta no painel do mapa, só para o mestre. */
+.biblioteca {
+  margin-top: 9px;
+  border: 1px solid #8fb0ff40;
+  border-radius: 7px;
+  color: #dfe3f2;
+  font-size: 12px;
+}
+.biblioteca summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 12px;
+  cursor: pointer;
+  font-size: 13px;
+  list-style: none;
+}
+.biblioteca summary::-webkit-details-marker {
+  display: none;
+}
+.biblioteca summary:hover {
+  background: #8fb0ff14;
+}
+.biblioteca-nota {
+  margin: 0;
+  padding: 4px 12px 12px;
+  color: #a5a8d4;
+  line-height: 1.45;
+}
+.biblioteca-lista {
+  display: grid;
+  gap: 2px;
+  max-height: 260px;
+  margin: 0;
+  padding: 0 6px 6px;
+  overflow-y: auto;
+  list-style: none;
+}
+.biblioteca-lista li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 2px 4px;
+  border-radius: 6px;
+}
+.biblioteca-lista li:hover {
+  background: #ffffff08;
+}
+.biblioteca-miniatura {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  overflow: hidden;
+  border-radius: 50%;
+  color: #fff;
+  font-weight: 600;
+}
+.biblioteca-miniatura img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.biblioteca-nome {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+}
+.biblioteca-nome b,
+.biblioteca-nome small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.biblioteca-nome b {
+  font-weight: 600;
+}
+.biblioteca-nome small {
+  color: #a5a8d4;
+}
+.biblioteca-lista button {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: #a5a8d4;
+  background: transparent;
+}
+.biblioteca-lista button:hover {
+  color: #c9bcff;
+  background: #8fb0ff22;
+}
+.biblioteca-lista .biblioteca-colocar {
+  border-color: #8fb0ff70;
+  color: #e6e9f5;
+}
+.token-biblioteca-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 38px;
+  margin-bottom: 6px;
+  border: 1px solid #8fb0ff50;
+  border-radius: 6px;
+  color: #dfe3f2;
+  background: transparent;
+  font-size: 12px;
+}
+.token-biblioteca-button:hover {
+  background: #8fb0ff1a;
+}

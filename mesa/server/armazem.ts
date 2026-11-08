@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, notInArray, sql } from 'drizzle-orm'
+import { and, count, desc, eq, inArray, notInArray, sql } from 'drizzle-orm'
 import type { DiceRollResult } from '../src/features/chat/dice-types.js'
 import type { ChatMessage, ChatMessageType } from '../src/features/chat/chat-types.js'
 import type { AjusteImagem, Token, TokenSprite } from '../src/features/tokens/token-types.js'
@@ -6,7 +6,7 @@ import type { Combate, NevoaDaMesa, RoomGrid, RoomScene } from '../src/shared/ro
 import * as R from '../../lib/regras'
 import type { LinhaRolagem } from '../../lib/servidor/barramento'
 import { db } from '../../lib/servidor/db'
-import { campanhas, fichas, membros, mensagensMesa, mesaImagens, mesas, rolagens, usuarios } from '../../lib/servidor/schema'
+import { campanhas, fichas, membros, mensagensMesa, mesaImagens, mesas, monstros, rolagens, usuarios, type DadosMonstro, type ImagemMonstro, type VagaMonstro } from '../../lib/servidor/schema'
 
 const LIMITE_HISTORICO = 200
 const LIMITE_MENSAGENS = 500
@@ -116,4 +116,22 @@ export async function salvarMesa(campanhaId: string, estado: EstadoMesa, imagens
     target: mesas.campanhaId, set: { estado: sql`excluded.estado`, atualizado: agora },
   })
   return new Set(imagens.keys())
+}
+
+/* Por conta, para a biblioteca não crescer sem fim: cada monstro pode levar três imagens. */
+export const LIMITE_MONSTROS = 100
+
+export async function contarMonstros(donoId: string) {
+  const [linha] = await db.select({ n: count() }).from(monstros).where(eq(monstros.donoId, donoId))
+  return Number(linha?.n ?? 0)
+}
+
+export async function gravarMonstro(donoId: string, nome: string, dados: DadosMonstro, imagens: Partial<Record<VagaMonstro, ImagemMonstro>>) {
+  const agora = Date.now()
+  await db.insert(monstros).values({ id: `m${crypto.randomUUID()}`, donoId, nome, dados, imagens, criadoEm: agora, atualizado: agora })
+}
+
+export async function lerMonstro(id: string, donoId: string) {
+  const [m] = await db.select().from(monstros).where(and(eq(monstros.id, id), eq(monstros.donoId, donoId)))
+  return m ?? null
 }

@@ -447,3 +447,26 @@ test('mesa: o token tem três imagens, sem a foto da ficha e sem o fundo', async
   await expect.poll(async () => (await corNaTela(jogador, PONTO.x, PONTO.y)).b).toBeGreaterThan(180);
   await expect(jogador.getByRole('button', { name: 'Armado', exact: true })).toBeDisabled();
 });
+
+test('mesa: o mestre guarda um monstro na biblioteca, coloca e apaga', async ({ browser }) => {
+  const { mestre, jogador, campanhaId } = await montar(browser);
+  await abrirMesa(mestre, campanhaId);
+  await abrirMesa(jogador, campanhaId);
+  await expect(jogador.getByText('Biblioteca de monstros')).toHaveCount(0);
+
+  await mestre.getByRole('button', { name: 'Novo token' }).first().click();
+  await mestre.getByLabel('Nome', { exact: true }).fill('Lobo');
+  await mestre.getByLabel('PV máximo').fill('18');
+  await expect(mestre.getByLabel('PV máximo')).toHaveValue('18');
+  await mestre.getByRole('button', { name: 'Salvar na biblioteca' }).click();
+  await expect(mestre.getByText('Lobo foi salvo na biblioteca.')).toBeVisible();
+
+  await mestre.getByText('Biblioteca de monstros').first().click();
+  await expect(mestre.locator('.biblioteca-lista li')).toContainText('18 de vida');
+  if (process.env.FOTO_BIBLIOTECA) await mestre.screenshot({ path: process.env.FOTO_BIBLIOTECA });
+  await mestre.getByRole('button', { name: 'Colocar Lobo na mesa' }).first().click();
+  /* Nome, vida e imagens das cópias são conferidos em test/mesa.test.ts: o mapa é um canvas. */
+  mestre.once('dialog', (d) => void d.accept());
+  await mestre.getByRole('button', { name: 'Apagar Lobo da biblioteca' }).first().click();
+  await expect(mestre.getByText(/Vazia\./).first()).toBeVisible();
+});

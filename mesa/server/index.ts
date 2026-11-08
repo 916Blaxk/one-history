@@ -3,7 +3,7 @@ import { Server, type Socket } from 'socket.io'
 import { z } from 'zod'
 import { DiceExpressionError, rollDice } from '../src/features/chat/dice-parser.js'
 import type { ChatMessage } from '../src/features/chat/chat-types.js'
-import { TAMANHO_MAXIMO, TAMANHO_MINIMO, alturaDoToken, estaSangrando, type Token, type TokenPosition, type TokenSprite, type VagaImagem, type AjusteImagem } from '../src/features/tokens/token-types.js'
+import { TAMANHO_MAXIMO, TAMANHO_MINIMO, alturaDoToken, estaSangrando, type Token, type TokenPosition, type TokenSprite, type VagaImagem, type AjusteImagem, idDaVaga } from '../src/features/tokens/token-types.js'
 import type {
   ClientToServerEvents, Combate, NevoaDaMesa, RoomCommand, RoomGrid, RoomPlayer, RoomScene, RoomSnapshot,
   ServerRoomMessage, ServerToClientEvents,
@@ -20,7 +20,7 @@ import { ouvirMesa, type EventoMesa } from '../../lib/servidor/barramento'
 import { alterarFicha, detalheRolagem, gravarRolagem, textoDaRolagem } from '../../lib/servidor/rotas'
 import { COOKIE, usuarioDoToken } from '../../lib/servidor/sessao'
 import {
-  campanhaExiste, carregarHistorico, carregarMesa, gravarMensagem, lerAcesso, lerFicha, lerFichasDaCampanha, lerMembros, rolagemParaChat, salvarMesa, type EstadoMesa,
+  LIMITE_MONSTROS, campanhaExiste, carregarHistorico, contarMonstros, gravarMonstro, lerMonstro, carregarMesa, gravarMensagem, lerAcesso, lerFicha, lerFichasDaCampanha, lerMembros, rolagemParaChat, salvarMesa, type EstadoMesa,
 } from './armazem'
 
 const MAX_IMAGE_DATA_URL_LENGTH = 700_000
@@ -168,6 +168,8 @@ const esquemaComando = z.discriminatedUnion('type', [
   }),
   z.object({ type: z.literal('chat:roll'), expression: z.string().max(120), label: z.unknown().refine(validRollLabel).optional() }),
   z.object({ type: z.literal('ficha:rolar'), fichaId: idCurto, acao: z.string().max(60) }),
+  z.object({ type: z.literal('biblioteca:salvar'), tokenId: idCurto }),
+  z.object({ type: z.literal('biblioteca:colocar'), monstroId: idCurto, x: numero, y: numero }),
 ])
 const esquemaEntrada = z.object({ campanhaId: z.string().min(1).max(80) })
 
@@ -243,6 +245,66 @@ function comCenario(room: RoomState, token: Token): Token {
 }
 const tokensDoCenario = (room: RoomState, cenarioId: string) =>
   [...room.tokens.values()].filter((token) => token.cenarioId === cenarioId && !tokenDeJogador(room, token))
+
+/* Cópias do mesmo monstro ganham número, para o mestre e os jogadores saberem qual goblin foi atingido. */
+function nomeLivre(room: RoomState, base: string) {
+  const usados = new Set([...room.tokens.values()].map((token) => token.name))
+  if (!usados.has(base)) return base
+  for (let n = 2; ; n++) {
+    const sufixo = ` ${n}`
+    const nome = base.slice(0, 32 - sufixo.length) + sufixo
+    if (!usados.has(nome)) return nome
+  }
+}
+
+async function salvarNaBiblioteca(socket: TableSocket, room: RoomState, player: RoomPlayer, tokenId: string) {
+  const avisar = (texto: string, salvo: boolean) => socket.emit('room:event', { type: 'biblioteca:aviso', texto, salvo })
+  const token = room.tokens.get(tokenId)
+  if (!token) return
+  if (await contarMonstros(player.id) >= LIMITE_MONSTROS) return avisar(`Sua biblioteca chegou a ${LIMITE_MONSTROS} monstros. Apague algum para salvar outro.`, false)
+  const sprites = room.sprites.get(tokenId) ?? []
+  const imagens: Partial<Record<VagaImagem, { rotulo: string; imagem: string }>> = {}
+  for (const vaga of ['normal', 'machucado', 'armado'] as const) {
+    const sprite = sprites.find((item) => item.id === idDaVaga(token, vaga))
+    if (sprite) imagens[vaga] = { rotulo: sprite.label, imagem: sprite.imageUrl }
+  }
+  await gravarMonstro(player.id, token.name, {
+    tamanho: token.size, ...(token.altura !== undefined ? { altura: token.altura } : {}), cor: token.color, espelhado: token.flipX,
+    ...(token.hpMax !== undefined ? { vidaMax: token.hpMax } : {}), ...(token.manaMax !== undefined ? { manaMax: token.manaMax } : {}),
+  }, imagens)
+  avisar(`${token.name} foi salvo na biblioteca.`, true)
+}
+
+async function colocarDaBiblioteca(room: RoomState, player: RoomPlayer, monstroId: string, x: number, y: number) {
+  if (room.tokens.size >= MAX_TOKENS_PER_ROOM) return
+  /* Só a biblioteca de quem pede: o id vindo do navegador nunca abre o monstro de outra conta. */
+  const monstro = await lerMonstro(monstroId, player.id)
+  if (!monstro) return
+  const sprites: TokenSprite[] = []
+  const vagas: Partial<Record<VagaImagem, string>> = {}
+  for (const vaga of ['normal', 'machucado', 'armado'] as const) {
+    const imagem = monstro.imagens[vaga]
+    if (!imagem) continue
+    const sprite = { id: crypto.randomUUID(), label: imagem.rotulo, imageUrl: imagem.imagem }
+    if (!validSprite(sprite)) continue
+    sprites.push(sprite); vagas[vaga] = sprite.id
+  }
+  const d = monstro.dados
+  const pedido: Token = {
+    id: crypto.randomUUID(), name: nomeLivre(room, monstro.nome.slice(0, 32) || 'Monstro'), x, y,
+    size: d.tamanho, ...(d.altura !== undefined ? { altura: d.altura } : {}), rotation: 0,
+    spriteIds: sprites.map((sprite) => sprite.id), activeSpriteId: vagas.normal ?? null,
+    ...(vagas.machucado ? { spriteSangrandoId: vagas.machucado } : {}), ...(vagas.armado ? { spriteArmadoId: vagas.armado } : {}),
+    flipX: d.espelhado, color: d.cor,
+    ...(d.vidaMax !== undefined ? { hpMax: d.vidaMax, hpCurrent: d.vidaMax } : {}),
+    ...(d.manaMax !== undefined ? { manaMax: d.manaMax, manaCurrent: d.manaMax } : {}),
+    ownerIds: [], hidden: false, createdByPlayerKey: player.id,
+  }
+  if (!validToken(pedido, sprites)) return
+  const token = comCenario(room, pedido)
+  room.tokens.set(token.id, token); room.sprites.set(token.id, sprites)
+  broadcastVisible(room, { type: 'token:added', token, sprites, playerId: player.id }, token)
+}
 
 /* A vida e a mana de uma ficha só saem do servidor para o mestre e o dono, como no resto do site. */
 function visaoDoToken(room: RoomState, token: Token, player: RoomPlayer): Token {
@@ -872,6 +934,12 @@ async function handleCommand(socket: TableSocket, room: RoomState, player: RoomP
       })
       return
     }
+    case 'biblioteca:salvar':
+      if (player.role !== 'gm') return deny(socket)
+      return salvarNaBiblioteca(socket, room, player, message.tokenId)
+    case 'biblioteca:colocar':
+      if (player.role !== 'gm') return deny(socket)
+      return colocarDaBiblioteca(room, player, message.monstroId, message.x, message.y)
     case 'player:role': {
       if (!can(player.role, 'player:manage')) return deny(socket)
       const target = room.players.get(message.playerKey)

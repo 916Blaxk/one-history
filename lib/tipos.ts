@@ -48,3 +48,12 @@ export interface DetalheCampanha {
   fichas: ResumoFicha[];
   minhasLivres: { id: string; nome: string }[];
 }
+
+/* Um item da biblioteca de monstros, sem as imagens: a miniatura vem de `/api/biblioteca/:id/imagem`. */
+export interface MonstroDaBiblioteca {
+  id: string;
+  nome: string;
+  dados: { tamanho: number; altura?: number; cor: string; espelhado: boolean; vidaMax?: number; manaMax?: number };
+  temImagem: boolean;
+  v: number;
+}

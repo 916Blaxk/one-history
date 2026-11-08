@@ -112,3 +112,19 @@ export const tentativas = sqliteTable('tentativas', {
   n: integer('n').notNull(),
   ate: integer('ate').notNull(),
 });
+
+export type VagaMonstro = 'normal' | 'machucado' | 'armado';
+export type ImagemMonstro = { rotulo: string; imagem: string };
+/* O que o token precisa para nascer igual. Vida e mana guardam só o máximo: cada cópia começa cheia. */
+export type DadosMonstro = { tamanho: number; altura?: number; cor: string; espelhado: boolean; vidaMax?: number; manaMax?: number };
+
+/* A biblioteca de monstros é do mestre, não da campanha: o mesmo goblin serve em todas as mesas dele. */
+export const monstros = sqliteTable('monstros', {
+  id: text('id').primaryKey(),
+  donoId: text('dono_id').notNull(),
+  nome: text('nome').notNull(),
+  dados: text('dados', { mode: 'json' }).$type<DadosMonstro>().notNull(),
+  imagens: text('imagens', { mode: 'json' }).$type<Partial<Record<VagaMonstro, ImagemMonstro>>>().notNull(),
+  criadoEm: integer('criado_em').notNull(),
+  atualizado: integer('atualizado').notNull(),
+}, t => [index('monstros_dono').on(t.donoId)]);

@@ -1,11 +1,11 @@
 import { useState } from 'react'
-import { ChevronDown, ChevronUp, Trash2, X } from 'lucide-react'
+import { BookmarkPlus, ChevronDown, ChevronUp, Trash2, X } from 'lucide-react'
 import { Card, CardContent } from '@mesa/components/ui/card'
 import { useTokenStore } from '@mesa/features/tokens/token-store'
 import { useUiStore } from '@mesa/stores/ui-store'
 import type { Token } from '@mesa/features/tokens/token-types'
 import { useBottomSheetDismiss } from '@mesa/hooks/use-bottom-sheet-dismiss'
-import { isRoomMode } from '@mesa/features/rooms/room-commands'
+import { isRoomMode, sendRoomCommand } from '@mesa/features/rooms/room-commands'
 import { useRoomStore } from '@mesa/features/rooms/room-store'
 import { FichaDoToken } from '@mesa/features/tokens/FichaDoToken'
 import { ImagensDoToken } from '@mesa/features/tokens/ImagensDoToken'
@@ -314,6 +314,16 @@ export function TokenProperties({
             })}
           </fieldset>
           <FichaDoToken token={selectedToken} campanhaId={campanhaId} />
+          {inRoom && role === 'gm' && (
+            <button
+              className="token-biblioteca-button"
+              type="button"
+              title="Guarda nome, tamanho, cor, vida, mana e imagens para colocar cópias em qualquer campanha"
+              onClick={() => sendRoomCommand({ type: 'biblioteca:salvar', tokenId: selectedToken.id })}
+            >
+              <BookmarkPlus size={15} /> Salvar na biblioteca
+            </button>
+          )}
           {canRemove && (
             <button
               className="token-delete-button"

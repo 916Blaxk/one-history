@@ -82,6 +82,8 @@ export type RoomCommand =
     }
   | { type: 'chat:roll'; expression: string; label?: string }
   | { type: 'ficha:rolar'; fichaId: string; acao: string }
+  | { type: 'biblioteca:salvar'; tokenId: string }
+  | { type: 'biblioteca:colocar'; monstroId: string; x: number; y: number }
 
 export type ServerRoomMessage =
   | {
@@ -113,6 +115,8 @@ export type ServerRoomMessage =
   | { type: 'fog:cleared' }
   | { type: 'chat:message'; message: ChatMessage }
   | { type: 'chat:error'; text: string }
+  /* Resposta só para quem salvou na biblioteca: a lista dele precisa ser buscada de novo. */
+  | { type: 'biblioteca:aviso'; texto: string; salvo: boolean }
   | { type: 'permission:error' }
   | { type: 'player:kicked' }
   | { type: 'room:denied' }

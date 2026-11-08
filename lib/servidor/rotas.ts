@@ -9,7 +9,7 @@ import { expressaoDaRolagem, lerAcao, resumoDaFicha } from '../resumoFicha';
 import type { Ficha, Mensagem, PaginaChat, Papel, ResumoFicha } from '../tipos';
 import { avisarMesa } from './barramento';
 import { db } from './db';
-import { campanhas, chavesIntegracao, fichas, membros, mensagensMesa, mesaImagens, mesas, rolagens, sessoes, tentativas, usuarios } from './schema';
+import { campanhas, chavesIntegracao, fichas, membros, mensagensMesa, mesaImagens, mesas, monstros, rolagens, sessoes, tentativas, usuarios } from './schema';
 import { apagarSessoes, conferirHash, COOKIE, criarSessao, gerarHash, hashToken, SESSAO_S, usuarioDoToken } from './sessao';
 
 const LIMITE_CORPO = 512 * 1024;
@@ -373,6 +373,7 @@ rota('DELETE', '/api/conta', async ctx => {
     db.delete(membros).where(eq(membros.usuarioId, id)),
     db.delete(chavesIntegracao).where(inArray(chavesIntegracao.fichaId, db.select({ id: fichas.id }).from(fichas).where(eq(fichas.donoId, id)))),
     db.delete(fichas).where(eq(fichas.donoId, id)),
+    db.delete(monstros).where(eq(monstros.donoId, id)),
     db.delete(sessoes).where(eq(sessoes.usuarioId, id)),
     db.delete(usuarios).where(eq(usuarios.id, id)),
   ]);
@@ -516,6 +517,39 @@ rota('GET', '/api/fichas/:id/chat', async ctx => {
 });
 
 /* Campanhas */
+/* Biblioteca de monstros. Salvar e colocar passam pela mesa, que tem o token e a sala; aqui ficam a lista e a limpeza. */
+async function monstroDoMestre(id: string, usuarioId: string) {
+  const [m] = await db.select().from(monstros).where(and(eq(monstros.id, id), eq(monstros.donoId, usuarioId)));
+  if (!m) throw new Erro(404, 'Monstro não encontrado.');
+  return m;
+}
+
+rota('GET', '/api/biblioteca', async ctx => {
+  const linhas = await db.select().from(monstros).where(eq(monstros.donoId, ctx.usuario.id)).orderBy(monstros.nome);
+  /* Sem as imagens: cada uma pode ter centenas de KB, e a miniatura vem à parte, com cache. */
+  return { monstros: linhas.map(m => ({ id: m.id, nome: m.nome, dados: m.dados, temImagem: Boolean(m.imagens.normal), v: m.atualizado })) };
+});
+
+rota('GET', '/api/biblioteca/:id/imagem', async ctx => {
+  const m = await monstroDoMestre(ctx.params.id, ctx.usuario.id);
+  if (!m.imagens.normal) throw new Erro(404, 'Imagem não encontrada.');
+  return respostaFoto(m.imagens.normal.imagem, 'private, max-age=31536000, immutable');
+});
+
+rota('PATCH', '/api/biblioteca/:id', async ctx => {
+  const m = await monstroDoMestre(ctx.params.id, ctx.usuario.id);
+  const nome = typeof ctx.corpo.nome === 'string' ? ctx.corpo.nome.trim().slice(0, 32) : '';
+  if (!nome) throw new Erro(400, 'Dê um nome ao monstro.');
+  await db.update(monstros).set({ nome, atualizado: Date.now() }).where(eq(monstros.id, m.id));
+  return { ok: true };
+});
+
+rota('DELETE', '/api/biblioteca/:id', async ctx => {
+  const m = await monstroDoMestre(ctx.params.id, ctx.usuario.id);
+  await db.delete(monstros).where(eq(monstros.id, m.id));
+  return { ok: true };
+});
+
 rota('GET', '/api/campanhas', async ctx => {
   const minhas = await db.select({ c: campanhas, papel: membros.papel }).from(membros)
     .innerJoin(campanhas, eq(membros.campanhaId, campanhas.id)).where(eq(membros.usuarioId, ctx.usuario.id));

@@ -29,6 +29,7 @@ import { fileToRoomScene } from '@mesa/features/rooms/scene-serializer'
 import { useRoomStore } from '@mesa/features/rooms/room-store'
 import { sendRoomCommand } from '@mesa/features/rooms/room-commands'
 import { PainelCombate } from '@mesa/features/map/PainelCombate'
+import { BibliotecaMonstros } from '@mesa/features/map/BibliotecaMonstros'
 
 export function MapControls({
   mobileOpen,
@@ -304,6 +305,7 @@ export function MapControls({
               <UserRoundPlus size={17} /> Novo token
             </button>
           )}
+          {isRoomMode() && role === 'gm' && <BibliotecaMonstros />}
           <button className="reset-button" type="button" onClick={resetView}>
             <RotateCcw size={15} /> Resetar vis&atilde;o
           </button>

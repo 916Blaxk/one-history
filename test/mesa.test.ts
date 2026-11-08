@@ -868,3 +868,60 @@ describe('persistência', () => {
     expect(j.snapshot.tokens.some((x: any) => x.id === t)).toBe(false);
   }, 60000);
 });
+
+describe('biblioteca de monstros', () => {
+  it('o mestre salva um token e coloca cópias cheias, numeradas e com as imagens, em qualquer campanha dele', async () => {
+    const { mestre, jogador, fora, id } = await mesaCompleta();
+    const m = await entrar(mestre, id);
+    const goblin = await criarToken(m, { name: 'Goblin', size: 2, color: '#3a7a3a', hpMax: 12, hpCurrent: 3, manaMax: 4, manaCurrent: 0 });
+    m.comando({ type: 'token:sprite:add', id: goblin, sprite: { id: 'gn', label: 'Normal', imageUrl: PIXEL }, vaga: 'normal' });
+    m.comando({ type: 'token:sprite:add', id: goblin, sprite: { id: 'gf', label: 'Ferido', imageUrl: PIXEL }, vaga: 'machucado' });
+    await ate(() => m.ultimoToken(goblin)?.spriteSangrandoId === 'gf');
+
+    m.comando({ type: 'biblioteca:salvar', tokenId: goblin });
+    const aviso = await ate(() => m.eventos.find((e) => e.type === 'biblioteca:aviso'));
+    expect(aviso.salvo).toBe(true);
+    const [modelo] = (await mestre.c('GET', '/api/biblioteca')).corpo.monstros;
+    expect(modelo).toMatchObject({ nome: 'Goblin', temImagem: true, dados: { tamanho: 2, cor: '#3a7a3a', vidaMax: 12, manaMax: 4 } });
+    const imagem = await fetch(`${base}/api/biblioteca/${modelo.id}/imagem`, { headers: { Cookie: mestre.cookie() } });
+    expect(imagem.headers.get('content-type')).toBe('image/png');
+
+    const antes = m.tokens.size;
+    m.comando({ type: 'biblioteca:colocar', monstroId: modelo.id, x: 100, y: 100 });
+    m.comando({ type: 'biblioteca:colocar', monstroId: modelo.id, x: 200, y: 100 });
+    await ate(() => m.tokens.size === antes + 2);
+    const copias = [...m.tokens.values()].filter((t) => t.name.startsWith('Goblin ')).sort((a, b) => a.x - b.x);
+    expect(copias.map((t) => t.name)).toEqual(['Goblin 2', 'Goblin 3']);
+    expect(copias[0]).toMatchObject({ size: 2, hpCurrent: 12, hpMax: 12, manaCurrent: 4, color: '#3a7a3a', hidden: false });
+    expect(copias[0].spriteIds).toHaveLength(2);
+    expect(copias[0].spriteSangrandoId).toBeTruthy();
+    expect(copias[0].id).not.toBe(copias[1].id);
+
+    /* Outra campanha do mesmo mestre usa a mesma biblioteca. */
+    const outra = (await mestre.c('POST', '/api/campanhas', { nome: 'Outra' })).corpo.campanha;
+    const m2 = await entrar(mestre, outra.id);
+    m2.comando({ type: 'biblioteca:colocar', monstroId: modelo.id, x: 0, y: 0 });
+    await ate(() => [...m2.tokens.values()].some((t) => t.name === 'Goblin'));
+
+    /* Jogador não salva nem coloca, e a biblioteca de uma conta não abre para outra. */
+    const j = await entrar(jogador, id);
+    j.comando({ type: 'biblioteca:salvar', tokenId: goblin });
+    j.comando({ type: 'biblioteca:colocar', monstroId: modelo.id, x: 0, y: 0 });
+    await ate(() => j.eventos.filter((e) => e.type === 'permission:error').length === 2);
+    const campanhaFora = (await fora.c('POST', '/api/campanhas', { nome: 'Alheia' })).corpo.campanha;
+    const f = await entrar(fora, campanhaFora.id);
+    f.comando({ type: 'biblioteca:colocar', monstroId: modelo.id, x: 0, y: 0 });
+    await new Promise((ok) => setTimeout(ok, 300));
+    expect(f.tokens.size).toBe(0);
+    expect((await fora.c('GET', '/api/biblioteca')).corpo.monstros).toEqual([]);
+    expect((await fora.c('DELETE', `/api/biblioteca/${modelo.id}`)).status).toBe(404);
+    expect((await fora.c('PATCH', `/api/biblioteca/${modelo.id}`, { nome: 'Meu' })).status).toBe(404);
+
+    expect((await mestre.c('PATCH', `/api/biblioteca/${modelo.id}`, { nome: 'Goblin chefe' })).status).toBe(200);
+    expect((await mestre.c('GET', '/api/biblioteca')).corpo.monstros[0].nome).toBe('Goblin chefe');
+    expect((await mestre.c('DELETE', `/api/biblioteca/${modelo.id}`)).status).toBe(200);
+    expect((await mestre.c('GET', '/api/biblioteca')).corpo.monstros).toEqual([]);
+    /* As cópias já colocadas continuam na mesa. */
+    expect([...m.tokens.values()].filter((t) => t.name.startsWith('Goblin '))).toHaveLength(2);
+  }, 60000);
+});

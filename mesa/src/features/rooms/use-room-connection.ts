@@ -148,6 +148,11 @@ export function useRoomConnection(campanhaId: string) {
             text: message.text, timestamp: Date.now(),
           })
           break
+        case 'biblioteca:aviso':
+          if (message.salvo) void mutate('/api/biblioteca')
+          useRoomStore.getState().setNotice(message.texto)
+          window.setTimeout(() => useRoomStore.getState().setNotice(null), 3000)
+          break
         case 'permission:error':
           useRoomStore.getState().setNotice('Você não pode fazer isso')
           window.setTimeout(() => useRoomStore.getState().setNotice(null), 2200)
