@@ -351,6 +351,11 @@ describe('campanhas', () => {
     expect((await jog.c('GET', rota)).corpo).toEqual({ foto: ORIGINAL, ajuste: { zoom: 2, x: -10, y: -20 } });
     expect((await mestre.c('GET', rota)).corpo.foto).toBe(ORIGINAL);
     expect((await intruso.c('GET', rota)).status).toBe(404);
+    /* O mestre troca a foto do jogador, por exemplo numa transformação. */
+    const TRANSFORMADO = 'data:image/webp;base64,CCCC';
+    expect((await mestre.c('PATCH', url, { foto: TRANSFORMADO })).status).toBe(200);
+    expect((await jog.c('GET', rota)).corpo.foto).toBe(TRANSFORMADO);
+    await jog.c('PATCH', url, { foto: FOTO, fotoOriginal: ORIGINAL, fotoAjuste: { zoom: 2, x: -10, y: -20 } });
     /* Fora da rota própria, o original não pesa nas respostas da ficha. */
     const ficha = (await jog.c('GET', url)).corpo.ficha;
     expect(ficha.fotoOriginal).toBeUndefined();
