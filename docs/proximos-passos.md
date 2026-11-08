@@ -12,11 +12,12 @@
 
 ## Decisões em aberto
 
-Estas aguardam Arthur Baldo, que criou o sistema e decide as regras de dados.
-
-1. **Prata escuro:** a tabela de Arthur traz "+10pv" nesse estágio, mas a mesma mensagem diz que a vida por estágio foi removida. O site não dá essa vida. Falta confirmar.
+Nenhuma no momento.
 
 ## Decisões tomadas
+
+- **Biblioteca de monstros (8 de novembro de 2026):** o mestre salva um token pronto, com nome, tamanho, cor, vida e mana máximas e as três imagens, e coloca cópias dele em qualquer campanha em que é mestre. Cada cópia nasce com vida e mana cheias e ganha número quando o nome se repete, como Goblin 2. A biblioteca é da conta, com até 100 monstros, e apagar um monstro dela não tira da mesa as cópias já colocadas. A imagem original usada para reajustar não é guardada, e ficha de regras do monstro ainda não existe.
+- **Prata escuro (8 de novembro de 2026):** o "+10pv" da tabela de Arthur foi um erro. O núcleo não dá vida em nenhum estágio, como o site já fazia.
 
 - **Tokens ligados ao cenário (7 de novembro de 2026):** o token do mestre pertence ao cenário onde foi criado ou solto. Com o cenário oculto, os jogadores não recebem o token. Ao mostrar, ele aparece junto, menos os marcados como ocultos, e acompanha o cenário quando ele é movido, sem encaixar na grade. Personagens de jogador ficam fora dessa regra. Apagar um cenário oculto deixa os tokens dele ocultos. Tokens antigos só entram em um cenário quando forem arrastados de novo.
 - **Progressão do núcleo (7 de novembro de 2026):** cada estágio dá AP, além de mana e gasto universal, e não dá mais vida nem PP. Veja [pericias.md](pericias.md).
@@ -48,8 +49,9 @@ Estas aguardam Arthur Baldo, que criou o sistema e decide as regras de dados.
 - **Google Doc do sistema:** renumerar as perícias e incluir Sorte.
 - **Sessão de teste:** jogar com 3 ou 4 pessoas em internet real. Será marcada quando o mestre e os jogadores se reunirem.
 - **Celular de verdade:** conferir o entalhe do iPhone, o teclado aberto e, na mesa, arrastar token, pintar névoa e usar a régua com o dedo.
-- **Lint:** restam erros do tipo `any` no código.
 - **Ferramentas opcionais:** `chrome-devtools-mcp` e `21st` não foram instalados.
+- **Visual:** o usuário achou que o visual mágico melhorou, mas que ainda falta algo. Falta descobrir o quê.
+- **Tokens ligados ao cenário:** ainda não foram testados numa preparação real.
 - **Depois da sessão de teste:** avaliar rolar o dano da magia e o que mais fizer falta.
 
 ## Para continuar em outro PC
