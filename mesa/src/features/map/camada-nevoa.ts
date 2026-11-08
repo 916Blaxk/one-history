@@ -1,7 +1,7 @@
 import { CanvasSource, Sprite, Texture } from 'pixi.js'
 import type { OpNevoa } from '@mesa/shared/room-protocol'
 
-const COR_NEVOA = '#0b0e1a'
+const COR_NEVOA = '#100e0c'
 /* Cada camada é um bitmap: sem este teto, 30 cenários grandes gastariam mais de 1 GB de memória. */
 const MAIOR_LADO = 2048
 

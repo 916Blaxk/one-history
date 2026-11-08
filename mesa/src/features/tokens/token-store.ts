@@ -16,14 +16,14 @@ import { fileToRoomImage } from '@mesa/features/rooms/image-serializer'
 import type { RoomTokenChanges } from '@mesa/shared/room-protocol'
 
 const tokenColors = [
-  '#5a54b8',
-  '#7a4fc0',
-  '#3f6fc4',
-  '#6a4fb0',
-  '#4f7fd0',
-  '#3f5fae',
-  '#8058c8',
-  '#4a4aa8',
+  '#8a3b32',
+  '#3f5f8a',
+  '#4d6b3f',
+  '#8a6a2f',
+  '#2f6b6b',
+  '#6b4a32',
+  '#4a5560',
+  '#7a2f4a',
 ]
 let nextTokenNumber = 1
 type OriginalDaImagem = { imagem: string | null; ajuste: AjusteImagem | null }

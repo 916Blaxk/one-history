@@ -120,12 +120,12 @@ test('mesa: mestre é GM, jogador usa a ficha, rola e a vida sincroniza nos dois
   expect(erros).toEqual([]);
 
   /* A mesa usa só o próprio estilo, e o caminho de volta recarrega o do site. */
-  const fundo = await mestre.evaluate(() => getComputedStyle(document.body).backgroundColor);
-  expect(fundo).toBe('rgb(11, 14, 26)');
+  /* Mesa e site têm o mesmo fundo: o que distingue as folhas de estilo são as variáveis que só o site define. */
+  const variavelDoSite = () => getComputedStyle(document.documentElement).getPropertyValue('--surface').trim();
+  expect(await mestre.evaluate(variavelDoSite)).toBe('');
   await mestre.getByRole('link', { name: /Voltar para A Queda de Vael/ }).click();
   await expect(mestre.getByRole('heading', { name: 'A Queda de Vael' })).toBeVisible();
-  const fundoSite = await mestre.evaluate(() => getComputedStyle(document.body).backgroundColor);
-  expect(fundoSite).not.toBe('rgb(16, 17, 20)');
+  expect(await mestre.evaluate(variavelDoSite)).not.toBe('');
 });
 
 test('mesa: o mestre controla grade e névoa, e o que muda aparece para o jogador', async ({ browser }) => {

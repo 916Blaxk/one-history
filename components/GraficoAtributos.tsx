@@ -4,7 +4,7 @@ const ITENS = [
   ...GRUPOS.corpo.map(([k, rotulo]) => ({ grupo: 'corpo' as const, k, rotulo })),
   ...GRUPOS.mente.map(([k, rotulo]) => ({ grupo: 'mente' as const, k, rotulo })),
 ];
-const COR = { corpo: 'var(--primary-claro)', mente: 'var(--secondary-claro)' };
+const COR = { corpo: 'var(--primary-claro)', mente: 'var(--text)' };
 
 /* Corpo e mente em um só desenho. A escala sobe de 5 em 5 para o maior valor sempre caber. */
 export default function GraficoAtributos({ corpo, mente }: { corpo: Record<string, number>; mente: Record<string, number> }) {

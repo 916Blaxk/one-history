@@ -33,7 +33,7 @@ const INTERVALO_SALVAR_MS = 1000
 const INTERVALO_SESSAO_MS = 60 * 1000
 const defaultGrid: RoomGrid = { enabled: true, cellSize: 70, opacity: 0.24 }
 const NOME_FICHA_PRIVADA = '???'
-const CORES_TOKEN_AUTOMATICO = ['#5a54b8', '#3f6fc4', '#7a4fc0', '#4f7fd0', '#6a4fb0', '#3f5fae']
+const CORES_TOKEN_AUTOMATICO = ['#8a3b32', '#3f5f8a', '#4d6b3f', '#8a6a2f', '#2f6b6b', '#6b4a32']
 /* Fora do centro do cenário: o token novo não pode cair em cima do que o mestre está mostrando. */
 const CELULAS_ATE_TOKEN_NOVO = 3
 const INTERVALO_PING_MS = 300
