@@ -15,6 +15,7 @@ import { cenarioNoPonto } from '../src/shared/cenarios.js'
 import { avancarVez, tirarDoCombate } from '../src/shared/combate.js'
 import { CAMADA_MUNDO, MAX_NUMEROS_NEVOA, MAX_OPS_NEVOA, celulasParaOps, tamanhoDaNevoa } from '../src/shared/nevoa.js'
 import * as R from '../../lib/regras'
+import type { ImagemMonstro } from '../../lib/servidor/schema'
 import { expressaoDaRolagem, lerAcao } from '../../lib/resumoFicha'
 import { ouvirMesa, type EventoMesa } from '../../lib/servidor/barramento'
 import { alterarFicha, detalheRolagem, gravarRolagem, textoDaRolagem } from '../../lib/servidor/rotas'
@@ -33,7 +34,7 @@ const INTERVALO_SALVAR_MS = 1000
 const INTERVALO_SESSAO_MS = 60 * 1000
 const defaultGrid: RoomGrid = { enabled: true, cellSize: 70, opacity: 0.24 }
 const NOME_FICHA_PRIVADA = '???'
-const CORES_TOKEN_AUTOMATICO = ['#8a3b32', '#3f5f8a', '#4d6b3f', '#8a6a2f', '#2f6b6b', '#6b4a32']
+const CORES_TOKEN_AUTOMATICO = ['#5a54b8', '#3f6fc4', '#7a4fc0', '#4f7fd0', '#6a4fb0', '#3f5fae']
 /* Fora do centro do cenário: o token novo não pode cair em cima do que o mestre está mostrando. */
 const CELULAS_ATE_TOKEN_NOVO = 3
 const INTERVALO_PING_MS = 300
@@ -263,10 +264,12 @@ async function salvarNaBiblioteca(socket: TableSocket, room: RoomState, player: 
   if (!token) return
   if (await contarMonstros(player.id) >= LIMITE_MONSTROS) return avisar(`Sua biblioteca chegou a ${LIMITE_MONSTROS} monstros. Apague algum para salvar outro.`, false)
   const sprites = room.sprites.get(tokenId) ?? []
-  const imagens: Partial<Record<VagaImagem, { rotulo: string; imagem: string }>> = {}
+  const imagens: Partial<Record<VagaImagem, ImagemMonstro>> = {}
   for (const vaga of ['normal', 'machucado', 'armado'] as const) {
     const sprite = sprites.find((item) => item.id === idDaVaga(token, vaga))
-    if (sprite) imagens[vaga] = { rotulo: sprite.label, imagem: sprite.imageUrl }
+    if (!sprite) continue
+    const original = room.originais.get(sprite.id)
+    imagens[vaga] = { rotulo: sprite.label, imagem: sprite.imageUrl, ...(original ? { original: original.imagem, ajuste: original.ajuste } : {}) }
   }
   await gravarMonstro(player.id, token.name, {
     tamanho: token.size, ...(token.altura !== undefined ? { altura: token.altura } : {}), cor: token.color, espelhado: token.flipX,
@@ -282,12 +285,14 @@ async function colocarDaBiblioteca(room: RoomState, player: RoomPlayer, monstroI
   if (!monstro) return
   const sprites: TokenSprite[] = []
   const vagas: Partial<Record<VagaImagem, string>> = {}
+  const originais: [string, { imagem: string; ajuste: AjusteImagem }][] = []
   for (const vaga of ['normal', 'machucado', 'armado'] as const) {
     const imagem = monstro.imagens[vaga]
     if (!imagem) continue
     const sprite = { id: crypto.randomUUID(), label: imagem.rotulo, imageUrl: imagem.imagem }
     if (!validSprite(sprite)) continue
     sprites.push(sprite); vagas[vaga] = sprite.id
+    if (imagem.original && imagem.ajuste && imagem.original.length <= R.LIMITE_ORIGINAL) originais.push([sprite.id, { imagem: imagem.original, ajuste: imagem.ajuste }])
   }
   const d = monstro.dados
   const pedido: Token = {
@@ -303,6 +308,7 @@ async function colocarDaBiblioteca(room: RoomState, player: RoomPlayer, monstroI
   if (!validToken(pedido, sprites)) return
   const token = comCenario(room, pedido)
   room.tokens.set(token.id, token); room.sprites.set(token.id, sprites)
+  for (const [spriteId, original] of originais) room.originais.set(spriteId, original)
   broadcastVisible(room, { type: 'token:added', token, sprites, playerId: player.id }, token)
 }
 

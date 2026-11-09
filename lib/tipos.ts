@@ -53,7 +53,7 @@ export interface DetalheCampanha {
 export interface MonstroDaBiblioteca {
   id: string;
   nome: string;
-  dados: { tamanho: number; altura?: number; cor: string; espelhado: boolean; vidaMax?: number; manaMax?: number };
+  dados: { tamanho: number; altura?: number; cor: string; espelhado: boolean; vidaMax?: number; manaMax?: number; notas?: string };
   temImagem: boolean;
   v: number;
 }

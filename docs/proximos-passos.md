@@ -16,7 +16,7 @@ Nenhuma no momento.
 
 ## Decisões tomadas
 
-- **Biblioteca de monstros (8 de novembro de 2026):** o mestre salva um token pronto, com nome, tamanho, cor, vida e mana máximas e as três imagens, e coloca cópias dele em qualquer campanha em que é mestre. Cada cópia nasce com vida e mana cheias e ganha número quando o nome se repete, como Goblin 2. A biblioteca é da conta, com até 100 monstros, e apagar um monstro dela não tira da mesa as cópias já colocadas. A imagem original usada para reajustar não é guardada, e ficha de regras do monstro ainda não existe.
+- **Biblioteca de monstros (8 de novembro de 2026):** o mestre salva um token pronto, com nome, tamanho, cor, vida e mana máximas e as três imagens, e coloca cópias dele em qualquer campanha em que é mestre. Cada cópia nasce com vida e mana cheias e ganha número quando o nome se repete, como Goblin 2. A biblioteca é da conta, com até 100 monstros, e apagar um monstro dela não tira da mesa as cópias já colocadas. Desde o mesmo dia, a biblioteca guarda a imagem original e o ajuste, então a cópia colocada pode ser reajustada sem perder qualidade. Cada monstro tem uma ficha em texto livre, com até 4.000 caracteres, para ataques, resistências e lembretes, que só o mestre vê na biblioteca. A ficha não aparece no token colocado.
 - **Prata escuro (8 de novembro de 2026):** o "+10pv" da tabela de Arthur foi um erro. O núcleo não dá vida em nenhum estágio, como o site já fazia.
 
 - **Tokens ligados ao cenário (7 de novembro de 2026):** o token do mestre pertence ao cenário onde foi criado ou solto. Com o cenário oculto, os jogadores não recebem o token. Ao mostrar, ele aparece junto, menos os marcados como ocultos, e acompanha o cenário quando ele é movido, sem encaixar na grade. Personagens de jogador ficam fora dessa regra. Apagar um cenário oculto deixa os tokens dele ocultos. Tokens antigos só entram em um cenário quando forem arrastados de novo.
@@ -35,7 +35,8 @@ Nenhuma no momento.
 - **Armas (6 de novembro de 2026):** a ficha tem Armas leves, Armas médias e Armas pesadas, sem as específicas. Valores das armas antigas não foram convertidos.
 - **Atributos e vida (6 de novembro de 2026):** Tenacidade saiu da ficha. O jogador pode mudar a vida máxima, e a diferença para a fórmula vira um ajuste, então vitalidade e núcleo continuam somando. Os limites que o mestre definir continuam valendo.
 - **Ficha (6 de novembro de 2026):** a ficha começa sem elementos, e o jogador adiciona os dele. O gráfico mostra corpo e mente. Há uma aba de habilidades e uma classe de perícias Magia, e as perícias adicionais foram distribuídas.
-- **Visual (8 de novembro de 2026):** os jogadores acharam o grimório azul e roxo "com muita cara de IA". Virou um tomo de academia de magia, inspirado na academia de Infinite Mage e no núcleo de The Beginning After the End: tinta quente, couro escuro, filete de bronze e um só destaque em dourado, com a letra IM Fell nos nomes e títulos e a Spectral no texto. Saíram o roxo, os degradês, os brilhos, as estrelas, os selos girando e as cantoneiras. A tela de entrada mostra as 13 etapas do núcleo. A mesa segue as mesmas cores, com grade em bronze e tokens novos em cores heráldicas. Vida, mana, elementos, fadiga e núcleo mantêm as próprias cores, porque têm significado no jogo.
+- **Visual (8 de novembro de 2026):** o tomo de academia em tinta quente e dourado foi testado e desfeito a pedido do usuário. A ideia era usar The Beginning After the End e Infinite Mage como referência para outra coisa, não para trocar a paleta, então voltou o visual de 6 de novembro.
+- **Visual (6 de novembro de 2026):** grimório arcano em azul e roxo, com Almendra, Cinzel e Spectral, selos de runas e efeitos lentos no fundo, que respeitam a opção de movimento reduzido. A Inter do primeiro redesenho saiu depois de um jogador achar que não combinava com magia. Tema claro não foi feito, porque a mesa tem muitas cores próprias. Vida, mana, elementos, fadiga e núcleo mantêm as próprias cores, porque elas têm significado no jogo.
 - **Fichas antigas (6 de novembro de 2026):** não serão levadas. O site começa com o banco atual.
 - **Retirada de fundo (6 de novembro de 2026):** feita por cor, no navegador, nas imagens do token, com uma barra de força. Funciona melhor em fundo liso; foto com fundo complexo pediria um modelo de IA, cerca de 55 MB na primeira vez.
 
@@ -50,7 +51,8 @@ Nenhuma no momento.
 - **Sessão de teste:** jogar com 3 ou 4 pessoas em internet real. Será marcada quando o mestre e os jogadores se reunirem.
 - **Celular de verdade:** conferir o entalhe do iPhone, o teclado aberto e, na mesa, arrastar token, pintar névoa e usar a régua com o dedo.
 - **Ferramentas opcionais:** `chrome-devtools-mcp` e `21st` não foram instalados.
-- **Visual:** ouvir dos jogadores se o tomo resolveu a "cara de IA".
+- **Visual:** ficou o grimório azul e roxo. Falta saber para que o usuário queria usar os dois manhwas como referência.
+- **Recuperação de senha:** não existe. O site não envia e-mail, e a troca de senha pede a senha atual. Para criar, é preciso escolher um serviço de e-mail, como o Resend, com conta e chave do usuário.
 - **Tokens ligados ao cenário:** ainda não foram testados numa preparação real.
 - **Depois da sessão de teste:** avaliar rolar o dano da magia e o que mais fizer falta.
 

@@ -2,7 +2,6 @@ import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import '@/app/globals.css';
 import FormularioEntrar from '@/components/FormularioEntrar';
-import { CORES_NUCLEO, NUCLEOS } from '@/lib/regras';
 import { usuarioDaSessao } from '@/lib/servidor/sessao';
 
 export const dynamic = 'force-dynamic';
@@ -16,13 +15,8 @@ export default async function PaginaEntrar({ searchParams }: { searchParams: Pro
   return (
     <main className="entrada">
       <div>
-        <p className="entrada-sobre">Sistema de RPG</p>
+        <span className="orbe orbe-entrada" aria-hidden="true" />
         <h1 className="marca">One History</h1>
-        {/* As treze etapas do núcleo: a progressão que todo personagem percorre, do vermelho escuro ao branco. */}
-        <figure className="escala-nucleo" aria-label={`Etapas do núcleo, de ${NUCLEOS[0].nome.toLowerCase()} a ${NUCLEOS[NUCLEOS.length - 1].nome.toLowerCase()}`}>
-          <ol>{CORES_NUCLEO.map((cor, i) => <li key={cor} style={{ background: cor }} title={NUCLEOS[i].nome} />)}</ol>
-          <figcaption><span>{NUCLEOS[0].nome}</span><span>Núcleo</span><span>{NUCLEOS[NUCLEOS.length - 1].nome}</span></figcaption>
-        </figure>
         <p className="entrada-texto">Fichas e campanhas para a sua mesa de RPG, com vida, mana e fadiga mental calculadas pelas regras do sistema.</p>
         <ul className="entrada-lista">
           <li>Crie personagens e guarde tudo na sua conta.</li>

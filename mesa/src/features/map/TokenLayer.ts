@@ -38,7 +38,7 @@ export function createTokenView() {
     .lineTo(0, 0)
     .lineTo(-5, 2)
     .closePath()
-    .fill({ color: 0xd4b06a, alpha: 0.8 })
+    .fill({ color: 0x8fb0ff, alpha: 0.8 })
   direction.addChild(directionMark)
   const circle = new Graphics()
   const sprite = new Sprite(Texture.EMPTY)
@@ -62,8 +62,8 @@ export function createTokenView() {
     style: {
       fontFamily: 'DM Sans, sans-serif',
       fontSize: 12,
-      fill: 0xe2c47f,
-      stroke: { color: 0x100e0c, width: 3 },
+      fill: 0xc9bcff,
+      stroke: { color: 0x0b0e1a, width: 3 },
     },
   })
   condicoes.anchor.set(0.5, 0)
@@ -72,8 +72,8 @@ export function createTokenView() {
     style: {
       fontFamily: 'DM Sans, sans-serif',
       fontSize: 14,
-      fill: 0xece4d2,
-      stroke: { color: 0x100e0c, width: 3 },
+      fill: 0xe6e9f5,
+      stroke: { color: 0x0b0e1a, width: 3 },
     },
   })
 
@@ -157,7 +157,7 @@ export function updateTokenView(
   if (hasImage)
     view.shadow
       .ellipse(0, 0, diameter * 0.34, cellSize * 0.12)
-      .fill({ color: 0x100e0c, alpha: 0.46 })
+      .fill({ color: 0x0b0e1a, alpha: 0.46 })
 
   if (view.texture && hasImage) {
     view.sprite.width = diameter
@@ -183,18 +183,18 @@ export function updateTokenView(
     const auraY = sprite ? cellSize * 0.19 : radiusY
     view.selection
       .ellipse(0, 0, auraX + 3 / zoom, auraY + 3 / zoom)
-      .stroke({ color: 0xb8913f, width: 7 / zoom, alpha: 0.35 })
+      .stroke({ color: 0x8b5cf6, width: 7 / zoom, alpha: 0.35 })
       .ellipse(0, 0, auraX, auraY)
-      .stroke({ color: 0xe2c47f, width: 2 / zoom })
+      .stroke({ color: 0xc9bcff, width: 2 / zoom })
   }
   view.ownerMark.clear()
   if (playerKey && token.ownerIds.includes(playerKey)) {
     view.ownerMark
       .circle(radius * 0.62, radiusY * 0.62, Math.max(3, 5 / zoom))
-      .fill({ color: 0x1a1714, alpha: 0.9 })
+      .fill({ color: 0x141a2e, alpha: 0.9 })
     view.ownerMark
       .circle(radius * 0.62, radiusY * 0.62, Math.max(2, 3.2 / zoom))
-      .fill(0xd4b06a)
+      .fill(0x8fb0ff)
   }
 
   const belowBase = radiusY + 5
@@ -206,7 +206,7 @@ export function updateTokenView(
   const drawResourceBar = (y: number, ratio: number, color: number) => {
     view.health
       .roundRect(-barWidth / 2, y, barWidth, barHeight, barHeight / 2)
-      .fill({ color: 0x1a1714, alpha: 0.9 })
+      .fill({ color: 0x141a2e, alpha: 0.9 })
     if (ratio > 0)
       view.health
         .roundRect(-barWidth / 2, y, barWidth * ratio, barHeight, barHeight / 2)
@@ -252,8 +252,8 @@ export function updateTokenView(
   if (view.flipButton.visible) {
     view.flipButton
       .roundRect(-width / 2, y, width, height, 6 / zoom)
-      .fill({ color: 0x1a1714, alpha: 0.94 })
-      .stroke({ color: 0xc9a45a, alpha: 0.9, width: 1.5 / zoom })
+      .fill({ color: 0x141a2e, alpha: 0.94 })
+      .stroke({ color: 0x4f7bff, alpha: 0.9, width: 1.5 / zoom })
     const iconY = y + height / 2
     view.flipButton
       .moveTo(-9 / zoom, iconY - 4 / zoom)
@@ -264,7 +264,7 @@ export function updateTokenView(
       .lineTo(3 / zoom, iconY - 4 / zoom)
       .lineTo(3 / zoom, iconY + 4 / zoom)
       .lineTo(9 / zoom, iconY + 4 / zoom)
-      .stroke({ color: 0xd4b06a, width: 1.5 / zoom })
+      .stroke({ color: 0x8fb0ff, width: 1.5 / zoom })
     view.flipButton
       .moveTo(-12 / zoom, iconY)
       .lineTo(-7 / zoom, iconY - 3 / zoom)
@@ -274,15 +274,15 @@ export function updateTokenView(
       .lineTo(7 / zoom, iconY - 3 / zoom)
       .moveTo(12 / zoom, iconY)
       .lineTo(7 / zoom, iconY + 3 / zoom)
-      .stroke({ color: 0xd4b06a, width: 1.5 / zoom })
+      .stroke({ color: 0x8fb0ff, width: 1.5 / zoom })
   }
   if (view.armadoButton.visible) {
     /* Aceso quando o token está armado: dá para ver o estado sem abrir o painel. */
     const iconY = y + height / 2
     view.armadoButton
       .roundRect(-width / 2, y, width, height, 6 / zoom)
-      .fill({ color: token.armado ? 0xd4b06a : 0x1a1714, alpha: 0.94 })
-      .stroke({ color: 0xc9a45a, alpha: 0.9, width: 1.5 / zoom })
+      .fill({ color: token.armado ? 0x8fb0ff : 0x141a2e, alpha: 0.94 })
+      .stroke({ color: 0x4f7bff, alpha: 0.9, width: 1.5 / zoom })
     view.armadoButton
       .moveTo(-7 / zoom, iconY - 7 / zoom)
       .lineTo(7 / zoom, iconY + 7 / zoom)
@@ -292,7 +292,7 @@ export function updateTokenView(
       .lineTo(-2 / zoom, iconY + 7 / zoom)
       .moveTo(7 / zoom, iconY + 2 / zoom)
       .lineTo(2 / zoom, iconY + 7 / zoom)
-      .stroke({ color: token.armado ? 0x1a1714 : 0xd4b06a, width: 1.8 / zoom })
+      .stroke({ color: token.armado ? 0x141a2e : 0x8fb0ff, width: 1.8 / zoom })
   }
 }
 

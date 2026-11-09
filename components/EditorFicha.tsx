@@ -19,7 +19,8 @@ import type { Ficha, Mensagem } from '@/lib/tipos';
 import type { useChat } from '@/lib/useChat';
 import type { useFichaEditavel } from '@/lib/useFicha';
 
-const COR_DO_NUCLEO = R.CORES_NUCLEO;
+/* Na ordem de `NUCLEOS`: o núcleo clareia de vermelho até branco conforme o personagem avança. */
+const COR_DO_NUCLEO = ['#7a1414', '#b3201c', '#e5443a', '#b34d0f', '#e8771c', '#f6a24b', '#a8860a', '#e3bd1f', '#f7e35d', '#8e99a8', '#c3ccd6', '#e9eef2', '#ffffff'];
 
 const ICONES: Record<string, LucideIcon> = { fogo: Flame, agua: Droplets, vento: Wind, terra: Mountain, cura: HeartPulse, leves: Feather, medias: Sword, pesadas: Axe };
 /* Só para desenhar a barra: valores maiores continuam valendo. */

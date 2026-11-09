@@ -114,9 +114,10 @@ export const tentativas = sqliteTable('tentativas', {
 });
 
 export type VagaMonstro = 'normal' | 'machucado' | 'armado';
-export type ImagemMonstro = { rotulo: string; imagem: string };
-/* O que o token precisa para nascer igual. Vida e mana guardam só o máximo: cada cópia começa cheia. */
-export type DadosMonstro = { tamanho: number; altura?: number; cor: string; espelhado: boolean; vidaMax?: number; manaMax?: number };
+/* `original` e `ajuste` vêm junto para a cópia colocada poder ser reajustada sem perder qualidade. */
+export type ImagemMonstro = { rotulo: string; imagem: string; original?: string; ajuste?: { zoom: number; x: number; y: number; forca: number } };
+/* O que o token precisa para nascer igual. Vida e mana guardam só o máximo: cada cópia começa cheia. As notas são a ficha do monstro, só do mestre. */
+export type DadosMonstro = { tamanho: number; altura?: number; cor: string; espelhado: boolean; vidaMax?: number; manaMax?: number; notas?: string };
 
 /* A biblioteca de monstros é do mestre, não da campanha: o mesmo goblin serve em todas as mesas dele. */
 export const monstros = sqliteTable('monstros', {

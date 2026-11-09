@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { BookOpen, Pencil, Plus, Trash2 } from 'lucide-react'
+import { BookOpen, Pencil, Plus, ScrollText, Trash2 } from 'lucide-react'
 import useSWR from 'swr'
 import { api, buscar, mensagem } from '@/lib/cliente'
+import { LIMITE_NOTAS_MONSTRO } from '@/lib/regras'
 import type { MonstroDaBiblioteca } from '@/lib/tipos'
 import { sendRoomCommand } from '@mesa/features/rooms/room-commands'
 import { useUiStore } from '@mesa/stores/ui-store'
@@ -12,6 +13,9 @@ export const URL_BIBLIOTECA = '/api/biblioteca'
 export function BibliotecaMonstros() {
   const [aberta, setAberta] = useState(false)
   const { data, error, mutate } = useSWR<{ monstros: MonstroDaBiblioteca[] }>(aberta ? URL_BIBLIOTECA : null, buscar)
+  /* Uma ficha aberta por vez: a lista é estreita e o texto precisa de espaço. */
+  const [fichaAberta, setFichaAberta] = useState<{ id: string; notas: string } | null>(null)
+  const [salvando, setSalvando] = useState(false)
 
   function colocar(monstro: MonstroDaBiblioteca) {
     const { camera } = useUiStore.getState()
@@ -27,6 +31,14 @@ export function BibliotecaMonstros() {
     if (!nome || nome === monstro.nome) return
     try { await api('PATCH', `${URL_BIBLIOTECA}/${monstro.id}`, { nome }); await mutate() }
     catch (e) { window.alert(mensagem(e)) }
+  }
+
+  async function salvarNotas() {
+    if (!fichaAberta) return
+    setSalvando(true)
+    try { await api('PATCH', `${URL_BIBLIOTECA}/${fichaAberta.id}`, { notas: fichaAberta.notas }); await mutate(); setFichaAberta(null) }
+    catch (e) { window.alert(mensagem(e)) }
+    finally { setSalvando(false) }
   }
 
   async function apagar(monstro: MonstroDaBiblioteca) {
@@ -46,7 +58,7 @@ export function BibliotecaMonstros() {
       {data && data.monstros.length > 0 && (
         <ul className="biblioteca-lista">
           {data.monstros.map((monstro) => (
-            <li key={monstro.id}>
+            <li key={monstro.id} className={monstro.dados.notas ? 'tem-notas' : undefined}>
               <span className="biblioteca-miniatura" style={{ backgroundColor: monstro.dados.cor }}>
                 {monstro.temImagem
                   /* eslint-disable-next-line @next/next/no-img-element -- imagem da própria API, com cache; o otimizador do Next não ajuda aqui */
@@ -63,12 +75,34 @@ export function BibliotecaMonstros() {
               <button type="button" className="biblioteca-colocar" aria-label={`Colocar ${monstro.nome} na mesa`} title="Colocar no centro da tela" onClick={() => colocar(monstro)}>
                 <Plus size={15} />
               </button>
+              <button
+                type="button" aria-label={`Ficha de ${monstro.nome}`} title={monstro.dados.notas ? 'Ver a ficha' : 'Escrever a ficha'}
+                aria-expanded={fichaAberta?.id === monstro.id}
+                className={monstro.dados.notas ? 'biblioteca-com-ficha' : undefined}
+                onClick={() => setFichaAberta(fichaAberta?.id === monstro.id ? null : { id: monstro.id, notas: monstro.dados.notas ?? '' })}
+              >
+                <ScrollText size={14} />
+              </button>
               <button type="button" aria-label={`Renomear ${monstro.nome}`} title="Renomear" onClick={() => void renomear(monstro)}>
                 <Pencil size={14} />
               </button>
               <button type="button" aria-label={`Apagar ${monstro.nome} da biblioteca`} title="Apagar da biblioteca" onClick={() => void apagar(monstro)}>
                 <Trash2 size={14} />
               </button>
+              {fichaAberta?.id === monstro.id && (
+                <div className="biblioteca-ficha">
+                  <textarea
+                    aria-label={`Ficha de ${monstro.nome}`} rows={6} maxLength={LIMITE_NOTAS_MONSTRO} autoFocus
+                    placeholder="Ataques, resistências, fraquezas, comportamento… Só você vê estas notas."
+                    value={fichaAberta.notas}
+                    onChange={(evento) => setFichaAberta({ id: monstro.id, notas: evento.target.value })}
+                  />
+                  <div>
+                    <button type="button" onClick={() => setFichaAberta(null)}>Cancelar</button>
+                    <button type="button" className="biblioteca-colocar" disabled={salvando} onClick={() => void salvarNotas()}>{salvando ? 'Salvando…' : 'Salvar ficha'}</button>
+                  </div>
+                </div>
+              )}
             </li>
           ))}
         </ul>

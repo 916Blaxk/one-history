@@ -55,9 +55,6 @@ export const ESTAGIOS: Estagio[] = [
 
 /* Vida não vem mais do núcleo: agora vem de pontos de atributo ou de itens. PP também não: o mestre distribui ao longo do RPG. */
 export interface EstagioNucleo { nome: string; mana: number; gasto: number; ap: number; txt?: string }
-/* Na ordem de `NUCLEOS`: o núcleo clareia de vermelho até branco conforme o personagem avança. */
-export const CORES_NUCLEO = ['#7a1414', '#b3201c', '#e5443a', '#b34d0f', '#e8771c', '#f6a24b', '#a8860a', '#e3bd1f', '#f7e35d', '#8e99a8', '#c3ccd6', '#e9eef2', '#ffffff'];
-
 export const NUCLEOS: EstagioNucleo[] = [
   { nome: 'Vermelho escuro', mana: 0, gasto: 0, ap: 0, txt: 'Seu núcleo acabou de se formar em seu corpo, cheio de impurezas do sangue. Ele fica entre os pulmões e acima do estômago. Você pode sentir as veias de mana passarem por seu corpo, o fortalecendo e tomando uma forma…' },
   { nome: 'Vermelho sólido', mana: 2, gasto: 0, ap: 7 },
@@ -90,6 +87,8 @@ export interface Habilidade { id: string; nome: string; descricao: string }
 export const LIMITE_FOTO = 200_000;
 /* A imagem original guardada para reajustar. Somada à foto, precisa caber no limite de um envio. */
 export const LIMITE_ORIGINAL = 280_000;
+/* A ficha do monstro na biblioteca: ataques, resistências e lembretes do mestre. */
+export const LIMITE_NOTAS_MONSTRO = 4000;
 
 export interface DadosFicha {
   player: string; nome: string; idade: string; raca: string; estilo: string;

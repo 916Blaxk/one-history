@@ -877,6 +877,9 @@ describe('biblioteca de monstros', () => {
     m.comando({ type: 'token:sprite:add', id: goblin, sprite: { id: 'gn', label: 'Normal', imageUrl: PIXEL }, vaga: 'normal' });
     m.comando({ type: 'token:sprite:add', id: goblin, sprite: { id: 'gf', label: 'Ferido', imageUrl: PIXEL }, vaga: 'machucado' });
     await ate(() => m.ultimoToken(goblin)?.spriteSangrandoId === 'gf');
+    const ajuste = { zoom: 2, x: 5, y: -3, forca: 40 };
+    m.comando({ type: 'token:sprite:original', id: goblin, spriteId: 'gn', imagem: PIXEL, ajuste });
+    await new Promise((ok) => setTimeout(ok, 200));
 
     m.comando({ type: 'biblioteca:salvar', tokenId: goblin });
     const aviso = await ate(() => m.eventos.find((e) => e.type === 'biblioteca:aviso'));
@@ -896,6 +899,10 @@ describe('biblioteca de monstros', () => {
     expect(copias[0].spriteIds).toHaveLength(2);
     expect(copias[0].spriteSangrandoId).toBeTruthy();
     expect(copias[0].id).not.toBe(copias[1].id);
+    /* A cópia leva o original da imagem, para o mestre reajustar sem perder qualidade. */
+    m.comando({ type: 'token:sprite:pedir-original', id: copias[0].id, spriteId: copias[0].activeSpriteId });
+    const original = await ate(() => m.eventos.find((e) => e.type === 'token:sprite:original' && e.spriteId === copias[0].activeSpriteId));
+    expect(original).toMatchObject({ imagem: PIXEL, ajuste });
 
     /* Outra campanha do mesmo mestre usa a mesma biblioteca. */
     const outra = (await mestre.c('POST', '/api/campanhas', { nome: 'Outra' })).corpo.campanha;
@@ -919,6 +926,13 @@ describe('biblioteca de monstros', () => {
 
     expect((await mestre.c('PATCH', `/api/biblioteca/${modelo.id}`, { nome: 'Goblin chefe' })).status).toBe(200);
     expect((await mestre.c('GET', '/api/biblioteca')).corpo.monstros[0].nome).toBe('Goblin chefe');
+    /* A ficha do monstro: notas só do mestre, que podem ser apagadas deixando o texto vazio. */
+    expect((await mestre.c('PATCH', `/api/biblioteca/${modelo.id}`, { notas: '  Mordida: 1d6. Teme fogo.  ' })).status).toBe(200);
+    expect((await mestre.c('GET', '/api/biblioteca')).corpo.monstros[0]).toMatchObject({ nome: 'Goblin chefe', dados: { notas: 'Mordida: 1d6. Teme fogo.', vidaMax: 12 } });
+    expect((await mestre.c('PATCH', `/api/biblioteca/${modelo.id}`, { notas: 'x'.repeat(4001) })).status).toBe(400);
+    expect((await fora.c('PATCH', `/api/biblioteca/${modelo.id}`, { notas: 'invadido' })).status).toBe(404);
+    expect((await mestre.c('PATCH', `/api/biblioteca/${modelo.id}`, { notas: '' })).status).toBe(200);
+    expect((await mestre.c('GET', '/api/biblioteca')).corpo.monstros[0].dados.notas).toBeUndefined();
     expect((await mestre.c('DELETE', `/api/biblioteca/${modelo.id}`)).status).toBe(200);
     expect((await mestre.c('GET', '/api/biblioteca')).corpo.monstros).toEqual([]);
     /* As cópias já colocadas continuam na mesa. */

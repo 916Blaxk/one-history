@@ -538,9 +538,21 @@ rota('GET', '/api/biblioteca/:id/imagem', async ctx => {
 
 rota('PATCH', '/api/biblioteca/:id', async ctx => {
   const m = await monstroDoMestre(ctx.params.id, ctx.usuario.id);
-  const nome = typeof ctx.corpo.nome === 'string' ? ctx.corpo.nome.trim().slice(0, 32) : '';
-  if (!nome) throw new Erro(400, 'Dê um nome ao monstro.');
-  await db.update(monstros).set({ nome, atualizado: Date.now() }).where(eq(monstros.id, m.id));
+  const mudancas: { nome?: string; dados?: typeof m.dados } = {};
+  if (ctx.corpo.nome !== undefined) {
+    const nome = typeof ctx.corpo.nome === 'string' ? ctx.corpo.nome.trim().slice(0, 32) : '';
+    if (!nome) throw new Erro(400, 'Dê um nome ao monstro.');
+    mudancas.nome = nome;
+  }
+  if (ctx.corpo.notas !== undefined) {
+    if (typeof ctx.corpo.notas !== 'string') throw new Erro(400, 'As notas precisam ser texto.');
+    if (ctx.corpo.notas.length > R.LIMITE_NOTAS_MONSTRO) throw new Erro(400, `Use até ${R.LIMITE_NOTAS_MONSTRO} caracteres nas notas.`);
+    const notas = ctx.corpo.notas.trim();
+    const { notas: _antigas, ...resto } = m.dados;
+    mudancas.dados = notas ? { ...resto, notas } : resto;
+  }
+  if (!mudancas.nome && !mudancas.dados) throw new Erro(400, 'Nada para mudar.');
+  await db.update(monstros).set({ ...mudancas, atualizado: Date.now() }).where(eq(monstros.id, m.id));
   return { ok: true };
 });
 

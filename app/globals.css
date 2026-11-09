@@ -1,24 +1,22 @@
-/* Conceito: um tomo de academia de magia. Tinta quente, couro escuro, filete de bronze e um só destaque em dourado.
-   Referências: a academia de Infinite Mage e o núcleo de The Beginning After the End, que já é regra do sistema.
+/* Conceito: um grimório arcano. Noite azul, molduras de runa e gradiente azul e roxo em títulos e na ação principal.
    Vida, mana, elementos, fadiga e núcleo mantêm as próprias cores, porque significam algo no jogo.
    A ficha continua se deteriorando com a fadiga mental. */
 :root{
   color-scheme:dark;
-  --bg:#100e0c; --surface:#1a1714; --surface-2:#221e19; --border:#3b342b; --fundo-campo:#13110e;
-  /* Dourado de folha: o único destaque. Os nomes antigos continuam, para as regras acima não mudarem de sentido. */
-  --primary:#c9a45a; --secondary:#b8913f; --gradient:linear-gradient(#c9a45a,#c9a45a);
-  --primary-claro:#e0c27d; --secondary-claro:#e0c27d;
-  --sobre-gradiente:#17120a;
-  --filete:#2c2620; --bronze:#6b5a3c;
-  --text:#ece4d2; --text-muted:#a99d86; --gold:#e0c27d; --danger:#e0645a; --success:#7fc28e;
+  --bg:#0b0e1a; --surface:#141a2e; --surface-2:#1c2440; --border:#2a335a;
+  --primary:#4f7bff; --secondary:#8b5cf6; --gradient:linear-gradient(135deg,#4f7bff,#8b5cf6);
+  /* Azul e roxo do briefing não passam de 4,5:1 como texto pequeno sobre os painéis: estes são para texto. */
+  --primary-claro:#8fb0ff; --secondary-claro:#b9a0fb;
+  /* Branco não passa de 4,5:1 sobre o gradiente; este passa nas duas pontas. */
+  --sobre-gradiente:#0b0e1a;
+  --text:#e6e9f5; --text-muted:#9aa3c7; --gold:#f5c46b; --danger:#f05252; --success:#34d399;
   --fire:#ff7a45; --water:#38bdf8; --wind:#5eead4; --earth:#c2905a; --healing:#4ade80;
   /* As chaves dos elementos na ficha são estas: as cores das fusões são montadas a partir delas. */
   --fogo:var(--fire); --agua:var(--water); --vento:var(--wind); --terra:var(--earth); --cura:var(--healing);
-  --vida:#e0564c; --mana:#7ea0ff; --capitular-fundo:#221e19; --capitular-letra:#e0c27d;
-  --e0:#a99d86; --e20:#d9c04f; --e40:#eb9a35; --e60:#ff7a45; --e80:#f0506e; --e99:#e0327e; --e100:#ece4d2;
-  --raio:3px;
-  --f-titulo:var(--font-fell-sc),"Palatino Linotype",Georgia,serif;
-  --f-decorada:var(--font-fell),"Palatino Linotype",Georgia,serif;
+  --vida:#f05252; --mana:#7ea0ff; --capitular-fundo:#1c2440; --capitular-letra:#b9a0fb;
+  --e0:#9aa3c7; --e20:#d9c04f; --e40:#eb9a35; --e60:#ff7a45; --e80:#f0506e; --e99:#e0327e; --e100:#e6e9f5;
+  --f-titulo:var(--font-cinzel),"Palatino Linotype",Georgia,serif;
+  --f-decorada:var(--font-almendra),var(--font-cinzel),"Palatino Linotype",Georgia,serif;
   --f-texto:var(--font-spectral),"Palatino Linotype",Georgia,serif;
   --f-rotulo:var(--font-spectral),"Palatino Linotype",Georgia,serif;
 }
@@ -204,7 +202,7 @@ a.camp-linha:hover .rol-nome{color:var(--primary-claro)}
 
 .chat-pilula{position:fixed;z-index:10;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:8px 16px;background:var(--secondary);color:var(--sobre-gradiente);border:1px solid var(--primary-claro);border-radius:2px;font:700 15px/1 var(--f-rotulo);letter-spacing:.05em;box-shadow:0 4px 14px rgb(0 0 0 / .28)}
 .chat-pilula:hover{background:var(--secondary);outline:1px solid var(--primary-claro)}
-.chat-contagem{min-width:22px;padding:3px 6px;background:var(--capitular-letra);color:#17120a;border-radius:2px;text-align:center;font:700 13px/1.1 var(--f-texto)}
+.chat-contagem{min-width:22px;padding:3px 6px;background:var(--capitular-letra);color:#131a3d;border-radius:2px;text-align:center;font:700 13px/1.1 var(--f-texto)}
 .chat-flutuante{position:fixed;z-index:10;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));width:340px;height:min(560px,calc(100dvh - 32px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px)));display:grid;grid-template-rows:auto minmax(0,1fr) auto;gap:10px;padding:12px;background:var(--surface);border:1px solid var(--border);border-top:3px double var(--primary-claro);box-shadow:0 8px 28px rgb(0 0 0 / .32)}
 .chat-cab{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
 .chat-escopo{margin-top:2px;font-size:13px;line-height:1.25;color:var(--text-muted);overflow-wrap:anywhere}
@@ -419,6 +417,98 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
   .ficha[data-estagio="60"] .retrato,.ficha[data-estagio="80"] .retrato{filter:blur(1.5px)}
 }
 
+/* ---------- O grimório: o que dá a cara de RPG ao site ---------- */
+@property --orbe{syntax:"<color>";inherits:true;initial-value:#b3201c}
+/* Estrelas discretas sobre a névoa roxa e azul. Fixas: rolar a ficha não mexe no céu. */
+body{background:radial-gradient(1.2px 1.2px at 12% 18%,#ffffff55,transparent),radial-gradient(1px 1px at 72% 12%,#c9bcff66,transparent),radial-gradient(1.4px 1.4px at 88% 44%,#8fb0ff55,transparent),radial-gradient(1px 1px at 34% 62%,#ffffff40,transparent),radial-gradient(1.2px 1.2px at 58% 84%,#c9bcff4d,transparent),radial-gradient(1100px 620px at 50% -180px,#3a22a0b0,transparent 70%),radial-gradient(800px 500px at 100% 100%,#123a8f55,transparent 70%),radial-gradient(700px 500px at 0 70%,#3a22a033,transparent 70%),var(--bg);background-attachment:fixed;min-height:100dvh;line-height:1.5}
+
+/* O núcleo: a esfera de mana do personagem */
+.orbe{--orbe:#b3201c;position:relative;display:block;aspect-ratio:1;border-radius:50%;background:radial-gradient(circle at 50% 50%,color-mix(in srgb,var(--orbe) 30%,#fff) 0,color-mix(in srgb,var(--orbe) 75%,#fff) 16%,var(--orbe) 42%,color-mix(in srgb,var(--orbe) 62%,#000) 72%,color-mix(in srgb,var(--orbe) 25%,#000) 100%);box-shadow:0 0 26px color-mix(in srgb,var(--orbe) 85%,transparent),0 0 90px color-mix(in srgb,var(--orbe) 45%,transparent),inset 0 0 26px color-mix(in srgb,var(--orbe) 40%,#000)}
+.orbe::after{content:"";position:absolute;inset:-9%;border-radius:50%;border:1px solid var(--primary-claro);outline:1px dashed var(--border);outline-offset:3px}
+@keyframes girar{to{transform:rotate(360deg)}}
+.orbe-entrada::after{animation:girar 90s linear infinite}
+/* Só a da tela de entrada, que é decoração. Na ficha, a cor do núcleo é regra do jogo. */
+@keyframes estagios{0%,100%{--orbe:#5a2fd0}25%{--orbe:#3f6fe0}50%{--orbe:#7fb2ff}75%{--orbe:#8b5cf6}88%{--orbe:#e4e3ff}}
+.orbe-entrada{width:clamp(110px,16vw,168px);margin:0 0 30px 8px;animation:estagios 28s ease-in-out infinite}
+.nucleo-linha{display:flex;align-items:center;gap:16px;padding:4px 2px 8px 6px}
+.nucleo-linha .orbe{flex:none;width:58px}
+.nucleo-nome{font:700 22px/1.1 var(--f-titulo);color:var(--text)}
+
+/* Painéis: páginas de grimório, com cantos de runa */
+.painel,.cartao-entrada,.fadiga,.chat-flutuante,.magia,.integracao{position:relative;background-color:var(--surface);background-image:linear-gradient(180deg,#ffffff0a,transparent 90px),url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18'%3E%3Cpath d='M1 17V1h16' fill='none' stroke='%238fb0ff' stroke-width='1.5'/%3E%3Cpath d='M4 11V4h7' fill='none' stroke='%232a335a'/%3E%3Ccircle cx='4' cy='4' r='1.6' fill='%238fb0ff'/%3E%3C/svg%3E"),url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18'%3E%3Cg transform='rotate(180 9 9)'%3E%3Cpath d='M1 17V1h16' fill='none' stroke='%238fb0ff' stroke-width='1.5'/%3E%3Cpath d='M4 11V4h7' fill='none' stroke='%232a335a'/%3E%3Ccircle cx='4' cy='4' r='1.6' fill='%238fb0ff'/%3E%3C/g%3E%3C/svg%3E");background-repeat:no-repeat;background-position:0 0,5px 5px,right 5px bottom 5px;background-size:auto,18px 18px,18px 18px;border:1px solid var(--border);border-radius:4px;box-shadow:inset 0 0 0 1px #00000040,0 10px 26px #00000059}
+.painel,.cartao-entrada{padding:24px}
+.chat-flutuante{border-top:1px solid var(--primary-claro)}
+.fadiga{border-color:var(--estagio-cor)}
+.magia{background-image:none;box-shadow:none;border-color:var(--border)}
+.integracao{background-image:none;box-shadow:none;border-color:var(--border)}
+
+/* Topo */
+.topo{background:linear-gradient(180deg,#1c2440,#141a2e);border-bottom:1px solid var(--primary-claro);box-shadow:0 1px 0 #000,0 4px 0 -1px var(--border),0 10px 24px #0007}
+.topo-marca{display:inline-flex;align-items:center;gap:10px;font-size:28px;color:var(--primary-claro);text-shadow:0 1px 0 #000}
+.topo-marca::before{content:"";width:30px;height:30px;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 1 29 8.5v15L16 31 3 23.500v-15z' fill='%231c2440' stroke='%238fb0ff' stroke-width='1.5'/%3E%3Cpath d='M16 8 24 21H8zM16 1v7M3 8.500 16 8l13 .5M3 23.500 8 21 3 8.500M29 23.500 24 21l5-12.500M16 31l-8-10M16 31l8-10' fill='none' stroke='%238fb0ff' stroke-width='1'/%3E%3C/svg%3E") center/contain no-repeat}
+.topo-link{font:700 16px/1.2 var(--f-rotulo);letter-spacing:.03em}
+.topo-sair{font:500 15px/1.2 var(--f-rotulo)}
+
+/* Títulos */
+.marca{font-size:clamp(60px,9vw,104px);color:var(--primary-claro);background:linear-gradient(100deg,#8fb0ff 10%,#c9bcff 55%,#8b5cf6 90%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;filter:drop-shadow(0 2px 0 #000) drop-shadow(0 0 22px #8b5cf699)}
+.pag-topo{border-bottom:0;padding-bottom:18px;background:linear-gradient(90deg,var(--primary-claro),var(--border) 30%,transparent) bottom/100% 1px no-repeat}
+.pag-titulo,.placa-nome{color:var(--text);text-shadow:0 2px 0 #000}
+.pag-titulo{font-size:clamp(38px,5.5vw,58px)}
+.placa-nome{font-size:clamp(40px,6vw,68px)}
+.titulo-grupo{font-size:16px;color:var(--primary-claro)}
+.rol-nome{font-size:25px}
+.cab-grupo{border-bottom:0;background:linear-gradient(90deg,var(--border),transparent) bottom/100% 1px no-repeat}
+.entrada-texto{color:var(--text)}
+
+/* Botões: contorno de runa, e roxo aceso para a ação principal */
+.btn{border-radius:3px;border-color:var(--border);background:linear-gradient(180deg,#ffffff10,#00000026);font-weight:500;box-shadow:inset 0 1px 0 #ffffff14,0 1px 2px #0006;transition:border-color .15s,color .15s,box-shadow .15s}
+.btn:hover:not(:disabled){border-color:var(--primary-claro);color:var(--primary-claro);box-shadow:inset 0 1px 0 #ffffff14,0 0 12px #8fb0ff33}
+.btn-forte{background:linear-gradient(180deg,#4f7bff,#8b5cf6);border-color:#8b5cf6;color:var(--sobre-gradiente);font-weight:700;text-shadow:0 1px 0 #0006}
+.btn-forte:hover:not(:disabled){background:linear-gradient(180deg,#6f94ff,#8b5cf6);border-color:#c4b5fd;color:var(--sobre-gradiente);box-shadow:inset 0 1px 0 #ffffff26,0 0 18px #4f7bff80}
+.btn-perigo{background:transparent}
+.rolar{border-radius:3px;background:#8fb0ff14}
+.selo{border-radius:3px}
+
+/* Campos */
+.campo input,.campo textarea,.campo select,.busca,.link-convite,.campo-limite input,.perda-perm input,.bonus input{background:var(--surface-2);border-radius:3px;box-shadow:inset 0 1px 3px #000a}
+.campo input:focus,.campo textarea:focus,.campo select:focus,.busca:focus{border-color:var(--primary-claro);outline:none;box-shadow:inset 0 1px 3px #000a,0 0 0 1px var(--primary-claro)}
+.passo{background:var(--surface-2);border-radius:3px}
+.vital-botoes button,.dados-botoes button{background:linear-gradient(180deg,#ffffff0d,#00000026);border-radius:3px}
+.tiers{border-radius:3px;overflow:hidden}
+.tier{background:var(--surface-2)}
+
+/* Fichas e campanhas: cada linha é uma carta sobre a mesa */
+.rol-item{border:1px solid var(--border);border-radius:4px;background:color-mix(in srgb,var(--surface) 80%,transparent);margin-bottom:8px;transition:border-color .15s}
+.rol-item:last-child{border-bottom:1px solid var(--border)}
+.rol-item:hover{border-color:var(--primary-claro)}
+a.rol-linha:hover,a.camp-linha:hover{background:transparent}
+
+/* Retratos em medalhão */
+.capitular{background:radial-gradient(circle at 35% 25%,#2a335a,var(--capitular-fundo));outline:0;box-shadow:inset 0 0 0 2px var(--primary-claro),inset 0 0 0 4px #00000080}
+.rol-linha .capitular,.camp-linha .capitular,.msg-foto{border-radius:50%}
+.retrato{border-radius:4px;box-shadow:inset 0 0 0 2px var(--primary-claro),inset 0 0 0 5px #00000080,0 8px 22px #0008}
+.capitular img{position:relative;z-index:-1}
+.capitular{isolation:isolate}
+
+/* Barras como frascos */
+.barra{height:9px;background:var(--surface-2);border-color:var(--border);border-radius:999px;box-shadow:inset 0 1px 2px #000c}
+.barra i{border-radius:999px;background:linear-gradient(180deg,color-mix(in srgb,var(--cor) 72%,#fff),var(--cor) 45%,color-mix(in srgb,var(--cor) 70%,#000));box-shadow:0 0 8px color-mix(in srgb,var(--cor) 60%,transparent)}
+.vital .barra{height:14px}
+
+/* Chat de dados */
+.msg-balao{border-radius:4px}
+.msg-minha .msg-balao{background:color-mix(in srgb,var(--secondary) 22%,var(--surface));border-color:color-mix(in srgb,var(--secondary) 60%,var(--border))}
+.msg-total{text-shadow:0 0 14px #8fb0ff66}
+.chat-pilula{border-radius:3px;background:linear-gradient(180deg,#4f7bff,#8b5cf6);border-color:#8b5cf6}
+.chat-pilula:hover{background:linear-gradient(180deg,#6f94ff,#8b5cf6)}
+.chat-contagem{color:#0b0e1a}
+.chat-fechar{border-radius:3px}
+
+.vazio{border:1px dashed var(--border);border-radius:4px;background:#ffffff05;padding:32px 24px}
+.ficha[data-estagio="100"] .placa{background:#000}
+.ficha[data-estagio="100"] .placa-nome,.ficha[data-estagio="100"] .placa-sub{color:var(--text);text-shadow:none}
+.ficha[data-estagio="100"] .retrato{background:#000;color:var(--text)}
+
 /* ---------- Barra de abas: só aparece como barra no celular ---------- */
 .topo-abas{display:contents}
 .topo-link svg{display:none}
@@ -437,10 +527,10 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
   .topo-int>.topo-link{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:flex;align-items:center;min-height:44px;font-size:14px}
   .topo-sair{min-height:44px;min-width:44px;flex:none}
   .foto-botoes .btn{min-height:44px}
-  .topo-abas{position:fixed;z-index:9;inset:auto 0 0;height:var(--barra-inferior);padding-bottom:env(safe-area-inset-bottom,0px);display:grid;grid-template-columns:1fr 1fr;background:linear-gradient(180deg,#231f1a,#1a1714);border-top:1px solid var(--primary-claro);box-shadow:0 -6px 20px #0009}
+  .topo-abas{position:fixed;z-index:9;inset:auto 0 0;height:var(--barra-inferior);padding-bottom:env(safe-area-inset-bottom,0px);display:grid;grid-template-columns:1fr 1fr;background:linear-gradient(180deg,#1c2440,#141a2e);border-top:1px solid var(--primary-claro);box-shadow:0 -6px 20px #0009}
   .topo-abas .topo-link{display:grid;justify-items:center;align-content:center;gap:2px;padding:4px;border-bottom:0;font-size:13px}
   .topo-abas .topo-link svg{display:block;width:21px;height:21px}
-  .topo-abas .topo-link[aria-current="page"]{color:var(--primary-claro);background:linear-gradient(180deg,#d4b06a1f,transparent);box-shadow:inset 0 2px 0 var(--primary-claro)}
+  .topo-abas .topo-link[aria-current="page"]{color:var(--primary-claro);background:linear-gradient(180deg,#8fb0ff1f,transparent);box-shadow:inset 0 2px 0 var(--primary-claro)}
 
   /* Alvos de toque de pelo menos 44 px, e letra de 16 px nos campos: abaixo disso, o iPhone dá zoom ao tocar. */
   .btn,.btn-pequeno{min-height:44px;padding-inline:14px;font-size:15px}
@@ -491,9 +581,9 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
   .placa-orbe{display:block;width:38px;grid-row:1 / span 2;justify-self:center;box-shadow:0 0 14px color-mix(in srgb,var(--orbe) 85%,transparent),inset 0 0 12px color-mix(in srgb,var(--orbe) 40%,#000)}
   .placa-nome{font-size:clamp(30px,9vw,42px);line-height:1.05}
   .placa-sub{margin-top:2px;font-size:14px}
-  .ficha-secoes{position:sticky;top:0;z-index:4;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));margin:0 calc(max(16px,env(safe-area-inset-left,0px)) * -1) 18px;background:#1a1714f5;border-block:1px solid var(--border);backdrop-filter:blur(8px)}
+  .ficha-secoes{position:sticky;top:0;z-index:4;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));margin:0 calc(max(16px,env(safe-area-inset-left,0px)) * -1) 18px;background:#141a2ef5;border-block:1px solid var(--border);backdrop-filter:blur(8px)}
   .ficha-secoes button{min-height:48px;background:transparent;border:0;font:700 15px/1 var(--f-rotulo);letter-spacing:.03em;color:var(--text-muted)}
-  .ficha-secoes button[aria-pressed="true"]{color:var(--primary-claro);box-shadow:inset 0 -3px 0 var(--primary-claro);background:#d4b06a12}
+  .ficha-secoes button[aria-pressed="true"]{color:var(--primary-claro);box-shadow:inset 0 -3px 0 var(--primary-claro);background:#8fb0ff12}
   .ficha-grade[data-secao="cena"] .col-id,.ficha-grade[data-secao="cena"] .col-attr,
   .ficha-grade[data-secao="perfil"] .col-attr,.ficha-grade[data-secao="perfil"] .col-cena,
   .ficha-grade[data-secao="atributos"] .col-id,.ficha-grade[data-secao="atributos"] .col-cena{display:none}
@@ -507,7 +597,7 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
   /* O chat fica acima da barra e não cobre os controles da ficha */
   /* Redondo e com o dado: o nome continua lá para leitores de tela, sem cobrir a ficha. */
   .chat-pilula{bottom:calc(var(--barra-inferior) + 10px);right:10px;width:52px;height:52px;min-height:0;padding:0;justify-content:center;border-radius:50%;font-size:0;letter-spacing:0;box-shadow:0 4px 14px #000a}
-  .chat-pilula::before{content:"";width:32px;height:32px;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 1 29 8.5v15L16 31 3 23.500v-15z' fill='%231a1714' stroke='%23d4b06a' stroke-width='1.5'/%3E%3Cpath d='M16 8 24 21H8zM16 1v7M3 8.500 16 8l13 .5M3 23.500 8 21 3 8.500M29 23.500 24 21l5-12.500M16 31l-8-10M16 31l8-10' fill='none' stroke='%23d4b06a' stroke-width='1'/%3E%3C/svg%3E") center/contain no-repeat}
+  .chat-pilula::before{content:"";width:32px;height:32px;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 1 29 8.5v15L16 31 3 23.500v-15z' fill='%231c2440' stroke='%238fb0ff' stroke-width='1.5'/%3E%3Cpath d='M16 8 24 21H8zM16 1v7M3 8.500 16 8l13 .5M3 23.500 8 21 3 8.500M29 23.500 24 21l5-12.500M16 31l-8-10M16 31l8-10' fill='none' stroke='%238fb0ff' stroke-width='1'/%3E%3C/svg%3E") center/contain no-repeat}
   .chat-contagem{position:absolute;top:-4px;right:-4px;font-size:12px;border-radius:999px}
   .chat-flutuante{bottom:calc(var(--barra-inferior) + 6px);z-index:10}
   .chat-popup{left:8px;right:8px;bottom:calc(var(--barra-inferior) + 70px);width:auto}
@@ -548,53 +638,53 @@ button,a,input,select,textarea,.rol-item,.painel,.magia,.attr{transition:border-
 .ficha[data-estagio="60"] .placa-nome,.ficha[data-estagio="80"] .placa-nome,.ficha[data-estagio="99"] .placa-nome,.ficha[data-estagio="100"] .placa-nome{background:none;color:var(--text);-webkit-text-fill-color:currentcolor}
 
 /* Botões */
-.btn{border-radius:var(--raio);border-color:var(--border);background:transparent;box-shadow:none;font-weight:500}
+.btn{border-radius:10px;border-color:var(--border);background:transparent;box-shadow:none;font-weight:500}
 .btn:hover:not(:disabled){border-color:var(--primary);color:var(--primary-claro);box-shadow:none}
 .btn-forte{background:var(--gradient);border-color:transparent;color:var(--sobre-gradiente);font-weight:700;text-shadow:none}
-.btn-forte:hover:not(:disabled){background:var(--gradient);border-color:transparent;color:var(--sobre-gradiente);filter:brightness(1.12);box-shadow:0 0 18px #b8913f66}
+.btn-forte:hover:not(:disabled){background:var(--gradient);border-color:transparent;color:var(--sobre-gradiente);filter:brightness(1.12);box-shadow:0 0 18px #8b5cf666}
 .btn-perigo{border-color:var(--danger);color:var(--danger)}
 .btn-perigo:hover:not(:disabled){border-color:var(--danger);color:var(--danger);background:color-mix(in srgb,var(--danger) 14%,transparent)}
-.rolar{border-radius:2px;background:color-mix(in srgb,var(--primary) 12%,transparent);border-color:color-mix(in srgb,var(--primary) 55%,var(--border));color:var(--primary-claro);font:700 12px/1 var(--f-texto)}
+.rolar{border-radius:8px;background:color-mix(in srgb,var(--primary) 12%,transparent);border-color:color-mix(in srgb,var(--primary) 55%,var(--border));color:var(--primary-claro);font:700 12px/1 var(--f-texto)}
 .rolar:hover{background:var(--gradient);color:var(--sobre-gradiente);border-color:transparent}
 
 /* Campos */
-.campo input,.campo textarea,.campo select,.busca,.link-convite,.campo-limite input,.perda-perm input,.bonus input,.elemento-adicionar{background:var(--surface-2);border:1px solid var(--border);border-radius:var(--raio);box-shadow:none}
+.campo input,.campo textarea,.campo select,.busca,.link-convite,.campo-limite input,.perda-perm input,.bonus input,.elemento-adicionar{background:var(--surface-2);border:1px solid var(--border);border-radius:10px;box-shadow:none}
 .campo input:focus,.campo textarea:focus,.campo select:focus,.busca:focus,.elemento-adicionar:focus{border-color:var(--primary);outline:none;box-shadow:0 0 0 2px var(--primary)}
-.passo{background:var(--surface-2);border-radius:var(--raio);border-color:var(--border);overflow:hidden}
+.passo{background:var(--surface-2);border-radius:10px;border-color:var(--border);overflow:hidden}
 .passo input{font-weight:700}
-.tiers{border-radius:var(--raio)}
+.tiers{border-radius:10px}
 .tier{background:var(--surface-2)}
 .tier:has(input:checked){background:var(--gradient);color:var(--sobre-gradiente)}
 .tier:has(input:checked) small{color:var(--sobre-gradiente)}
-.vital-botoes button,.dados-botoes button{background:var(--surface-2);border-radius:2px;box-shadow:none}
+.vital-botoes button,.dados-botoes button{background:var(--surface-2);border-radius:8px;box-shadow:none}
 .elemento-adicionar{min-height:38px;margin-top:10px;padding:6px 10px;width:100%;max-width:280px;color:var(--text)}
 
 /* Cards */
-.painel,.cartao-entrada,.fadiga,.chat-flutuante,.magia,.integracao,.vital,.painel-aba>div:not(.duas-col),.col-id .campos{background:var(--surface);background-image:none;border:1px solid var(--border);border-radius:var(--raio);box-shadow:0 6px 20px #0000003d}
+.painel,.cartao-entrada,.fadiga,.chat-flutuante,.magia,.integracao,.vital,.painel-aba>div:not(.duas-col),.col-id .campos{background:var(--surface);background-image:none;border:1px solid var(--border);border-radius:14px;box-shadow:0 6px 20px #0000003d}
 .painel-aba>div:not(.duas-col),.col-id .campos,.vital{padding:16px}
 .painel-aba>.duas-col{align-items:start}
-.painel-aba>.duas-col>.campo{background:var(--surface);border:1px solid var(--border);border-radius:var(--raio);padding:14px}
+.painel-aba>.duas-col>.campo{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px}
 .fadiga{border-color:var(--estagio-cor)}
-.magia{box-shadow:none;border-radius:var(--raio);background:var(--surface-2)}
+.magia{box-shadow:none;border-radius:12px;background:var(--surface-2)}
 .painel:hover,.magia:hover{border-color:color-mix(in srgb,var(--secondary) 55%,var(--border))}
 .habilidades{display:grid;gap:12px;justify-items:stretch}
 .habilidades>.btn{justify-self:start}
 .habilidade-topo{grid-template-columns:minmax(0,1fr)}
 .col-id{align-content:start}
-.vazio{border-color:var(--border);border-radius:var(--raio);background:var(--surface)}
+.vazio{border-color:var(--border);border-radius:14px;background:var(--surface)}
 .abas{gap:8px;border-bottom-color:var(--border)}
 .abas button{font:600 14px/1.2 var(--f-texto);letter-spacing:0}
 .abas button:hover{color:var(--secondary-claro)}
 .abas button[aria-selected="true"]{color:var(--secondary-claro);border-bottom-color:var(--secondary)}
 
 /* Cabeçalho da ficha */
-.placa{display:grid;grid-template-columns:auto minmax(0,1fr);gap:24px;align-items:center;padding:20px 24px;margin-bottom:24px;background:var(--surface);border:1px solid var(--border);border-bottom:2px solid var(--estagio-cor);border-radius:var(--raio)}
+.placa{display:grid;grid-template-columns:auto minmax(0,1fr);gap:24px;align-items:center;padding:20px 24px;margin-bottom:24px;background:var(--surface);border:1px solid var(--border);border-bottom:2px solid var(--estagio-cor);border-radius:16px}
 .bloco-foto{width:148px;max-width:none;justify-items:center}
 .capitular{background:var(--surface-2);box-shadow:none;color:var(--capitular-letra);font-family:var(--f-titulo)}
-.capitular.retrato{width:132px;aspect-ratio:1;border:3px solid transparent;border-radius:50%;background:linear-gradient(var(--surface-2),var(--surface-2)) padding-box,var(--gradient) border-box;box-shadow:0 0 28px #b8913f59;font-size:58px}
+.capitular.retrato{width:132px;aspect-ratio:1;border:3px solid transparent;border-radius:50%;background:linear-gradient(var(--surface-2),var(--surface-2)) padding-box,var(--gradient) border-box;box-shadow:0 0 28px #8b5cf659;font-size:58px}
 .rol-linha .capitular,.camp-linha .capitular,.msg-foto{border:2px solid transparent;background:linear-gradient(var(--surface-2),var(--surface-2)) padding-box,var(--gradient) border-box}
 .foto-botoes{width:100%;justify-content:center}
-.foto-botoes .btn{flex:0 1 auto;font-size:12px;min-height:28px;padding:2px 8px;border-radius:2px}
+.foto-botoes .btn{flex:0 1 auto;font-size:12px;min-height:28px;padding:2px 8px;border-radius:8px}
 .placa-texto{min-width:0}
 .placa-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
 .placa-chips li{padding:3px 10px;background:var(--surface-2);border:1px solid var(--border);border-radius:999px;font-size:13px;color:var(--text);overflow-wrap:anywhere}
@@ -613,27 +703,27 @@ button,a,input,select,textarea,.rol-item,.painel,.magia,.attr{transition:border-
 /* Gráfico, corpo e mente */
 .grafico-atributos{max-width:430px;margin:6px auto 2px}
 .grafico-atributos svg{display:block;width:100%;height:auto;font-family:var(--f-texto)}
-.attr[data-grupo="corpo"],.attr[data-grupo="mente"]{margin-bottom:8px;padding:10px 12px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--raio)}
+.attr[data-grupo="corpo"],.attr[data-grupo="mente"]{margin-bottom:8px;padding:10px 12px;background:var(--surface-2);border:1px solid var(--border);border-radius:12px}
 .attr[data-grupo="corpo"] label,.attr[data-grupo="mente"] label{font-size:15px;font-weight:600}
 .attr[data-grupo="corpo"] .passo,.attr[data-grupo="mente"] .passo{background:var(--surface)}
 .attr[data-grupo="corpo"] input,.attr[data-grupo="mente"] input{font-size:22px}
 
 /* Armas em cards pequenos: quem tem proficiência acende */
 .lista-armas:has([data-grupo="armas"]){grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;margin-top:10px}
-.attr[data-grupo="armas"]{grid-template-columns:minmax(0,1fr) auto;padding:12px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--raio)}
+.attr[data-grupo="armas"]{grid-template-columns:minmax(0,1fr) auto;padding:12px;background:var(--surface-2);border:1px solid var(--border);border-radius:12px}
 .attr[data-grupo="armas"] label{grid-column:1 / -1;font-weight:600}
-.attr[data-grupo="armas"][data-ativo="true"]{border-color:var(--secondary);box-shadow:0 0 14px #b8913f4d}
+.attr[data-grupo="armas"][data-ativo="true"]{border-color:var(--secondary);box-shadow:0 0 14px #8b5cf64d}
 
 /* Perícias: uma tabela só, com a linha acesa conforme o treino */
 .pericias{margin-top:8px}
-.pericias-filtro{min-height:36px;width:100%;max-width:260px;margin-bottom:10px;padding:5px 10px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--raio);color:var(--text)}
+.pericias-filtro{min-height:36px;width:100%;max-width:260px;margin-bottom:10px;padding:5px 10px;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;color:var(--text)}
 .pericias-filtro:focus{border-color:var(--primary);outline:none;box-shadow:0 0 0 2px var(--primary)}
 .pericia-linha{display:grid;grid-template-columns:30px minmax(0,1fr) 64px 56px 58px 58px;gap:4px 8px;align-items:center;min-height:42px;padding:3px 0;color:var(--text)}
 .pericia-cab{min-height:0;padding-bottom:6px;font-size:13px;font-weight:600;color:var(--text-muted);text-align:center}
 .pericia-cab>:nth-child(2){text-align:left}
-.pericia-rolar{display:grid;place-items:center;width:30px;height:30px;padding:3px;background:transparent;border:0;border-radius:2px;color:currentColor}
+.pericia-rolar{display:grid;place-items:center;width:30px;height:30px;padding:3px;background:transparent;border:0;border-radius:8px;color:currentColor}
 .pericia-rolar svg{width:100%;height:100%}
-.pericia-rolar:hover{color:var(--secondary-claro);filter:drop-shadow(0 0 5px #b8913fcc)}
+.pericia-rolar:hover{color:var(--secondary-claro);filter:drop-shadow(0 0 5px #8b5cf6cc)}
 .pericia-nome{min-width:0;font-size:15px;overflow-wrap:anywhere;cursor:default}
 .pericia-nome small{display:block;font-size:12px;color:var(--text-muted)}
 .pericia-dados,.pericia-bonus{text-align:center;font-size:14px;white-space:nowrap}
@@ -655,7 +745,7 @@ button,a,input,select,textarea,.rol-item,.painel,.magia,.attr{transition:border-
 /* Listas em grade */
 .rol-cab{display:none}
 ul:has(>.rol-item){display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,320px),1fr));gap:14px}
-.rol-item,.rol-item:last-child{flex-direction:column;margin:0;background:var(--surface);border:1px solid var(--border);border-radius:var(--raio);box-shadow:0 6px 20px #0000003d}
+.rol-item,.rol-item:last-child{flex-direction:column;margin:0;background:var(--surface);border:1px solid var(--border);border-radius:14px;box-shadow:0 6px 20px #0000003d}
 .rol-item:hover{border-color:color-mix(in srgb,var(--secondary) 60%,var(--border))}
 .rol-linha{position:relative;grid-template-columns:60px minmax(0,1fr) minmax(0,1fr);gap:12px;padding:16px;align-content:start}
 .rol-linha .capitular{grid-row:1}
@@ -680,17 +770,17 @@ a.rol-linha:hover .rol-nome,a.camp-linha:hover .rol-nome{color:var(--primary-cla
 
 /* Chat */
 .chat-pilula,.chat-pilula:hover{background:var(--gradient);border-color:transparent;border-radius:999px;color:var(--sobre-gradiente);font:700 14px/1 var(--f-texto);letter-spacing:0}
-.chat-popup{background:var(--surface);border:1px solid var(--secondary);border-radius:var(--raio);box-shadow:0 8px 28px #00000066,0 0 18px #b8913f40}
+.chat-popup{background:var(--surface);border:1px solid var(--secondary);border-radius:14px;box-shadow:0 8px 28px #00000066,0 0 18px #8b5cf640}
 .chat-flutuante{border-top:1px solid var(--border)}
 .msg-total{color:var(--primary-claro);text-shadow:none;font-family:var(--f-texto)}
-.msg-balao,.chat-fechar{border-radius:var(--raio)}
-.ajuste-foto{background:var(--surface);border:1px solid var(--border);border-radius:var(--raio);color:var(--text)}
-.ajuste-foto-moldura{background-color:var(--surface-2);outline-color:var(--primary);border-radius:2px}
+.msg-balao,.chat-fechar{border-radius:10px}
+.ajuste-foto{background:var(--surface);border:1px solid var(--border);border-radius:16px;color:var(--text)}
+.ajuste-foto-moldura{background-color:var(--surface-2);outline-color:var(--primary);border-radius:6px}
 
 /* Só na entrada: um brilho que respira e poucas partículas. Nas telas de uso, nada se mexe sozinho. */
-body:has(.entrada){background:radial-gradient(900px 560px at 18% 12%,#c9a45a2e,transparent 70%),radial-gradient(900px 620px at 88% 88%,#b8913f2e,transparent 70%),var(--bg);background-attachment:fixed}
+body:has(.entrada){background:radial-gradient(900px 560px at 18% 12%,#4f7bff2e,transparent 70%),radial-gradient(900px 620px at 88% 88%,#8b5cf62e,transparent 70%),var(--bg);background-attachment:fixed}
 .entrada{position:relative;isolation:isolate}
-.entrada::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:radial-gradient(1.6px 1.6px at 14% 22%,#e2c47fcc,transparent),radial-gradient(1.2px 1.2px at 28% 70%,#d4b06ab3,transparent),radial-gradient(1.8px 1.8px at 46% 34%,#ffffff99,transparent),radial-gradient(1.4px 1.4px at 63% 80%,#e2c47fb3,transparent),radial-gradient(1.6px 1.6px at 78% 18%,#d4b06acc,transparent),radial-gradient(1.2px 1.2px at 90% 56%,#ffffff80,transparent);animation:cintilar 7s ease-in-out infinite alternate}
+.entrada::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:radial-gradient(1.6px 1.6px at 14% 22%,#b9a0fbcc,transparent),radial-gradient(1.2px 1.2px at 28% 70%,#8fb0ffb3,transparent),radial-gradient(1.8px 1.8px at 46% 34%,#ffffff99,transparent),radial-gradient(1.4px 1.4px at 63% 80%,#b9a0fbb3,transparent),radial-gradient(1.6px 1.6px at 78% 18%,#8fb0ffcc,transparent),radial-gradient(1.2px 1.2px at 90% 56%,#ffffff80,transparent);animation:cintilar 7s ease-in-out infinite alternate}
 @keyframes cintilar{from{opacity:.35;transform:translateY(0)}to{opacity:1;transform:translateY(-10px)}}
 .entrada-lista li::before{background:var(--secondary)}
 
@@ -705,7 +795,7 @@ body:has(.entrada){background:radial-gradient(900px 560px at 18% 12%,#c9a45a2e,t
   .foto-botoes{grid-column:1 / -1;grid-row:2;width:auto;justify-content:flex-start}
   .foto-botoes .btn{min-height:44px;font-size:14px;flex:1 1 0}
   .placa-nome{font-size:clamp(24px,7vw,34px)}
-  .topo-abas .topo-link[aria-current="page"]{color:var(--secondary-claro);background:linear-gradient(180deg,#b8913f26,transparent);box-shadow:inset 0 2px 0 var(--secondary)}
+  .topo-abas .topo-link[aria-current="page"]{color:var(--secondary-claro);background:linear-gradient(180deg,#8b5cf626,transparent);box-shadow:inset 0 2px 0 var(--secondary)}
   .painel-aba>div:not(.duas-col),.col-id .campos,.vital{padding:14px}
   /* No celular é um botão redondo só com o dado: o nome continua para leitores de tela. */
   .chat-pilula,.chat-pilula:hover{border-radius:50%;font-size:0}
@@ -717,7 +807,7 @@ body:has(.entrada){background:radial-gradient(900px 560px at 18% 12%,#c9a45a2e,t
 @media (min-width:1240px){
   .ficha-grade{grid-template-columns:300px minmax(0,1fr) 340px;gap:24px}
 }
-.col-id>div{padding:16px;background:var(--surface);border:1px solid var(--border);border-radius:var(--raio);box-shadow:0 6px 20px #0000003d}
+.col-id>div{padding:16px;background:var(--surface);border:1px solid var(--border);border-radius:14px;box-shadow:0 6px 20px #0000003d}
 .col-id .campo textarea{min-height:110px}
 .col-id .nucleo-linha{padding:8px 0 4px}
 .col-id .nucleo-linha .orbe{width:44px}
@@ -738,144 +828,115 @@ body:has(.entrada){background:radial-gradient(900px 560px at 18% 12%,#c9a45a2e,t
 }
 .attr[data-grupo="armas"] .passo{justify-self:start}
 
-/* ---------- Tomo: o visual atual. Vem por último e manda nas regras acima ----------
-   O clima vem do papel, do filete e da letra, como um livro de academia de magia. Nada brilha, gira ou cintila sozinho:
-   o que se mexe é resposta ao toque da pessoa, e os efeitos da fadiga, que são regra. */
-body,body:not(:has(.entrada)),body:has(.entrada){
-  background-color:var(--bg);
-  /* Luz de lamparina vinda de cima e um grão de papel bem leve. */
-  background-image:radial-gradient(1100px 520px at 50% -160px,#2a2219,transparent 70%),url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .92 0 0 0 0 .84 0 0 0 0 .66 0 0 0 .07 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
-  background-attachment:fixed;
-}
-body::before,body::after,.entrada::before{content:none;display:none}
-::selection{background:#c9a45a55}
+/* ---------- Grimório: o que dá o clima de magia. Nada aqui se mexe nas telas de uso ---------- */
+body{font-size:16px;font-variant-numeric:lining-nums tabular-nums}
+body:not(:has(.entrada)){background:radial-gradient(1200px 700px at 50% -240px,#3a2a8f55,transparent 72%),radial-gradient(900px 600px at 100% 100%,#123a8f33,transparent 72%),var(--bg);background-attachment:fixed}
 
-/* Letras: Fell nos nomes, Fell em versalete nos títulos, Spectral no resto. */
-.marca,.placa-nome,.pag-titulo,.rol-nome,.nucleo-nome,.vazio h2{font-family:var(--f-decorada);font-weight:400;letter-spacing:0;color:var(--text);background:none;-webkit-text-fill-color:currentcolor;text-shadow:none;filter:none;animation:none}
-.marca{font-size:clamp(64px,9vw,112px);line-height:.95}
-.placa-nome{font-size:clamp(34px,4.8vw,56px);line-height:1.02}
-.pag-titulo{font-size:clamp(36px,4.6vw,52px);line-height:1.05}
-.rol-nome{font-size:24px;line-height:1.1}
-.titulo-grupo{font:400 21px/1.1 var(--f-titulo);letter-spacing:.03em;color:var(--primary-claro);text-shadow:none}
-.titulo-grupo::before{content:none}
-.subtitulo-grupo{font:400 17px/1.2 var(--f-titulo);letter-spacing:.03em;color:var(--text-muted)}
-.abas button,.vital-rot,.fadiga .vital-rot,.pericia-cab,.aba,.ficha-secoes button{font-family:var(--f-titulo);font-weight:400;letter-spacing:.04em}
-.abas button{font-size:17px}
-.vital-rot{font-size:21px}
-.vital-num,.vital-num input,.passo input,.medida-num b,.rol-tier,.pilula-pct,.degrau-pct,.msg-total,.codigo{font-family:var(--f-texto);font-variant-numeric:lining-nums tabular-nums}
-.msg-total{font-weight:700}
-.grafico-atributos svg{font-family:var(--f-texto);font-weight:500}
+/* Nome e marca em letra decorada; títulos e números em letra de inscrição */
+.marca,.placa-nome,.topo-marca{font-family:var(--f-decorada);letter-spacing:.01em}
+.placa-nome{filter:drop-shadow(0 0 16px #8b5cf659)}
+.pag-titulo,.rol-nome,.nucleo-nome,.titulo-grupo,.abas button,.vital-rot,.fadiga .vital-rot{font-family:var(--f-titulo)}
+.abas button{font-size:14px;font-weight:600}
+.subtitulo-grupo{font:600 15px/1.2 var(--f-titulo);color:var(--secondary-claro)}
+.vital-num,.vital-num input,.passo input,.msg-total,.medida-num b,.rol-tier,.pilula-pct,.degrau-pct{font-family:var(--f-titulo);font-variant-numeric:lining-nums tabular-nums}
+.attr label,.pericia-nome{font-weight:500}
+.btn,.topo-link,.topo-sair{font-family:var(--f-texto);font-weight:600}
+.topo-link,.topo-sair{font-size:15px}
 .grupo-desc{font-style:italic}
+.formula{font-size:14px}
+.rolar{font:700 12px/1 var(--f-titulo)}
+.grafico-atributos svg{font-family:var(--f-titulo);font-weight:500}
 
-/* Títulos de seção: filete fino com um traço de ouro no começo, como num livro de regras. */
-.cab-grupo,.pag-topo{border-bottom:1px solid var(--border);background:linear-gradient(var(--primary),var(--primary)) left bottom/56px 1px no-repeat;padding-bottom:8px}
+/* Títulos de seção com estrela e um fio que se apaga */
+.titulo-grupo::before{content:"✦";margin-right:8px;font-size:.8em;color:var(--secondary-claro)}
+.cab-grupo,.pag-topo{border-bottom:0;padding-bottom:9px;background:linear-gradient(90deg,#8b5cf6,#4f7bff66 45%,transparent) bottom/100% 1px no-repeat}
 
-/* Painéis: página de tomo com filete duplo. Sem cantoneiras nem brilho. */
-.painel,.cartao-entrada,.fadiga,.vital,.painel-aba>div:not(.duas-col),.col-id>div,.placa,.painel-aba>.duas-col>.campo,.rol-item,.rol-item:last-child,.chat-flutuante,.ajuste-foto{background-color:var(--surface);background-image:none;border:1px solid var(--border);border-radius:var(--raio);box-shadow:inset 0 0 0 3px var(--surface),inset 0 0 0 4px var(--filete),0 2px 0 #0000008c}
-.fadiga{border-color:var(--estagio-cor)}
-.painel:hover,.painel-aba>div:not(.duas-col):hover,.col-id>div:hover,.vital:hover,.magia:hover{border-color:var(--border);box-shadow:inset 0 0 0 3px var(--surface),inset 0 0 0 4px var(--filete),0 2px 0 #0000008c}
-.rol-item:hover{border-color:var(--bronze)}
-.magia,.integracao,.elemento-form{background:var(--surface-2);background-image:none;border:1px solid var(--border);border-radius:var(--raio);box-shadow:none}
-.vazio{border:1px dashed var(--bronze);border-radius:var(--raio);background:transparent}
+/* Moldura dupla e cantos de runa nos cards principais */
+.painel,.cartao-entrada,.fadiga,.vital,.painel-aba>div:not(.duas-col),.col-id>div,.placa,.painel-aba>.duas-col>.campo{background-color:var(--surface);background-image:linear-gradient(180deg,#8b5cf60d,transparent 110px),url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20width%3D'18'%20height%3D'18'%20viewBox%3D'0%200%2018%2018'%3E%3Cg%20transform%3D'rotate(0%209%209)'%3E%3Cpath%20d%3D'M1%2015V1h14'%20fill%3D'none'%20stroke%3D'%238fb0ff'%20stroke-width%3D'1.2'%2F%3E%3Cpath%20d%3D'M4.500%2010V4.500H10'%20fill%3D'none'%20stroke%3D'%238fb0ff'%20stroke-opacity%3D'.55'%2F%3E%3Cpath%20d%3D'M4.500%201.500%206%203%204.500%204.500%203%203z'%20fill%3D'%238fb0ff'%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E"),url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20width%3D'18'%20height%3D'18'%20viewBox%3D'0%200%2018%2018'%3E%3Cg%20transform%3D'rotate(90%209%209)'%3E%3Cpath%20d%3D'M1%2015V1h14'%20fill%3D'none'%20stroke%3D'%238fb0ff'%20stroke-width%3D'1.2'%2F%3E%3Cpath%20d%3D'M4.500%2010V4.500H10'%20fill%3D'none'%20stroke%3D'%238fb0ff'%20stroke-opacity%3D'.55'%2F%3E%3Cpath%20d%3D'M4.500%201.500%206%203%204.500%204.500%203%203z'%20fill%3D'%238fb0ff'%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E"),url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20width%3D'18'%20height%3D'18'%20viewBox%3D'0%200%2018%2018'%3E%3Cg%20transform%3D'rotate(180%209%209)'%3E%3Cpath%20d%3D'M1%2015V1h14'%20fill%3D'none'%20stroke%3D'%238fb0ff'%20stroke-width%3D'1.2'%2F%3E%3Cpath%20d%3D'M4.500%2010V4.500H10'%20fill%3D'none'%20stroke%3D'%238fb0ff'%20stroke-opacity%3D'.55'%2F%3E%3Cpath%20d%3D'M4.500%201.500%206%203%204.500%204.500%203%203z'%20fill%3D'%238fb0ff'%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E"),url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20width%3D'18'%20height%3D'18'%20viewBox%3D'0%200%2018%2018'%3E%3Cg%20transform%3D'rotate(270%209%209)'%3E%3Cpath%20d%3D'M1%2015V1h14'%20fill%3D'none'%20stroke%3D'%238fb0ff'%20stroke-width%3D'1.2'%2F%3E%3Cpath%20d%3D'M4.500%2010V4.500H10'%20fill%3D'none'%20stroke%3D'%238fb0ff'%20stroke-opacity%3D'.55'%2F%3E%3Cpath%20d%3D'M4.500%201.500%206%203%204.500%204.500%203%203z'%20fill%3D'%238fb0ff'%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E");background-repeat:no-repeat;background-position:0 0,left 4px top 4px,right 4px top 4px,right 4px bottom 4px,left 4px bottom 4px;background-size:auto,12px 12px,12px 12px,12px 12px,12px 12px;box-shadow:inset 0 0 0 3px var(--surface),inset 0 0 0 4px #8b5cf626,0 8px 24px #00000052}
+.painel:hover{border-color:color-mix(in srgb,var(--secondary) 55%,var(--border))}
+.attr[data-grupo="corpo"],.attr[data-grupo="mente"],.attr[data-grupo="armas"]{border-radius:8px}
+.rol-item,.rol-item:last-child{background-image:linear-gradient(180deg,#8b5cf60f,transparent 90px)}
 
-/* Topo */
-.topo{background:#14110ef2;border-bottom:1px solid var(--border);box-shadow:0 1px 0 #000}
-.topo-marca{display:inline-flex;align-items:center;gap:10px;font:400 25px/1 var(--f-titulo);letter-spacing:.04em;color:var(--primary-claro);text-shadow:none}
-/* O símbolo é um núcleo: um círculo com o ponto de mana no centro. */
-.topo-marca::before{content:"";flex:none;width:18px;height:18px;border:1px solid var(--primary);border-radius:50%;background:radial-gradient(circle,var(--primary) 0 3px,transparent 3.5px)}
-.topo-link{font:500 15px/1.2 var(--f-texto);letter-spacing:0;color:var(--text-muted)}
-.topo-link:hover{color:var(--text)}
-.topo-link[aria-current="page"]{color:var(--text);border-bottom-color:var(--primary)}
-.topo-sair{font:500 15px/1.2 var(--f-texto)}
+/* Círculo mágico em volta do retrato, a marca da ficha */
+.bloco-foto{position:relative;isolation:isolate;width:168px;gap:26px}
+.bloco-foto::before{content:"";position:absolute;z-index:-1;top:-18px;left:50%;width:168px;height:168px;transform:translateX(-50%);background:url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20width%3D'200'%20height%3D'200'%20viewBox%3D'0%200%20200%20200'%3E%3Cg%20fill%3D'none'%20stroke%3D'%23b9a0fb'%20stroke-opacity%3D'.55'%3E%3Ccircle%20cx%3D'100'%20cy%3D'100'%20r%3D'98'%2F%3E%3Ccircle%20cx%3D'100'%20cy%3D'100'%20r%3D'84'%20stroke-opacity%3D'.35'%2F%3E%3Cpath%20d%3D'M187.0%20100.0L197.0%20100.0'%2F%3E%3Cpath%20d%3D'M187.7%20120.0L194.6%20121.6'%2F%3E%3Cpath%20d%3D'M178.4%20137.7L187.4%20142.1'%2F%3E%3Cpath%20d%3D'M170.4%20156.1L175.8%20160.5'%2F%3E%3Cpath%20d%3D'M154.2%20168.0L160.5%20175.8'%2F%3E%3Cpath%20d%3D'M139.0%20181.1L142.1%20187.4'%2F%3E%3Cpath%20d%3D'M119.4%20184.8L121.6%20194.6'%2F%3E%3Cpath%20d%3D'M100.0%20190.0L100.0%20197.0'%2F%3E%3Cpath%20d%3D'M80.6%20184.8L78.4%20194.6'%2F%3E%3Cpath%20d%3D'M61.0%20181.1L57.9%20187.4'%2F%3E%3Cpath%20d%3D'M45.8%20168.0L39.5%20175.8'%2F%3E%3Cpath%20d%3D'M29.6%20156.1L24.2%20160.5'%2F%3E%3Cpath%20d%3D'M21.6%20137.7L12.6%20142.1'%2F%3E%3Cpath%20d%3D'M12.3%20120.0L5.4%20121.6'%2F%3E%3Cpath%20d%3D'M13.0%20100.0L3.0%20100.0'%2F%3E%3Cpath%20d%3D'M12.3%2080.0L5.4%2078.4'%2F%3E%3Cpath%20d%3D'M21.6%2062.3L12.6%2057.9'%2F%3E%3Cpath%20d%3D'M29.6%2043.9L24.2%2039.5'%2F%3E%3Cpath%20d%3D'M45.8%2032.0L39.5%2024.2'%2F%3E%3Cpath%20d%3D'M61.0%2018.9L57.9%2012.6'%2F%3E%3Cpath%20d%3D'M80.6%2015.2L78.4%205.4'%2F%3E%3Cpath%20d%3D'M100.0%2010.0L100.0%203.0'%2F%3E%3Cpath%20d%3D'M119.4%2015.2L121.6%205.4'%2F%3E%3Cpath%20d%3D'M139.0%2018.9L142.1%2012.6'%2F%3E%3Cpath%20d%3D'M154.2%2032.0L160.5%2024.2'%2F%3E%3Cpath%20d%3D'M170.4%2043.9L175.8%2039.5'%2F%3E%3Cpath%20d%3D'M178.4%2062.3L187.4%2057.9'%2F%3E%3Cpath%20d%3D'M187.7%2080.0L194.6%2078.4'%2F%3E%3Cpolygon%20points%3D'100.0%2C8.0%20139.9%2C182.9%2028.1%2C42.6%20189.7%2C120.5%2010.3%2C120.5%20171.9%2C42.6%2060.1%2C182.9'%20stroke%3D'%238fb0ff'%20stroke-opacity%3D'.22'%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E") center/contain no-repeat;pointer-events:none}
+.capitular.retrato{background:radial-gradient(circle at 50% 40%,#3a2a8f,var(--surface-2) 70%) padding-box,var(--gradient) border-box}
+.placa{min-height:172px}
+.placa-chips li{font-size:14px;border-radius:6px}
 
-/* Botões: contorno simples; a ação principal em dourado chapado. Afundam um pixel ao clicar. */
-.btn{border-radius:var(--raio);border:1px solid var(--border);background:transparent;box-shadow:none;font-family:var(--f-texto);font-weight:600;text-shadow:none;filter:none}
-.btn:hover:not(:disabled){border-color:var(--bronze);color:var(--primary-claro);background:#c9a45a0d;box-shadow:none;filter:none}
-.btn:active:not(:disabled),.rolar:active,.vital-botoes button:active,.dados-botoes button:active,.passo button:active{transform:translateY(1px)}
-.btn-forte,.btn-forte:hover:not(:disabled){background:var(--primary);border-color:var(--primary);color:var(--sobre-gradiente);box-shadow:none;filter:none}
-.btn-forte:hover:not(:disabled){background:var(--primary-claro);border-color:var(--primary-claro)}
-.btn-perigo{border-color:#e0645a66;color:var(--danger)}
-.btn-perigo:hover:not(:disabled){border-color:var(--danger);color:var(--danger);background:#e0645a14}
-.rolar{border-radius:2px;background:transparent;border:1px solid var(--bronze);color:var(--primary-claro);font:400 14px/1 var(--f-titulo);letter-spacing:.04em;box-shadow:none}
-.rolar:hover{background:var(--primary);border-color:var(--primary);color:var(--sobre-gradiente);box-shadow:none}
-.vital-botoes button,.dados-botoes button{background:var(--fundo-campo);border-radius:2px;box-shadow:none}
-.pericia-rolar:hover{color:var(--primary-claro);filter:none}
-.pericia-rolar:hover svg{transform:none}
-.pericia-linha:not(.pericia-cab):hover{background:#ffffff06}
-.pericia-linha:not(.pericia-cab){border-bottom:1px solid var(--filete)}
-
-/* Campos: um pouco mais fundos que a página, como tinta sobre papel. */
-.campo input,.campo textarea,.campo select,.busca,.link-convite,.campo-limite input,.perda-perm input,.bonus input,.elemento-adicionar,.pericias-filtro{background:var(--fundo-campo);border:1px solid var(--border);border-radius:2px;box-shadow:none}
-.campo input:focus,.campo textarea:focus,.campo select:focus,.busca:focus,.elemento-adicionar:focus,.pericias-filtro:focus{border-color:var(--primary);outline:none;box-shadow:0 0 0 1px var(--primary)}
-.passo{background:var(--fundo-campo);border-radius:2px}
-.tiers{border-radius:2px}
-.tier{background:var(--fundo-campo)}
-.tier:has(input:checked){background:var(--primary);color:var(--sobre-gradiente)}
-.abas{border-bottom-color:var(--border)}
-.abas button:hover{color:var(--text)}
-.abas button[aria-selected="true"]{color:var(--primary-claro);border-bottom-color:var(--primary)}
-.aba[aria-selected="true"]{color:var(--text);border-bottom-color:var(--primary)}
-
-/* Retratos: ex-líbris de canto reto com moldura de bronze, sem aura. */
-.capitular,.capitular.retrato,.rol-linha .capitular,.camp-linha .capitular,.msg-foto{background:var(--capitular-fundo);color:var(--capitular-letra);font-family:var(--f-decorada);font-weight:400;border:1px solid var(--bronze);border-radius:2px;outline:0;box-shadow:inset 0 0 0 2px var(--capitular-fundo),inset 0 0 0 3px #3b322580;animation:none}
-.capitular.retrato{width:132px;aspect-ratio:1}
-.bloco-foto{width:auto;gap:10px}
-.bloco-foto::before,.placa::after,.orbe-entrada::before{content:none;display:none}
-.placa{min-height:0;border-bottom:2px solid var(--estagio-cor)}
-.placa-chips li{padding:2px 9px;background:transparent;border:1px solid var(--border);border-radius:2px;font-size:14px}
-.placa-chips .chip-tier{color:var(--gold);border-color:var(--bronze)}
-.ficha[data-estagio="100"] .placa{background:#000}
-
-/* Barras de vida e mana: régua chapada, sem frasco nem corrente de luz. */
-.barra{height:8px;background:var(--fundo-campo);border:1px solid var(--border);border-radius:0;box-shadow:none}
-.barra i,.attr-barra i{position:static;border-radius:0;background:var(--cor);box-shadow:none}
-.barra i::after{content:none}
-.vital .barra{height:12px}
-.attr-barra{border-radius:0;background:var(--fundo-campo)}
-.attr-barra i{background:var(--cor-el)}
-
-/* Atributos e armas */
-.attr[data-grupo="corpo"],.attr[data-grupo="mente"],.attr[data-grupo="armas"]{background:var(--surface-2);border:1px solid var(--border);border-radius:2px}
-.attr[data-grupo="corpo"] .passo,.attr[data-grupo="mente"] .passo{background:var(--fundo-campo)}
-.attr[data-grupo="armas"][data-ativo="true"]{border-color:var(--bronze);box-shadow:inset 3px 0 0 var(--primary)}
-
-/* O núcleo: a cor é regra do jogo; a esfera é sombreada, mas não brilha. */
-.orbe{--orbe:#b3201c;position:relative;display:block;aspect-ratio:1;border-radius:50%;background:radial-gradient(circle at 38% 32%,color-mix(in srgb,var(--orbe) 45%,#fff) 0,var(--orbe) 38%,color-mix(in srgb,var(--orbe) 55%,#000) 100%);box-shadow:0 0 0 1px #0009,inset 0 -4px 10px #0007;animation:none}
-.orbe::after{content:"";position:absolute;inset:-5px;border-radius:50%;border:1px solid var(--bronze)}
-.nucleo-linha{display:flex;align-items:center;gap:16px;padding:8px 0 4px}
-.nucleo-linha .orbe,.col-id .nucleo-linha .orbe{flex:none;width:40px}
-.nucleo-nome,.col-id .nucleo-nome{font-size:21px;line-height:1.1;color:var(--text)}
-
-/* Chat de dados */
-.chat-pilula,.chat-pilula:hover{background:var(--primary);border:1px solid var(--primary);border-radius:var(--raio);color:var(--sobre-gradiente);font:600 15px/1 var(--f-texto);box-shadow:0 2px 0 #000a}
-.chat-pilula:hover{background:var(--primary-claro)}
-.chat-contagem{background:var(--sobre-gradiente);color:var(--primary-claro)}
-.chat-popup{background:var(--surface);border:1px solid var(--bronze);border-radius:var(--raio);box-shadow:0 8px 24px #000a;animation:none}
-.chat-popup .msg-nova .msg-total{animation:none}
-.msg-balao,.chat-fechar{border-radius:2px}
-.msg-minha .msg-balao{background:color-mix(in srgb,var(--primary) 9%,var(--surface));border-color:color-mix(in srgb,var(--primary) 35%,var(--border))}
-.msg-total{color:var(--primary-claro);text-shadow:none}
-.chat-flutuante{border-top:2px solid var(--primary)}
-
-/* Entrada: folha de rosto do tomo. A escala do núcleo é a única cor da página. */
-.entrada-sobre{font:400 17px/1 var(--f-titulo);letter-spacing:.24em;color:var(--primary-claro);margin-bottom:14px}
-.entrada-texto{color:var(--text);font-size:19px}
-.entrada-lista li::before{width:14px;height:1px;background:var(--primary);transform:translateY(-4px)}
-.escala-nucleo{margin:26px 0 0;max-width:460px}
-.escala-nucleo ol{display:grid;grid-template-columns:repeat(13,minmax(0,1fr));gap:3px;padding:3px;border:1px solid var(--border)}
-.escala-nucleo li{height:12px}
-.escala-nucleo figcaption{display:flex;justify-content:space-between;gap:12px;margin-top:6px;font:400 14px/1.2 var(--f-titulo);letter-spacing:.06em;color:var(--text-muted)}
-.escala-nucleo figcaption span:nth-child(2){color:var(--primary-claro)}
+/* Linha de perícia com fio de pergaminho */
+.pericia-cab{font-family:var(--f-titulo);font-size:12px}
+.pericia-linha:not(.pericia-cab){border-bottom:1px solid #2a335a66}
+.pericia-linha input[type=number]{font-family:var(--f-titulo)}
 
 @media (max-width:859px){
-  .topo-abas{background:#14110ef7;border-top:1px solid var(--border);box-shadow:0 -1px 0 #000}
-  .topo-abas .topo-link[aria-current="page"]{color:var(--primary-claro);background:none;box-shadow:inset 0 2px 0 var(--primary)}
-  .ficha-secoes{background:#1a1714f7}
-  .ficha-secoes button[aria-pressed="true"]{color:var(--primary-claro);background:none;box-shadow:inset 0 -2px 0 var(--primary)}
-  .chat-pilula,.chat-pilula:hover{border-radius:50%;font-size:0}
-  .placa-orbe{box-shadow:0 0 0 1px #0009,inset 0 -4px 10px #0007}
-  .capitular.retrato{width:84px;outline:0}
-  .entrada-sobre{text-align:center}
-  .escala-nucleo{margin-inline:auto}
-  .marca{font-size:clamp(52px,15vw,72px)}
+  .bloco-foto::before{display:none}
+  .pericia-cab{font-family:var(--f-texto);font-size:12px}
+  .placa{min-height:0}
+  .capitular.retrato{outline:1px solid #b9a0fb66;outline-offset:4px}
+}
+
+/* ---------- Mais magia: pedido depois do grimório. O que se mexe é lento e fica atrás do conteúdo ---------- */
+.placa-nome,.marca,.topo-marca,.titulo-grupo,.pag-titulo,.nucleo-nome{font-family:var(--f-decorada);font-weight:700;letter-spacing:.015em}
+.placa-nome{font-size:clamp(30px,4.6vw,52px)}
+.titulo-grupo{font-size:19px;color:var(--text);text-shadow:0 0 12px #8b5cf6b3}
+.titulo-grupo::before{color:var(--secondary-claro);text-shadow:0 0 10px #b9a0fb}
+.pag-titulo{color:var(--text);text-shadow:0 0 22px #8b5cf699}
+.topo-marca{text-shadow:0 0 14px #4f7bff99}
+
+/* O céu: um selo enorme que gira quase parado, e estrelas que cintilam */
+body:not(:has(.entrada))::before{content:"";position:fixed;z-index:-1;top:50%;left:50%;width:min(130vmax,1300px);aspect-ratio:1;margin:calc(min(130vmax,1300px) / -2) 0 0 calc(min(130vmax,1300px) / -2);background:url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20width%3D'800'%20height%3D'800'%20viewBox%3D'0%200%20800%20800'%3E%3Cg%20fill%3D'none'%20stroke-linecap%3D'round'%3E%3Cg%20stroke%3D'%23b9a0fb'%3E%3Ccircle%20cx%3D'400'%20cy%3D'400'%20r%3D'392.0'%2F%3E%3Ccircle%20cx%3D'400'%20cy%3D'400'%20r%3D'380.0'%20stroke-opacity%3D'.6'%2F%3E%3Ccircle%20cx%3D'400'%20cy%3D'400'%20r%3D'320.0'%2F%3E%3C%2Fg%3E%3Cg%20stroke%3D'%23c9bcff'%20stroke-width%3D'1.2'%3E%3Cpath%20transform%3D'translate(400.0%2050.0)%20rotate(0.0)%20scale(2.00)'%20d%3D'M0-7V7M0-7%205-2%200%202'%2F%3E%3Cpath%20transform%3D'translate(503.2%2065.5)%20rotate(17.1)%20scale(2.00)'%20d%3D'M-4-7%204%207M4-7-4%207'%2F%3E%3Cpath%20transform%3D'translate(597.2%20110.8)%20rotate(34.3)%20scale(2.00)'%20d%3D'M0-7V7M-5%200H5'%2F%3E%3Cpath%20transform%3D'translate(673.6%20181.8)%20rotate(51.4)%20scale(2.00)'%20d%3D'M-4%207V-7L4-2-4%203'%2F%3E%3Cpath%20transform%3D'translate(725.8%20272.1)%20rotate(68.6)%20scale(2.00)'%20d%3D'M-5-5%200%207%205-5'%2F%3E%3Cpath%20transform%3D'translate(749.0%20373.8)%20rotate(85.7)%20scale(2.00)'%20d%3D'M0-7%205%200%200%207-5%200Z'%2F%3E%3Cpath%20transform%3D'translate(741.2%20477.9)%20rotate(102.9)%20scale(2.00)'%20d%3D'M-4-7V7M4-7V7M-4%200%204%200'%2F%3E%3Cpath%20transform%3D'translate(703.1%20575.0)%20rotate(120.0)%20scale(2.00)'%20d%3D'M-5%207%200-7%205%207M-3%202H3'%2F%3E%3Cpath%20transform%3D'translate(638.1%20656.6)%20rotate(137.1)%20scale(2.00)'%20d%3D'M0%207V-7M-5-7%200-2%205-7'%2F%3E%3Cpath%20transform%3D'translate(551.9%20715.3)%20rotate(154.3)%20scale(2.00)'%20d%3D'M0-7V7M0-7%205-2%200%202'%2F%3E%3Cpath%20transform%3D'translate(452.2%20746.1)%20rotate(171.4)%20scale(2.00)'%20d%3D'M-4-7%204%207M4-7-4%207'%2F%3E%3Cpath%20transform%3D'translate(347.8%20746.1)%20rotate(188.6)%20scale(2.00)'%20d%3D'M0-7V7M-5%200H5'%2F%3E%3Cpath%20transform%3D'translate(248.1%20715.3)%20rotate(205.7)%20scale(2.00)'%20d%3D'M-4%207V-7L4-2-4%203'%2F%3E%3Cpath%20transform%3D'translate(161.9%20656.6)%20rotate(222.9)%20scale(2.00)'%20d%3D'M-5-5%200%207%205-5'%2F%3E%3Cpath%20transform%3D'translate(96.9%20575.0)%20rotate(240.0)%20scale(2.00)'%20d%3D'M0-7%205%200%200%207-5%200Z'%2F%3E%3Cpath%20transform%3D'translate(58.8%20477.9)%20rotate(257.1)%20scale(2.00)'%20d%3D'M-4-7V7M4-7V7M-4%200%204%200'%2F%3E%3Cpath%20transform%3D'translate(51.0%20373.8)%20rotate(274.3)%20scale(2.00)'%20d%3D'M-5%207%200-7%205%207M-3%202H3'%2F%3E%3Cpath%20transform%3D'translate(74.2%20272.1)%20rotate(291.4)%20scale(2.00)'%20d%3D'M0%207V-7M-5-7%200-2%205-7'%2F%3E%3Cpath%20transform%3D'translate(126.4%20181.8)%20rotate(308.6)%20scale(2.00)'%20d%3D'M0-7V7M0-7%205-2%200%202'%2F%3E%3Cpath%20transform%3D'translate(202.8%20110.8)%20rotate(325.7)%20scale(2.00)'%20d%3D'M-4-7%204%207M4-7-4%207'%2F%3E%3Cpath%20transform%3D'translate(296.8%2065.5)%20rotate(342.9)%20scale(2.00)'%20d%3D'M0-7V7M-5%200H5'%2F%3E%3C%2Fg%3E%3Cg%20stroke%3D'%238fb0ff'%20stroke-opacity%3D'.8'%3E%3Cpolygon%20points%3D'400.0%2C104.0%20528.4%2C666.7%20168.6%2C215.4%20688.6%2C465.9%20111.4%2C465.9%20631.4%2C215.4%20271.6%2C666.7'%2F%3E%3Ccircle%20cx%3D'400.0'%20cy%3D'104.0'%20r%3D'18.0'%2F%3E%3Ccircle%20cx%3D'631.4'%20cy%3D'215.4'%20r%3D'18.0'%2F%3E%3Ccircle%20cx%3D'688.6'%20cy%3D'465.9'%20r%3D'18.0'%2F%3E%3Ccircle%20cx%3D'528.4'%20cy%3D'666.7'%20r%3D'18.0'%2F%3E%3Ccircle%20cx%3D'271.6'%20cy%3D'666.7'%20r%3D'18.0'%2F%3E%3Ccircle%20cx%3D'111.4'%20cy%3D'465.9'%20r%3D'18.0'%2F%3E%3Ccircle%20cx%3D'168.6'%20cy%3D'215.4'%20r%3D'18.0'%2F%3E%3Cpolygon%20points%3D'400.0%2C176.0%20624.0%2C400.0%20400.0%2C624.0%20176.0%2C400.0'%2F%3E%3Cpolygon%20points%3D'558.4%2C241.6%20558.4%2C558.4%20241.6%2C558.4%20241.6%2C241.6'%2F%3E%3Ccircle%20cx%3D'400'%20cy%3D'400'%20r%3D'120.0'%2F%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E") center/contain no-repeat;opacity:.075;pointer-events:none;animation:girar 420s linear infinite}
+body::after{content:"";position:fixed;z-index:-1;inset:0;pointer-events:none;background:radial-gradient(1.5px 1.5px at 8% 14%,#c9bcffd9,transparent),radial-gradient(1px 1px at 21% 62%,#8fb0ffcc,transparent),radial-gradient(1.8px 1.8px at 33% 28%,#ffffffb3,transparent),radial-gradient(1px 1px at 47% 88%,#c9bcffb3,transparent),radial-gradient(1.5px 1.5px at 61% 9%,#8fb0ffd9,transparent),radial-gradient(1.2px 1.2px at 74% 71%,#ffffffa6,transparent),radial-gradient(1.8px 1.8px at 89% 33%,#c9bcffcc,transparent),radial-gradient(1px 1px at 95% 92%,#8fb0ffb3,transparent);animation:cintilar 9s ease-in-out infinite alternate}
+
+/* O nome brilha devagar, como tinta encantada */
+.placa-nome,.marca{background:linear-gradient(100deg,#4f7bff,#b9a0fb 35%,#e6e9f5 50%,#b9a0fb 65%,#8b5cf6);background-size:220% 100%;-webkit-background-clip:text;background-clip:text;animation:tinta 9s ease-in-out infinite alternate}
+@keyframes tinta{from{background-position:0% 50%}to{background-position:100% 50%}}
+.ficha[data-estagio="60"] .placa-nome,.ficha[data-estagio="80"] .placa-nome,.ficha[data-estagio="99"] .placa-nome,.ficha[data-estagio="100"] .placa-nome{background:none;-webkit-text-fill-color:currentcolor}
+.ficha[data-estagio="60"] .placa-nome,.ficha[data-estagio="80"] .placa-nome{animation:none}
+
+/* Selo atrás do cabeçalho e círculo vivo em volta do retrato */
+.placa{position:relative;overflow:hidden}
+.placa>*{position:relative;z-index:1}
+.placa::after{content:"";position:absolute;z-index:0;top:50%;right:-70px;width:340px;height:340px;margin-top:-170px;background:url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20width%3D'400'%20height%3D'400'%20viewBox%3D'0%200%20400%20400'%3E%3Cg%20fill%3D'none'%20stroke-linecap%3D'round'%3E%3Cg%20stroke%3D'%23b9a0fb'%3E%3Ccircle%20cx%3D'200'%20cy%3D'200'%20r%3D'196.0'%2F%3E%3Ccircle%20cx%3D'200'%20cy%3D'200'%20r%3D'190.0'%20stroke-opacity%3D'.6'%2F%3E%3Ccircle%20cx%3D'200'%20cy%3D'200'%20r%3D'160.0'%2F%3E%3C%2Fg%3E%3Cg%20stroke%3D'%23c9bcff'%20stroke-width%3D'1.2'%3E%3Cpath%20transform%3D'translate(200.0%2025.0)%20rotate(0.0)%20scale(1.00)'%20d%3D'M0-7V7M0-7%205-2%200%202'%2F%3E%3Cpath%20transform%3D'translate(251.6%2032.8)%20rotate(17.1)%20scale(1.00)'%20d%3D'M-4-7%204%207M4-7-4%207'%2F%3E%3Cpath%20transform%3D'translate(298.6%2055.4)%20rotate(34.3)%20scale(1.00)'%20d%3D'M0-7V7M-5%200H5'%2F%3E%3Cpath%20transform%3D'translate(336.8%2090.9)%20rotate(51.4)%20scale(1.00)'%20d%3D'M-4%207V-7L4-2-4%203'%2F%3E%3Cpath%20transform%3D'translate(362.9%20136.1)%20rotate(68.6)%20scale(1.00)'%20d%3D'M-5-5%200%207%205-5'%2F%3E%3Cpath%20transform%3D'translate(374.5%20186.9)%20rotate(85.7)%20scale(1.00)'%20d%3D'M0-7%205%200%200%207-5%200Z'%2F%3E%3Cpath%20transform%3D'translate(370.6%20238.9)%20rotate(102.9)%20scale(1.00)'%20d%3D'M-4-7V7M4-7V7M-4%200%204%200'%2F%3E%3Cpath%20transform%3D'translate(351.6%20287.5)%20rotate(120.0)%20scale(1.00)'%20d%3D'M-5%207%200-7%205%207M-3%202H3'%2F%3E%3Cpath%20transform%3D'translate(319.0%20328.3)%20rotate(137.1)%20scale(1.00)'%20d%3D'M0%207V-7M-5-7%200-2%205-7'%2F%3E%3Cpath%20transform%3D'translate(275.9%20357.7)%20rotate(154.3)%20scale(1.00)'%20d%3D'M0-7V7M0-7%205-2%200%202'%2F%3E%3Cpath%20transform%3D'translate(226.1%20373.0)%20rotate(171.4)%20scale(1.00)'%20d%3D'M-4-7%204%207M4-7-4%207'%2F%3E%3Cpath%20transform%3D'translate(173.9%20373.0)%20rotate(188.6)%20scale(1.00)'%20d%3D'M0-7V7M-5%200H5'%2F%3E%3Cpath%20transform%3D'translate(124.1%20357.7)%20rotate(205.7)%20scale(1.00)'%20d%3D'M-4%207V-7L4-2-4%203'%2F%3E%3Cpath%20transform%3D'translate(81.0%20328.3)%20rotate(222.9)%20scale(1.00)'%20d%3D'M-5-5%200%207%205-5'%2F%3E%3Cpath%20transform%3D'translate(48.4%20287.5)%20rotate(240.0)%20scale(1.00)'%20d%3D'M0-7%205%200%200%207-5%200Z'%2F%3E%3Cpath%20transform%3D'translate(29.4%20238.9)%20rotate(257.1)%20scale(1.00)'%20d%3D'M-4-7V7M4-7V7M-4%200%204%200'%2F%3E%3Cpath%20transform%3D'translate(25.5%20186.9)%20rotate(274.3)%20scale(1.00)'%20d%3D'M-5%207%200-7%205%207M-3%202H3'%2F%3E%3Cpath%20transform%3D'translate(37.1%20136.1)%20rotate(291.4)%20scale(1.00)'%20d%3D'M0%207V-7M-5-7%200-2%205-7'%2F%3E%3Cpath%20transform%3D'translate(63.2%2090.9)%20rotate(308.6)%20scale(1.00)'%20d%3D'M0-7V7M0-7%205-2%200%202'%2F%3E%3Cpath%20transform%3D'translate(101.4%2055.4)%20rotate(325.7)%20scale(1.00)'%20d%3D'M-4-7%204%207M4-7-4%207'%2F%3E%3Cpath%20transform%3D'translate(148.4%2032.8)%20rotate(342.9)%20scale(1.00)'%20d%3D'M0-7V7M-5%200H5'%2F%3E%3C%2Fg%3E%3Cg%20stroke%3D'%238fb0ff'%20stroke-opacity%3D'.8'%3E%3Cpolygon%20points%3D'200.0%2C52.0%20264.2%2C333.3%2084.3%2C107.7%20344.3%2C232.9%2055.7%2C232.9%20315.7%2C107.7%20135.8%2C333.3'%2F%3E%3Ccircle%20cx%3D'200.0'%20cy%3D'52.0'%20r%3D'9.0'%2F%3E%3Ccircle%20cx%3D'315.7'%20cy%3D'107.7'%20r%3D'9.0'%2F%3E%3Ccircle%20cx%3D'344.3'%20cy%3D'232.9'%20r%3D'9.0'%2F%3E%3Ccircle%20cx%3D'264.2'%20cy%3D'333.3'%20r%3D'9.0'%2F%3E%3Ccircle%20cx%3D'135.8'%20cy%3D'333.3'%20r%3D'9.0'%2F%3E%3Ccircle%20cx%3D'55.7'%20cy%3D'232.9'%20r%3D'9.0'%2F%3E%3Ccircle%20cx%3D'84.3'%20cy%3D'107.7'%20r%3D'9.0'%2F%3E%3Cpolygon%20points%3D'200.0%2C88.0%20312.0%2C200.0%20200.0%2C312.0%2088.0%2C200.0'%2F%3E%3Cpolygon%20points%3D'279.2%2C120.8%20279.2%2C279.2%20120.8%2C279.2%20120.8%2C120.8'%2F%3E%3Ccircle%20cx%3D'200'%20cy%3D'200'%20r%3D'60.0'%2F%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E") center/contain no-repeat;opacity:.22;pointer-events:none;animation:girar 180s linear infinite reverse}
+.bloco-foto::before{top:-30px;width:192px;height:192px;margin-left:-96px;transform:none;background:url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20width%3D'400'%20height%3D'400'%20viewBox%3D'0%200%20400%20400'%3E%3Cg%20fill%3D'none'%20stroke-linecap%3D'round'%3E%3Cg%20stroke%3D'%23b9a0fb'%3E%3Ccircle%20cx%3D'200'%20cy%3D'200'%20r%3D'196.0'%2F%3E%3Ccircle%20cx%3D'200'%20cy%3D'200'%20r%3D'190.0'%20stroke-opacity%3D'.6'%2F%3E%3Ccircle%20cx%3D'200'%20cy%3D'200'%20r%3D'160.0'%2F%3E%3C%2Fg%3E%3Cg%20stroke%3D'%23c9bcff'%20stroke-width%3D'1.2'%3E%3Cpath%20transform%3D'translate(200.0%2025.0)%20rotate(0.0)%20scale(1.00)'%20d%3D'M0-7V7M0-7%205-2%200%202'%2F%3E%3Cpath%20transform%3D'translate(251.6%2032.8)%20rotate(17.1)%20scale(1.00)'%20d%3D'M-4-7%204%207M4-7-4%207'%2F%3E%3Cpath%20transform%3D'translate(298.6%2055.4)%20rotate(34.3)%20scale(1.00)'%20d%3D'M0-7V7M-5%200H5'%2F%3E%3Cpath%20transform%3D'translate(336.8%2090.9)%20rotate(51.4)%20scale(1.00)'%20d%3D'M-4%207V-7L4-2-4%203'%2F%3E%3Cpath%20transform%3D'translate(362.9%20136.1)%20rotate(68.6)%20scale(1.00)'%20d%3D'M-5-5%200%207%205-5'%2F%3E%3Cpath%20transform%3D'translate(374.5%20186.9)%20rotate(85.7)%20scale(1.00)'%20d%3D'M0-7%205%200%200%207-5%200Z'%2F%3E%3Cpath%20transform%3D'translate(370.6%20238.9)%20rotate(102.9)%20scale(1.00)'%20d%3D'M-4-7V7M4-7V7M-4%200%204%200'%2F%3E%3Cpath%20transform%3D'translate(351.6%20287.5)%20rotate(120.0)%20scale(1.00)'%20d%3D'M-5%207%200-7%205%207M-3%202H3'%2F%3E%3Cpath%20transform%3D'translate(319.0%20328.3)%20rotate(137.1)%20scale(1.00)'%20d%3D'M0%207V-7M-5-7%200-2%205-7'%2F%3E%3Cpath%20transform%3D'translate(275.9%20357.7)%20rotate(154.3)%20scale(1.00)'%20d%3D'M0-7V7M0-7%205-2%200%202'%2F%3E%3Cpath%20transform%3D'translate(226.1%20373.0)%20rotate(171.4)%20scale(1.00)'%20d%3D'M-4-7%204%207M4-7-4%207'%2F%3E%3Cpath%20transform%3D'translate(173.9%20373.0)%20rotate(188.6)%20scale(1.00)'%20d%3D'M0-7V7M-5%200H5'%2F%3E%3Cpath%20transform%3D'translate(124.1%20357.7)%20rotate(205.7)%20scale(1.00)'%20d%3D'M-4%207V-7L4-2-4%203'%2F%3E%3Cpath%20transform%3D'translate(81.0%20328.3)%20rotate(222.9)%20scale(1.00)'%20d%3D'M-5-5%200%207%205-5'%2F%3E%3Cpath%20transform%3D'translate(48.4%20287.5)%20rotate(240.0)%20scale(1.00)'%20d%3D'M0-7%205%200%200%207-5%200Z'%2F%3E%3Cpath%20transform%3D'translate(29.4%20238.9)%20rotate(257.1)%20scale(1.00)'%20d%3D'M-4-7V7M4-7V7M-4%200%204%200'%2F%3E%3Cpath%20transform%3D'translate(25.5%20186.9)%20rotate(274.3)%20scale(1.00)'%20d%3D'M-5%207%200-7%205%207M-3%202H3'%2F%3E%3Cpath%20transform%3D'translate(37.1%20136.1)%20rotate(291.4)%20scale(1.00)'%20d%3D'M0%207V-7M-5-7%200-2%205-7'%2F%3E%3Cpath%20transform%3D'translate(63.2%2090.9)%20rotate(308.6)%20scale(1.00)'%20d%3D'M0-7V7M0-7%205-2%200%202'%2F%3E%3Cpath%20transform%3D'translate(101.4%2055.4)%20rotate(325.7)%20scale(1.00)'%20d%3D'M-4-7%204%207M4-7-4%207'%2F%3E%3Cpath%20transform%3D'translate(148.4%2032.8)%20rotate(342.9)%20scale(1.00)'%20d%3D'M0-7V7M-5%200H5'%2F%3E%3C%2Fg%3E%3Cg%20stroke%3D'%238fb0ff'%20stroke-opacity%3D'.8'%3E%3Cpolygon%20points%3D'200.0%2C52.0%20264.2%2C333.3%2084.3%2C107.7%20344.3%2C232.9%2055.7%2C232.9%20315.7%2C107.7%20135.8%2C333.3'%2F%3E%3Ccircle%20cx%3D'200.0'%20cy%3D'52.0'%20r%3D'9.0'%2F%3E%3Ccircle%20cx%3D'315.7'%20cy%3D'107.7'%20r%3D'9.0'%2F%3E%3Ccircle%20cx%3D'344.3'%20cy%3D'232.9'%20r%3D'9.0'%2F%3E%3Ccircle%20cx%3D'264.2'%20cy%3D'333.3'%20r%3D'9.0'%2F%3E%3Ccircle%20cx%3D'135.8'%20cy%3D'333.3'%20r%3D'9.0'%2F%3E%3Ccircle%20cx%3D'55.7'%20cy%3D'232.9'%20r%3D'9.0'%2F%3E%3Ccircle%20cx%3D'84.3'%20cy%3D'107.7'%20r%3D'9.0'%2F%3E%3Cpolygon%20points%3D'200.0%2C88.0%20312.0%2C200.0%20200.0%2C312.0%2088.0%2C200.0'%2F%3E%3Cpolygon%20points%3D'279.2%2C120.8%20279.2%2C279.2%20120.8%2C279.2%20120.8%2C120.8'%2F%3E%3Ccircle%20cx%3D'200'%20cy%3D'200'%20r%3D'60.0'%2F%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E") center/contain no-repeat;opacity:.75;animation:girar 90s linear infinite;filter:drop-shadow(0 0 6px #8b5cf6)}
+.capitular.retrato{box-shadow:0 0 34px #8b5cf68c,inset 0 0 18px #8b5cf666;animation:aura 5s ease-in-out infinite alternate}
+@keyframes aura{from{box-shadow:0 0 18px #8b5cf659,inset 0 0 14px #8b5cf640}to{box-shadow:0 0 42px #8b5cf6b3,inset 0 0 24px #4f7bff66}}
+.placa{min-height:196px}
+.bloco-foto{gap:40px;width:192px}
+.fenda{z-index:2}
+
+/* O núcleo respira */
+.bloco-nucleo .orbe,.orbe-entrada{animation:respirar 4s ease-in-out infinite alternate}
+.orbe-entrada{animation:estagios 28s ease-in-out infinite,respirar 4s ease-in-out infinite alternate}
+@keyframes respirar{from{filter:brightness(.9) drop-shadow(0 0 6px var(--orbe))}to{filter:brightness(1.25) drop-shadow(0 0 20px var(--orbe))}}
+.orbe-entrada{margin:44px 0 62px 44px}
+.orbe-entrada::before{content:"";position:absolute;inset:-30%;background:url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20width%3D'400'%20height%3D'400'%20viewBox%3D'0%200%20400%20400'%3E%3Cg%20fill%3D'none'%20stroke-linecap%3D'round'%3E%3Cg%20stroke%3D'%23b9a0fb'%3E%3Ccircle%20cx%3D'200'%20cy%3D'200'%20r%3D'196.0'%2F%3E%3Ccircle%20cx%3D'200'%20cy%3D'200'%20r%3D'190.0'%20stroke-opacity%3D'.6'%2F%3E%3Ccircle%20cx%3D'200'%20cy%3D'200'%20r%3D'160.0'%2F%3E%3C%2Fg%3E%3Cg%20stroke%3D'%23c9bcff'%20stroke-width%3D'1.2'%3E%3Cpath%20transform%3D'translate(200.0%2025.0)%20rotate(0.0)%20scale(1.00)'%20d%3D'M0-7V7M0-7%205-2%200%202'%2F%3E%3Cpath%20transform%3D'translate(251.6%2032.8)%20rotate(17.1)%20scale(1.00)'%20d%3D'M-4-7%204%207M4-7-4%207'%2F%3E%3Cpath%20transform%3D'translate(298.6%2055.4)%20rotate(34.3)%20scale(1.00)'%20d%3D'M0-7V7M-5%200H5'%2F%3E%3Cpath%20transform%3D'translate(336.8%2090.9)%20rotate(51.4)%20scale(1.00)'%20d%3D'M-4%207V-7L4-2-4%203'%2F%3E%3Cpath%20transform%3D'translate(362.9%20136.1)%20rotate(68.6)%20scale(1.00)'%20d%3D'M-5-5%200%207%205-5'%2F%3E%3Cpath%20transform%3D'translate(374.5%20186.9)%20rotate(85.7)%20scale(1.00)'%20d%3D'M0-7%205%200%200%207-5%200Z'%2F%3E%3Cpath%20transform%3D'translate(370.6%20238.9)%20rotate(102.9)%20scale(1.00)'%20d%3D'M-4-7V7M4-7V7M-4%200%204%200'%2F%3E%3Cpath%20transform%3D'translate(351.6%20287.5)%20rotate(120.0)%20scale(1.00)'%20d%3D'M-5%207%200-7%205%207M-3%202H3'%2F%3E%3Cpath%20transform%3D'translate(319.0%20328.3)%20rotate(137.1)%20scale(1.00)'%20d%3D'M0%207V-7M-5-7%200-2%205-7'%2F%3E%3Cpath%20transform%3D'translate(275.9%20357.7)%20rotate(154.3)%20scale(1.00)'%20d%3D'M0-7V7M0-7%205-2%200%202'%2F%3E%3Cpath%20transform%3D'translate(226.1%20373.0)%20rotate(171.4)%20scale(1.00)'%20d%3D'M-4-7%204%207M4-7-4%207'%2F%3E%3Cpath%20transform%3D'translate(173.9%20373.0)%20rotate(188.6)%20scale(1.00)'%20d%3D'M0-7V7M-5%200H5'%2F%3E%3Cpath%20transform%3D'translate(124.1%20357.7)%20rotate(205.7)%20scale(1.00)'%20d%3D'M-4%207V-7L4-2-4%203'%2F%3E%3Cpath%20transform%3D'translate(81.0%20328.3)%20rotate(222.9)%20scale(1.00)'%20d%3D'M-5-5%200%207%205-5'%2F%3E%3Cpath%20transform%3D'translate(48.4%20287.5)%20rotate(240.0)%20scale(1.00)'%20d%3D'M0-7%205%200%200%207-5%200Z'%2F%3E%3Cpath%20transform%3D'translate(29.4%20238.9)%20rotate(257.1)%20scale(1.00)'%20d%3D'M-4-7V7M4-7V7M-4%200%204%200'%2F%3E%3Cpath%20transform%3D'translate(25.5%20186.9)%20rotate(274.3)%20scale(1.00)'%20d%3D'M-5%207%200-7%205%207M-3%202H3'%2F%3E%3Cpath%20transform%3D'translate(37.1%20136.1)%20rotate(291.4)%20scale(1.00)'%20d%3D'M0%207V-7M-5-7%200-2%205-7'%2F%3E%3Cpath%20transform%3D'translate(63.2%2090.9)%20rotate(308.6)%20scale(1.00)'%20d%3D'M0-7V7M0-7%205-2%200%202'%2F%3E%3Cpath%20transform%3D'translate(101.4%2055.4)%20rotate(325.7)%20scale(1.00)'%20d%3D'M-4-7%204%207M4-7-4%207'%2F%3E%3Cpath%20transform%3D'translate(148.4%2032.8)%20rotate(342.9)%20scale(1.00)'%20d%3D'M0-7V7M-5%200H5'%2F%3E%3C%2Fg%3E%3Cg%20stroke%3D'%238fb0ff'%20stroke-opacity%3D'.8'%3E%3Cpolygon%20points%3D'200.0%2C52.0%20264.2%2C333.3%2084.3%2C107.7%20344.3%2C232.9%2055.7%2C232.9%20315.7%2C107.7%20135.8%2C333.3'%2F%3E%3Ccircle%20cx%3D'200.0'%20cy%3D'52.0'%20r%3D'9.0'%2F%3E%3Ccircle%20cx%3D'315.7'%20cy%3D'107.7'%20r%3D'9.0'%2F%3E%3Ccircle%20cx%3D'344.3'%20cy%3D'232.9'%20r%3D'9.0'%2F%3E%3Ccircle%20cx%3D'264.2'%20cy%3D'333.3'%20r%3D'9.0'%2F%3E%3Ccircle%20cx%3D'135.8'%20cy%3D'333.3'%20r%3D'9.0'%2F%3E%3Ccircle%20cx%3D'55.7'%20cy%3D'232.9'%20r%3D'9.0'%2F%3E%3Ccircle%20cx%3D'84.3'%20cy%3D'107.7'%20r%3D'9.0'%2F%3E%3Cpolygon%20points%3D'200.0%2C88.0%20312.0%2C200.0%20200.0%2C312.0%2088.0%2C200.0'%2F%3E%3Cpolygon%20points%3D'279.2%2C120.8%20279.2%2C279.2%20120.8%2C279.2%20120.8%2C120.8'%2F%3E%3Ccircle%20cx%3D'200'%20cy%3D'200'%20r%3D'60.0'%2F%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E") center/contain no-repeat;opacity:.7;animation:girar 120s linear infinite reverse;pointer-events:none}
+
+/* Vida e mana correm como energia */
+.barra i{position:relative;overflow:hidden}
+.barra i::after{content:"";position:absolute;inset:0;background:linear-gradient(100deg,transparent 30%,#ffffff8c 50%,transparent 70%);background-size:220% 100%;animation:corrente 4.5s linear infinite}
+@keyframes corrente{from{background-position:130% 0}to{background-position:-90% 0}}
+.attr-barra i{box-shadow:0 0 8px var(--cor-el)}
+
+/* Cards acendem ao passar; a pedra de rolar gira e brilha */
+.painel-aba>div:not(.duas-col):hover,.col-id>div:hover,.vital:hover{border-color:color-mix(in srgb,var(--secondary) 70%,var(--border));box-shadow:inset 0 0 0 3px var(--surface),inset 0 0 0 4px #8b5cf659,0 0 26px #8b5cf640,0 8px 24px #00000052}
+.pericia-rolar svg{transition:transform .35s ease}
+.pericia-rolar:hover svg{transform:rotate(120deg) scale(1.15)}
+.pericia-linha:not(.pericia-cab):hover{background:linear-gradient(90deg,#8b5cf61f,transparent 80%)}
+.rolar:hover,.btn-forte:hover:not(:disabled){box-shadow:0 0 18px #8b5cf6b3}
+.campo input:focus,.campo textarea:focus,.campo select:focus{box-shadow:0 0 0 2px var(--primary),0 0 18px #4f7bff66}
+
+/* O resultado da rolagem surge com um clarão: é a resposta ao clique da pessoa */
+.chat-popup{overflow:hidden;animation:surgir .32s cubic-bezier(.2,1.3,.4,1)}
+@keyframes surgir{from{opacity:0;transform:translateY(14px) scale(.92)}to{opacity:1;transform:none}}
+.chat-popup .msg-nova .msg-total{animation:clarao .9s ease-out}
+@keyframes clarao{0%{text-shadow:0 0 34px #fff,0 0 60px #b9a0fb;color:#fff;transform:scale(1.35)}100%{text-shadow:0 0 14px #8fb0ff66;transform:none}}
+.msg-total{font-family:var(--f-decorada);font-weight:700}
+
+@media (max-width:859px){
+  .placa::after{right:-120px;opacity:.16}
+  .placa{min-height:0}
+  .bloco-foto{gap:8px;width:auto}
+  .orbe-entrada{margin:24px auto 34px}
+  body:not(:has(.entrada))::before{opacity:.06}
 }
