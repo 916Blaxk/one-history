@@ -109,6 +109,19 @@ Se a cópia não passar na conferência, vira `/data/restaurar.db.ruim`, o log m
 
 Testado em 8 de novembro de 2026 no PC, com a cópia de 6 de novembro: as migrações rodaram sobre ela e as fichas e campanhas apareceram depois do login. Ainda não foi feito no Railway.
 
+## Site no Render, de graça
+
+O plano grátis do Render não pede cartão, mas dorme depois de 15 minutos sem acesso. O primeiro acesso depois disso leva cerca de 1 minuto, e quem estiver na mesa reconecta sozinho quando ele volta. Sem disco permanente nesse plano, o banco fica no Turso, também grátis.
+
+A configuração está em `render.yaml`, na raiz do repositório.
+
+1. Crie o banco no Turso, como no passo 1, na região AWS us-east-1 (Virgínia), a mesma do Render.
+2. Copie os dados para o Turso **antes** do primeiro deploy no Render. O build roda as migrações, e a cópia se recusa a gravar num banco que já tenha tabelas com dados. Veja a seção seguinte.
+3. No Render, entre com a conta do GitHub e crie um **Blueprint** a partir do repositório `916Blaxk/one-history`. Ele lê o `render.yaml` e pede `DATABASE_URL` e `DATABASE_AUTH_TOKEN`.
+4. Depois do deploy, confira o site como no passo 4. Só então avise os jogadores do endereço novo e desligue o Railway.
+
+Cada envio para a `main` publica de novo no Render.
+
 ## Passar do volume para o Turso
 
 1. Crie o banco no Turso, como no passo 1, e pare de usar o site.

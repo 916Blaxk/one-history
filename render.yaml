@@ -1,0 +1,24 @@
+# Blueprint do Render: no painel, New > Blueprint, escolhendo este repositório.
+# O plano grátis dorme depois de 15 minutos sem acesso e leva cerca de 1 minuto para acordar.
+# Sem disco permanente no plano grátis, o banco fica no Turso. Veja docs/publicar.md.
+services:
+  - type: web
+    name: one-history
+    runtime: node
+    plan: free
+    # Virgínia, a mesma região do banco no Turso (AWS us-east-1), para cada consulta não cruzar o continente.
+    region: virginia
+    branch: main
+    autoDeploy: true
+    # O build roda as migrações no Turso. Por isso, os dados antigos precisam ser copiados antes do primeiro deploy.
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /entrar
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      # Preenchidas no painel ao criar o Blueprint. O token nunca vai para o GitHub.
+      - key: DATABASE_URL
+        sync: false
+      - key: DATABASE_AUTH_TOKEN
+        sync: false
