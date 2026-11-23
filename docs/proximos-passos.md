@@ -42,7 +42,8 @@ Nenhuma no momento.
 
 ## Pendências
 
-- **Turso:** opcional, para ver e editar os dados com mais facilidade. O caminho está em [publicar.md](publicar.md).
+- **Sair do Railway (23 de novembro de 2026):** o usuário quer hospedagem grátis. Decidido: Render no plano grátis, com o banco no Turso. O `render.yaml` está pronto, e o passo a passo está em [migrar-para-render.md](migrar-para-render.md). Falta criar as contas, copiar os dados e criar o serviço.
+- **Botões de apagar e o nome "magia":** falta o usuário responder se o problema era não achar os botões de apagar ficha e campanha, e se "Adicionar magia", "Magia sem nome" e "Conjurar" viram "habilidade".
 - **Backup externo:** o PC do usuário baixa a cópia mais recente a cada 2 dias, pelo Agendador de Tarefas. Veja [publicar.md](publicar.md). Conferir de vez em quando `Documentos\one-history-backups\baixar-backup.log`.
 - **Restauração no Railway:** testada no PC em 8 de novembro de 2026, com o passo a passo em [publicar.md](publicar.md). Falta um ensaio real no Railway, que perde o que for gravado depois da cópia escolhida.
 - **Plano do Railway:** conferir preço e limite no painel.
