@@ -184,12 +184,12 @@ describe('fichas', () => {
 
   it('encerrar cena reduz a mana total na ficha e registra', async () => {
     const a = await novaConta();
-    const f = await novaFicha(a.c, { mente: { onipotencia: 7 }, tier: 2, fadiga: 80 });
+    const f = await novaFicha(a.c, { mente: { onipotencia: 7 }, fadiga: 80 });
     const { ficha } = (await a.c('POST', `/api/fichas/${f.id}/encerrar-cena`)).corpo;
-    expect(ficha.manaPerdida).toBe(9); // 20% de 46, para baixo
-    expect(ficha.registro[0].txt).toMatch(/−9 de mana total/);
+    expect(ficha.manaPerdida).toBe(8); // 20% de 44, para baixo
+    expect(ficha.registro[0].txt).toMatch(/−8 de mana total/);
     const relida = (await a.c('GET', `/api/fichas/${f.id}`)).corpo.ficha;
-    expect(relida.manaPerdida).toBe(9);
+    expect(relida.manaPerdida).toBe(8);
   });
 });
 
@@ -596,7 +596,7 @@ describe('resumo da ficha', () => {
     expect(r.corpo.nome).toBe('Rael');
     expect(r.corpo.recursos[0]).toEqual({ id: 'vida', rotulo: 'Vida', atual: 25, max: 25 });
     /* Sem elemento adicionado, os cinco elementos base não viram rolagem. */
-    expect(r.corpo.acoes).toHaveLength(64);
+    expect(r.corpo.acoes).toHaveLength(65);
     expect(r.corpo.acoes.find((a: { id: string }) => a.id === 'corpo.destreza').expressao).toBe('1d20');
     expect((await mestre.c('GET', `/api/fichas/${f.id}/resumo`)).status).toBe(200);
     expect((await colega.c('GET', `/api/fichas/${f.id}/resumo`)).status).toBe(404);

@@ -320,7 +320,7 @@ test('mesa: mapa, névoa, combate, magia e ferramentas na mesma sessão', async 
   await expect(jogador.getByLabel('PV atual')).toHaveValue('25');
   await jogador.getByRole('button', { name: 'Caído' }).click();
   await expect(jogador.getByRole('button', { name: 'Caído' })).toHaveAttribute('aria-pressed', 'true');
-  await jogador.locator('.mini-sheet-group summary', { hasText: 'Magias' }).click();
+  await jogador.locator('.mini-sheet-group summary', { hasText: 'Habilidades' }).click();
   await jogador.getByRole('button', { name: 'Conjurar Bola de fogo' }).click();
   await expect(jogador.locator('.mini-sheet-identity')).toContainText('Mana: 20');
   await expect(jogador.getByLabel('Mana atual')).toHaveValue('20');

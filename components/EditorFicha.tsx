@@ -12,7 +12,7 @@ import GraficoAtributos from '@/components/GraficoAtributos';
 import Habilidades from '@/components/Habilidades';
 import Magias from '@/components/Magias';
 import TabelaPericias from '@/components/TabelaPericias';
-import { api, dataCurta, mensagem, pct, virgula } from '@/lib/cliente';
+import { api, dataCurta, mensagem, pct } from '@/lib/cliente';
 import { MOLDURA_FOTO, type Enquadramento } from '@/lib/enquadramento';
 import * as R from '@/lib/regras';
 import type { Ficha, Mensagem } from '@/lib/tipos';
@@ -239,7 +239,6 @@ export default function EditorFicha({ f, ed, chat }: {
           <h1 className="placa-nome">{perdido ? '???' : f.nome || 'Sem nome'}</h1>
           <ul className="placa-chips">
             {perdido ? <li>???</li> : chips.map(c => <li key={c}>{c}</li>)}
-            {!perdido && <li className="chip-tier">Tier {f.tier}</li>}
           </ul>
         </div>
         <svg className="fenda" viewBox="0 0 1000 100" preserveAspectRatio="none" aria-hidden="true">
@@ -263,14 +262,6 @@ export default function EditorFicha({ f, ed, chat }: {
                 <input id={`c-${k}`} type="text" value={f[k]} onChange={ev => ed.definir({ ...f, [k]: ev.target.value }, { [k]: ev.target.value })} />
               </div>
             ))}
-            <fieldset className="tiers" aria-label="Tier">
-              {[1, 2, 3].map(t => (
-                <label className="tier" key={t}>
-                  <input type="radio" name="tier" id={`c-tier-${t}`} checked={f.tier === t} onChange={() => mudarComMaximos(c => { c.tier = t; }, () => ({ tier: t }))} />
-                  <b>Tier {t}</b><small>× {virgula(R.TIERS[t])}</small>
-                </label>
-              ))}
-            </fieldset>
           </div>
           <div className="bloco-nucleo">
             <div className="cab-grupo"><h2 className="titulo-grupo">Núcleo</h2></div>
@@ -299,8 +290,8 @@ export default function EditorFicha({ f, ed, chat }: {
           <div className="abas" role="tablist" aria-label="Seções da ficha">
             <button type="button" role="tab" id="aba-atributos" aria-controls="painel-atributos" aria-selected={aba === 'atributos'} onClick={() => setAba('atributos')}>Atributos</button>
             <button type="button" role="tab" id="aba-pericias" aria-controls="painel-pericias" aria-selected={aba === 'pericias'} onClick={() => setAba('pericias')}>Perícias</button>
-            <button type="button" role="tab" id="aba-magias" aria-controls="painel-magias" aria-selected={aba === 'magias'} onClick={() => setAba('magias')}>Magias ({f.magias.length})</button>
-            <button type="button" role="tab" id="aba-habilidades" aria-controls="painel-habilidades" aria-selected={aba === 'habilidades'} onClick={() => setAba('habilidades')}>Habilidades ({f.habilidades.length})</button>
+            <button type="button" role="tab" id="aba-magias" aria-controls="painel-magias" aria-selected={aba === 'magias'} onClick={() => setAba('magias')}>Habilidades ({f.magias.length})</button>
+            <button type="button" role="tab" id="aba-habilidades" aria-controls="painel-habilidades" aria-selected={aba === 'habilidades'} onClick={() => setAba('habilidades')}>Talentos ({f.habilidades.length})</button>
           </div>
           {/* Ficam montadas e só escondidas: trocar de aba não perde o filtro de perícias nem as magias abertas. */}
           <div className="painel-aba" id="painel-atributos" role="tabpanel" aria-labelledby="aba-atributos" hidden={aba !== 'atributos'}>
@@ -368,6 +359,12 @@ export default function EditorFicha({ f, ed, chat }: {
                   const periciasOutros = { ...f.periciasOutros, [k]: R.inteiro(v, 0, 999) };
                   ed.definir({ ...f, periciasOutros }, { periciasOutros });
                 }}
+                aoMudarAtributo={(k, atributo) => {
+                  const periciasAtributo = { ...f.periciasAtributo };
+                  if (!atributo || atributo === R.ATRIBUTO_DA_PERICIA[k]) delete periciasAtributo[k];
+                  else periciasAtributo[k] = atributo;
+                  ed.definir({ ...f, periciasAtributo }, { periciasAtributo });
+                }}
                 aoMudarLimite={mudarLimite}
                 aoRolar={k => rolar({ atributo: `pericias.${k}` })}
               />
@@ -387,7 +384,7 @@ export default function EditorFicha({ f, ed, chat }: {
         <aside className="col-cena" aria-label="Em cena">
           {blocoVital('vidaAtual', 'Vida', 'cor-vida', f.vidaAtual, vm, `15 + vitalidade ${f.corpo.vitalidade} × 2${parcelaAjuste(f.ajustes.vida)} = ${vm}`, campoBonus('vida', 'vida'))}
           {blocoVital('manaAtual', 'Mana', 'cor-mana', f.manaAtual, mm,
-            `30 + onipotência ${f.mente.onipotencia} × ${virgula(R.TIERS[f.tier])} (tier ${f.tier})${bonus.mana ? ` + núcleo ${bonus.mana}` : ''}${parcelaAjuste(f.ajustes.mana)} = ${base}${f.manaPerdida ? `, menos ${f.manaPerdida} perdida = ${mm}` : ''}`,
+            `30 + determinação ${f.mente.onipotencia} × ${R.MULTIPLICADOR_MANA}${bonus.mana ? ` + núcleo ${bonus.mana}` : ''}${parcelaAjuste(f.ajustes.mana)} = ${base}${f.manaPerdida ? `, menos ${f.manaPerdida} perdida = ${mm}` : ''}`,
             <>
               {campoBonus('mana', 'mana')}
               <label className="perda-perm" htmlFor="c-mana-perdida">

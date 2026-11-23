@@ -22,11 +22,11 @@ export default function Habilidades({ habilidades, aoMudar }: { habilidades: R.H
 
   return (
     <div className="habilidades">
-      <div className="cab-grupo"><h2 className="titulo-grupo">Habilidades</h2></div>
-      {habilidades.length === 0 && <p className="apagado">Nenhuma habilidade ainda. Crie a primeira e descreva o que o personagem sabe fazer.</p>}
+      <div className="cab-grupo"><h2 className="titulo-grupo">Talentos</h2></div>
+      {habilidades.length === 0 && <p className="apagado">Nenhum talento ainda. Crie o primeiro e descreva o que o personagem sabe fazer.</p>}
       <ul className="lista-magias">
         {habilidades.map(h => {
-          const aberta = abertas.has(h.id), nome = h.nome || 'Habilidade sem nome';
+          const aberta = abertas.has(h.id), nome = h.nome || 'Talento sem nome';
           return (
             <li className="magia" key={h.id}>
               <div className="magia-topo habilidade-topo">
@@ -35,15 +35,15 @@ export default function Habilidades({ habilidades, aoMudar }: { habilidades: R.H
               {aberta ? (
                 <div className="magia-corpo magia-campos">
                   <div className="campo campo-largo">
-                    <label className="rotulo" htmlFor={`h-nome-${h.id}`}>Nome da habilidade</label>
+                    <label className="rotulo" htmlFor={`h-nome-${h.id}`}>Nome do talento</label>
                     <input id={`h-nome-${h.id}`} type="text" maxLength={80} value={h.nome} onChange={ev => mudar(h.id, { nome: ev.target.value })} />
                   </div>
                   <div className="campo campo-largo">
-                    <label className="rotulo" htmlFor={`h-descricao-${h.id}`}>O que ela faz</label>
+                    <label className="rotulo" htmlFor={`h-descricao-${h.id}`}>O que ele faz</label>
                     <textarea id={`h-descricao-${h.id}`} maxLength={4000} value={h.descricao} onChange={ev => mudar(h.id, { descricao: ev.target.value })} />
                   </div>
                   <div className="campo-largo">
-                    <BotaoConfirmar rotulo="Remover habilidade" confirmar="Confirmar: remover habilidade" aoConfirmar={() => aoMudar(habilidades.filter(o => o.id !== h.id))} />
+                    <BotaoConfirmar rotulo="Remover talento" confirmar="Confirmar: remover talento" aoConfirmar={() => aoMudar(habilidades.filter(o => o.id !== h.id))} />
                   </div>
                 </div>
               ) : h.descricao && <p className="magia-corpo magia-descricao">{h.descricao}</p>}
@@ -51,7 +51,7 @@ export default function Habilidades({ habilidades, aoMudar }: { habilidades: R.H
           );
         })}
       </ul>
-      {habilidades.length < R.LIMITE_HABILIDADES && <button type="button" className="btn" onClick={criar}>Criar habilidade</button>}
+      {habilidades.length < R.LIMITE_HABILIDADES && <button type="button" className="btn" onClick={criar}>Criar talento</button>}
     </div>
   );
 }

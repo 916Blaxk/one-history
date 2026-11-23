@@ -158,7 +158,7 @@ function FichaVinculada({ token, fichaId }: { token: Token; fichaId: string }) {
       {busca && grupos.length === 0 && <p className="mini-sheet-note">Nenhuma rolagem com esse nome.</p>}
       {data.magias.length > 0 && (
         <details className="mini-sheet-group">
-          <summary>Magias</summary>
+          <summary>Habilidades</summary>
           <ul>
             {data.magias.map((magia) => (
               <li className="mini-sheet-spell" key={magia.id}>

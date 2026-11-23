@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { CampoNumero } from '@/components/comuns';
 import * as R from '@/lib/regras';
 
-const SIGLA: Record<R.AtributoPericia, string> = { destreza: 'DES', tracao: 'TRA', onisciencia: 'ONC', onipotencia: 'ONP', encanto: 'ENC' };
+const SIGLA: Record<R.AtributoPericia, string> = { destreza: 'DES', tracao: 'TRA', vitalidade: 'VIT', onisciencia: 'GEN', onipotencia: 'DET', encanto: 'ENC' };
 const NOME_ATRIBUTO = Object.fromEntries([...R.GRUPOS.corpo, ...R.GRUPOS.mente].map(([k, rotulo]) => [k, rotulo])) as Record<string, string>;
 const TODAS = 'Todas';
 
@@ -17,10 +17,11 @@ function IconeD20() {
 }
 
 /* Uma tabela só, em ordem alfabética, para achar a perícia sem abrir categorias. A classe vira um filtro opcional. */
-export default function TabelaPericias({ f, editandoLimites, aoMudarTreino, aoMudarOutros, aoMudarLimite, aoRolar }: {
+export default function TabelaPericias({ f, editandoLimites, aoMudarTreino, aoMudarOutros, aoMudarAtributo, aoMudarLimite, aoRolar }: {
   f: R.DadosFicha; editandoLimites: boolean;
   aoMudarTreino: (k: string, v: unknown) => void;
   aoMudarOutros: (k: string, v: unknown) => void;
+  aoMudarAtributo: (k: string, atributo: R.AtributoPericia | undefined) => void;
   aoMudarLimite: (chave: string, v: string) => void;
   aoRolar: (k: string) => void;
 }) {
@@ -40,13 +41,20 @@ export default function TabelaPericias({ f, editandoLimites, aoMudarTreino, aoMu
       <ul>
         {itens.map(([k, rotulo, desc]) => {
           const treino = f.pericias[k]!, outros = f.periciasOutros[k] ?? 0, chave = R.chaveLimite('pericias', k), limite = f.limites[chave];
-          const atributo = R.ATRIBUTO_DA_PERICIA[k], vantagem = R.vantagemDaRolagem(f, 'pericias', k);
+          const atributo = R.atributoDaPericia(f, k), padrao = R.ATRIBUTO_DA_PERICIA[k], vantagem = R.vantagemDaRolagem(f, 'pericias', k);
           const idCampo = `a-pericias-${k}`, limiteAtual = R.limiteDoItem(f, 'pericias', k)!, acima = treino > limiteAtual;
           return (
             <li className="pericia-linha" data-treinada={treino > 0} data-acima={acima} key={k}>
               <button type="button" className="pericia-rolar" title={`Rolar ${vantagem ? `${vantagem + 1}d20, fica o maior,` : 'd20'} + ${treino + outros}`} aria-label={`Rolar d20 mais ${rotulo}`} onClick={() => aoRolar(k)}><IconeD20 /></button>
               <label className="pericia-nome" htmlFor={idCampo} title={desc}>{rotulo}{(limite !== undefined || acima) && !editandoLimites && <small>Máx. {limiteAtual}</small>}</label>
-              <span className="pericia-dados" data-vantagem={vantagem > 0} title={atributo ? `${NOME_ATRIBUTO[atributo]}: ${vantagem} de vantagem (1 a cada ${R.PONTOS_POR_VANTAGEM} pontos)` : 'Sem atributo definido'}>( {atributo ? SIGLA[atributo] : '—'}{vantagem > 0 && ` +${vantagem}`} )</span>
+              {/* O atributo é escolha livre do jogador. O padrão continua marcado na lista, para voltar a ele. */}
+              <span className="pericia-dados" data-vantagem={vantagem > 0} data-trocado={atributo !== padrao} title={atributo ? `${NOME_ATRIBUTO[atributo]}: ${vantagem} de vantagem (1 a cada ${R.PONTOS_POR_VANTAGEM} pontos)` : 'Sem atributo definido'}>
+                <select aria-label={`Atributo de ${rotulo}`} title={`Atributo da rolagem. O padrão de ${rotulo} é ${padrao ? NOME_ATRIBUTO[padrao] : 'nenhum'} e está marcado com *.`} value={atributo ?? ''} onChange={ev => aoMudarAtributo(k, (ev.target.value || undefined) as R.AtributoPericia | undefined)}>
+                  {!padrao && <option value="">—*</option>}
+                  {R.ATRIBUTOS.map(a => <option key={a} value={a}>{SIGLA[a]}{a === padrao ? '*' : ''}</option>)}
+                </select>
+                {vantagem > 0 && ` +${vantagem}`}
+              </span>
               <span className="pericia-bonus" aria-label={`Bônus de ${rotulo}: ${treino + outros}`}>( {treino + outros} )</span>
               <CampoNumero id={idCampo} min={0} valor={treino} aoMudar={v => aoMudarTreino(k, v)} />
               <CampoNumero aria-label={`Outros de ${rotulo}`} min={0} valor={outros} aoMudar={v => aoMudarOutros(k, v)} />

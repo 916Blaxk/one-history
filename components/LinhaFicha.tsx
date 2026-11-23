@@ -6,7 +6,7 @@ import { Barra, Capitular, PilulaFadiga } from './comuns';
 export function CabecalhoRol({ comAcao }: { comAcao?: boolean }) {
   return (
     <div className={`rol-cab rotulo${comAcao ? ' rol-cab-acao' : ''}`} aria-hidden="true">
-      <span>Personagem</span><span>Tier</span><span>Vida</span><span>Mana</span><span>Fadiga mental</span>
+      <span>Personagem</span><span>Vida</span><span>Mana</span><span>Fadiga mental</span>
     </div>
   );
 }
@@ -33,7 +33,6 @@ export function LinhaFicha({ f, meta }: { f: ResumoFicha; meta: string }) {
   return (
     <Link className="rol-linha" href={`/fichas/${f.id}`}>
       {identidade}
-      <span className="rol-tier" aria-label={`Tier ${f.tier}`}>{f.tier}</span>
       <span className="medida rol-vida cor-vida">
         <span className="medida-num"><span className="medida-rot">Vida </span><b>{f.vidaAtual}</b> <span>/ {f.vidaMax}</span></span>
         <Barra valor={pct(f.vidaAtual!, f.vidaMax!)} />

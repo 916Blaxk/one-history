@@ -70,9 +70,8 @@ test('ficha: vida e mana seguem as fórmulas, editar salva e sobrevive a recarre
 
   await p.locator('#a-mente-onipotencia').fill('7');
   await p.locator('#a-mente-onipotencia').press('Enter');
-  await p.locator('label.tier').filter({ hasText: 'Tier 2' }).click();
-  await expect(p.getByText(/30 \+ onipotência 7 × 2,3 \(tier 2\) = 46/)).toBeVisible();
-  await expect(p.locator('#v-manaAtual')).toHaveValue('46');
+  await expect(p.getByText(/30 \+ determinação 7 × 2 = 44/)).toBeVisible();
+  await expect(p.locator('#v-manaAtual')).toHaveValue('44');
 
   await p.getByRole('button', { name: '−5' }).first().click();
   await expect(p.locator('#v-vidaAtual')).toHaveValue('14');
@@ -89,15 +88,14 @@ test('fadiga: encerrar cena reduz a mana total de vez e 100% esconde o nome', as
   await criarFicha(p, 'Kael');
   await p.locator('#a-mente-onipotencia').fill('7');
   await p.locator('#a-mente-onipotencia').press('Enter');
-  await p.locator('label.tier').filter({ hasText: 'Tier 2' }).click();
-  await expect(p.locator('#v-manaAtual')).toHaveValue('46');
+  await expect(p.locator('#v-manaAtual')).toHaveValue('44');
 
   await p.getByRole('button', { name: /^80%/ }).click();
   await expect(p.locator('article.ficha')).toHaveAttribute('data-estagio', '80');
-  await p.getByRole('button', { name: 'Encerrar cena: −9 de mana total' }).click();
-  await expect(p.getByText(/menos 9 perdida = 37/)).toBeVisible();
-  await expect(p.locator('#v-manaAtual')).toHaveValue('37');
-  await expect(p.getByLabel('Mana total perdida para sempre')).toHaveValue('9');
+  await p.getByRole('button', { name: 'Encerrar cena: −8 de mana total' }).click();
+  await expect(p.getByText(/menos 8 perdida = 36/)).toBeVisible();
+  await expect(p.locator('#v-manaAtual')).toHaveValue('36');
+  await expect(p.getByLabel('Mana total perdida para sempre')).toHaveValue('8');
 
   await p.getByRole('button', { name: /^99%/ }).click();
   await expect(p.locator('.fenda')).toBeVisible();
@@ -110,7 +108,7 @@ test('fadiga: encerrar cena reduz a mana total de vez e 100% esconde o nome', as
   await expect(p.getByRole('heading', { name: 'Kael' })).toBeVisible();
   await p.getByLabel('Mana total perdida para sempre').fill('0');
   await p.getByLabel('Mana total perdida para sempre').press('Enter');
-  await expect(p.getByText(/= 46$/)).toBeVisible();
+  await expect(p.getByText(/= 44$/)).toBeVisible();
 });
 
 test('rolar atributo não soma o valor, e 15 pontos dão vantagem', async ({ browser }) => {
@@ -248,23 +246,23 @@ test('elementos: a ficha começa sem nenhum, e o jogador adiciona e remove os de
   await expect(p.getByRole('img', { name: /Gráfico de corpo e mente: Tração 0/ })).toBeVisible();
 });
 
-test('habilidades: a aba cria, guarda e remove', async ({ browser }) => {
+test('talentos: a aba cria, guarda e remove', async ({ browser }) => {
   const p = await novaPessoa(browser, 'Bob');
   await criarFicha(p, 'Hábil');
-  await p.getByRole('tab', { name: /Habilidades/ }).click();
-  await expect(p.getByText('Nenhuma habilidade ainda.')).toBeVisible();
-  await p.getByRole('button', { name: 'Criar habilidade' }).click();
-  await p.getByLabel('Nome da habilidade').fill('Passo sombrio');
-  await p.getByLabel('O que ela faz').fill('Atravessa uma sombra próxima.');
+  await p.getByRole('tab', { name: /^Talentos/ }).click();
+  await expect(p.getByText('Nenhum talento ainda.')).toBeVisible();
+  await p.getByRole('button', { name: 'Criar talento' }).click();
+  await p.getByLabel('Nome do talento').fill('Passo sombrio');
+  await p.getByLabel('O que ele faz').fill('Atravessa uma sombra próxima.');
   await expect(p.getByRole('status').filter({ hasText: 'Salvo' })).toBeVisible();
   await p.reload();
-  await p.getByRole('tab', { name: /Habilidades \(1\)/ }).click();
+  await p.getByRole('tab', { name: /Talentos \(1\)/ }).click();
   await expect(p.getByRole('button', { name: 'Passo sombrio' })).toBeVisible();
   await expect(p.getByText('Atravessa uma sombra próxima.')).toBeVisible();
   await p.getByRole('button', { name: 'Passo sombrio' }).click();
-  await p.getByRole('button', { name: 'Remover habilidade' }).click();
-  await p.getByRole('button', { name: 'Confirmar: remover habilidade' }).click();
-  await expect(p.getByText('Nenhuma habilidade ainda.')).toBeVisible();
+  await p.getByRole('button', { name: 'Remover talento' }).click();
+  await p.getByRole('button', { name: 'Confirmar: remover talento' }).click();
+  await expect(p.getByText('Nenhum talento ainda.')).toBeVisible();
 });
 
 test('perícias: existe a classe Magia, e as adicionais foram distribuídas', async ({ browser }) => {
@@ -277,8 +275,10 @@ test('perícias: existe a classe Magia, e as adicionais foram distribuídas', as
   const nomes = await p.locator('.pericias .pericia-nome').allTextContents();
   expect(nomes[0]).toBe('Acrobacia');
   expect(nomes).toEqual([...nomes].sort((a, b) => a.localeCompare(b, 'pt-BR')));
-  await expect(p.locator('.pericia-linha').filter({ hasText: 'Aparar' }).locator('.pericia-dados')).toHaveText('( TRA )');
-  await expect(p.locator('.pericia-linha').filter({ hasText: 'Religião' }).locator('.pericia-dados')).toHaveText('( ONP )');
+  await expect(p.getByLabel('Atributo de Aparar')).toHaveValue('tracao');
+  await expect(p.getByLabel('Atributo de Religião')).toHaveValue('onipotencia');
+  await p.getByLabel('Atributo de Religião').selectOption('onisciencia');
+  await expect(p.locator('.pericia-linha').filter({ hasText: 'Religião' }).locator('.pericia-dados')).toHaveAttribute('data-trocado', 'true');
 
   /* A classe Magia fica no filtro. */
   await p.getByLabel('Filtrar perícias').selectOption('Magia');
@@ -403,13 +403,13 @@ test('totais e limites só avisam: dono e mestre passam deles, e o site mostra e
 test('magias: adicionar, conjurar com desconto de mana e continuar depois de recarregar', async ({ browser }) => {
   const p = await novaPessoa(browser, 'Maga Lia');
   await criarFicha(p, 'Conjuradora');
-  await p.getByRole('tab', { name: /^Magias/ }).click();
+  await p.getByRole('tab', { name: /^Habilidades/ }).click();
   await expect(p.getByText('Nenhuma magia ainda.')).toBeVisible();
   await p.getByRole('button', { name: 'Adicionar magia' }).click();
   await p.getByLabel('Nome da magia').fill('Faísca');
   await p.getByRole('tab', { name: /Atributos/ }).click();
   await p.getByLabel('Adicionar elemento').selectOption('fogo');
-  await p.getByRole('tab', { name: /Magias/ }).click();
+  await p.getByRole('tab', { name: /^Habilidades/ }).click();
   await p.getByLabel('Elemento', { exact: true }).selectOption({ label: 'Fogo' });
   await p.getByLabel('Custo de mana').fill('5');
   await p.getByLabel('Custo de mana').press('Enter');
@@ -422,7 +422,7 @@ test('magias: adicionar, conjurar com desconto de mana e continuar depois de rec
 
   await p.reload();
   await expect(p.locator('#v-manaAtual')).toHaveValue('25');
-  await p.getByRole('tab', { name: 'Magias (1)' }).click();
+  await p.getByRole('tab', { name: 'Habilidades (1)' }).click();
   await p.getByRole('button', { name: /^Faísca/ }).click();
   await expect(p.getByLabel('Descrição')).toHaveValue('Uma faísca pequena.');
 
@@ -672,7 +672,7 @@ test('ficha: criar elemento, dano na magia e fadiga só com o mestre', async ({ 
   await expect(jogador.getByText('Fusão de Fogo e Terra')).toBeVisible();
   await expect(jogador.getByRole('status').filter({ hasText: 'Salvo' })).toBeVisible();
 
-  await jogador.getByRole('tab', { name: /Magias/ }).click();
+  await jogador.getByRole('tab', { name: /^Habilidades/ }).click();
   await jogador.getByRole('button', { name: 'Adicionar magia' }).click();
   await jogador.getByLabel('Nome da magia').fill('Erupção');
   await jogador.getByLabel('Dano').fill('2d6+3');

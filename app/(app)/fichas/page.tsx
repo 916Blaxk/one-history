@@ -10,7 +10,7 @@ import type { Ficha, ResumoFicha } from '@/lib/tipos';
 
 const resumir = (f: Ficha): ResumoFicha => ({
   id: f.id, nome: f.nome, raca: f.raca, fotoV: f.fotoV, donoId: f.donoId, donoNome: f.contexto.donoNome, completo: true,
-  estilo: f.estilo, tier: f.tier, fadiga: f.fadiga, vidaAtual: f.vidaAtual, vidaMax: vidaMax(f), manaAtual: f.manaAtual, manaMax: manaMax(f),
+  estilo: f.estilo, fadiga: f.fadiga, vidaAtual: f.vidaAtual, vidaMax: vidaMax(f), manaAtual: f.manaAtual, manaMax: manaMax(f),
 });
 
 export default function PaginaFichas() {

@@ -28,7 +28,7 @@ export default function Magias({ magias, criados, elementos, gastoUniversal, aoM
   return (
     <div className="magias">
       <div className="cab-grupo cab-pericias">
-        <h2 className="titulo-grupo">Magias</h2>
+        <h2 className="titulo-grupo">Habilidades</h2>
         {gastoUniversal > 0 && <span className="sp-saldo">Gasto universal: −{gastoUniversal} de mana</span>}
       </div>
       {magias.length === 0 && <p className="apagado">Nenhuma magia ainda. Adicione o primeiro feitiço desta ficha.</p>}

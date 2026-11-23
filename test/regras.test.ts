@@ -8,11 +8,10 @@ describe('regras do sistema', () => {
     expect(R.vidaMax(f)).toBe(31);
   });
 
-  it('mana usa o multiplicador do tier e arredonda para baixo', () => {
-    expect(R.manaMax(R.normalizar({ mente: { onipotencia: 7 }, tier: 1 }))).toBe(44);
-    expect(R.manaMax(R.normalizar({ mente: { onipotencia: 7 }, tier: 2 }))).toBe(46); // 46,1
-    expect(R.manaMax(R.normalizar({ mente: { onipotencia: 7 }, tier: 3 }))).toBe(47); // 47,5
-    expect(R.manaMax(R.normalizar({ mente: { onipotencia: 10 }, tier: 2 }))).toBe(53); // sem erro de ponto flutuante
+  it('mana usa o multiplicador fixo, e o tier gravado em fichas antigas é ignorado', () => {
+    expect(R.manaMax(R.normalizar({ mente: { onipotencia: 7 } }))).toBe(44);
+    expect(R.manaMax(R.normalizar({ mente: { onipotencia: 7 }, tier: 3 }))).toBe(44);
+    expect(R.manaMax(R.normalizar({ mente: { onipotencia: 10 } }))).toBe(50);
   });
 
   it('estágios de fadiga nos limites do PDF', () => {
@@ -20,19 +19,19 @@ describe('regras do sistema', () => {
   });
 
   it('fim de cena reduz a mana total de forma permanente e acumulada', () => {
-    const f = R.normalizar({ mente: { onipotencia: 7 }, tier: 2, fadiga: 60 });
-    expect(f.manaAtual).toBe(46);
+    const f = R.normalizar({ mente: { onipotencia: 7 }, fadiga: 60 });
+    expect(f.manaAtual).toBe(44);
     expect(R.aplicarFimDeCena(f).perda).toBe(4);
-    expect(R.manaMax(f)).toBe(42);
-    expect(f.manaAtual).toBe(42);
-    expect(R.aplicarFimDeCena(f).perda).toBe(4); // 10% de 42
-    expect(R.manaMax(f)).toBe(38);
+    expect(R.manaMax(f)).toBe(40);
+    expect(f.manaAtual).toBe(40);
+    expect(R.aplicarFimDeCena(f).perda).toBe(4); // 10% de 40
+    expect(R.manaMax(f)).toBe(36);
   });
 
   it('fim de cena mantém a mana atual quando ela já está abaixo do novo total', () => {
-    const f = R.normalizar({ mente: { onipotencia: 7 }, tier: 2, fadiga: 99, manaAtual: 10 });
-    expect(R.aplicarFimDeCena(f).perda).toBe(23);
-    expect(R.manaMax(f)).toBe(23);
+    const f = R.normalizar({ mente: { onipotencia: 7 }, fadiga: 99, manaAtual: 10 });
+    expect(R.aplicarFimDeCena(f).perda).toBe(22);
+    expect(R.manaMax(f)).toBe(22);
     expect(f.manaAtual).toBe(10);
   });
 
@@ -62,14 +61,14 @@ describe('regras do sistema', () => {
     expect(R.apTotal(R.normalizar({ nucleo: 12 }))).toBe(214);
     expect(R.ppTotal(R.normalizar({ nucleo: 12 }))).toBe(20);
     expect(R.vidaMax(R.normalizar({ corpo: { vitalidade: 5 }, nucleo: 12 }))).toBe(25);
-    expect(R.manaMax(R.normalizar({ mente: { onipotencia: 7 }, tier: 1, nucleo: 3 }))).toBe(51);
+    expect(R.manaMax(R.normalizar({ mente: { onipotencia: 7 }, nucleo: 3 }))).toBe(51);
   });
 
   it('ficha antiga, sem núcleo nem perícias, continua com a mesma mana', () => {
-    expect(R.manaMax({ mente: { onipotencia: 7 }, tier: 1, manaPerdida: 0 } as unknown as R.DadosFicha)).toBe(44);
-    const f = R.normalizar({ mente: { onipotencia: 7 }, tier: 1, manaAtual: 44 });
+    expect(R.manaMax({ mente: { onipotencia: 7 }, manaPerdida: 0 } as unknown as R.DadosFicha)).toBe(44);
+    const f = R.normalizar({ mente: { onipotencia: 7 }, manaAtual: 44 });
     expect(f.nucleo).toBe(0);
-    expect(Object.keys(f.pericias)).toHaveLength(55);
+    expect(Object.keys(f.pericias)).toHaveLength(56);
     expect(f.pericias.sorte).toBe(0);
     expect(f.manaAtual).toBe(44);
   });
@@ -121,7 +120,7 @@ describe('regras do sistema', () => {
   });
 
   it('ajuste do mestre fica por cima da fórmula e a perda de cena continua valendo', () => {
-    const f = R.normalizar({ corpo: { vitalidade: 5 }, mente: { onipotencia: 7 }, tier: 1, fadiga: 60, ajustes: { vida: 15, mana: 10, sp: 5 } });
+    const f = R.normalizar({ corpo: { vitalidade: 5 }, mente: { onipotencia: 7 }, fadiga: 60, ajustes: { vida: 15, mana: 10, sp: 5 } });
     expect(R.vidaMax(f)).toBe(40);
     f.corpo.vitalidade = 6;
     expect(R.vidaMax(f)).toBe(42);
@@ -194,15 +193,23 @@ describe('regras do sistema', () => {
     const chaves = R.GRUPOS.pericias.map(([k]) => k);
     expect(new Set(chaves).size).toBe(chaves.length);
     for (const k of ['encantar', 'tecnologia', 'extracaoNucleo', 'metalurgica', 'sorte']) expect(chaves).toContain(k);
-    expect(chaves).toHaveLength(55);
+    expect(chaves).toHaveLength(56);
   });
 
-  it('cada perícia tem o atributo da lista do sistema, menos Sorte', () => {
+  it('cada perícia tem o atributo da lista do sistema, menos Combate e Sorte', () => {
     const semAtributo = R.GRUPOS.pericias.map(([k]) => k).filter(k => !R.ATRIBUTO_DA_PERICIA[k]);
-    expect(semAtributo).toEqual(['sorte']);
+    expect(semAtributo).toEqual(['combate', 'sorte']);
     expect(R.ATRIBUTO_DA_PERICIA.aparar).toBe('tracao');
     expect(R.ATRIBUTO_DA_PERICIA.religiao).toBe('onipotencia');
     expect(R.ATRIBUTO_DA_PERICIA.seducao).toBe('encanto');
+  });
+
+  it('o atributo escolhido na ficha troca o padrão, e escolha inválida ou igual ao padrão não é guardada', () => {
+    const f = R.normalizar({ corpo: { tracao: 15 }, periciasAtributo: { esquiva: 'tracao', aparar: 'tracao', combate: 'tracao', sorte: 'inventado', inventada: 'tracao' } });
+    expect(f.periciasAtributo).toEqual({ esquiva: 'tracao', combate: 'tracao' });
+    expect(R.vantagemDaRolagem(f, 'pericias', 'esquiva')).toBe(1);
+    expect(R.vantagemDaRolagem(f, 'pericias', 'combate')).toBe(1);
+    expect(R.vantagemDaRolagem(f, 'pericias', 'sorte')).toBe(0);
   });
 
   it('outros soma na rolagem, mas os PP vêm do treino', () => {
@@ -223,7 +230,7 @@ describe('regras do sistema', () => {
     const f = R.normalizar({ hack: 1, fadiga: 500, tier: 9, corpo: { tracao: -3 }, nome: 5 }) as unknown as Record<string, unknown> & { corpo: Record<string, number> };
     expect(f.hack).toBeUndefined();
     expect(f.fadiga).toBe(100);
-    expect(f.tier).toBe(1);
+    expect(f.tier).toBeUndefined();
     expect(f.corpo.tracao).toBe(0);
     expect(f.nome).toBe('');
   });

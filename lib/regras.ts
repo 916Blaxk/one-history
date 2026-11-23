@@ -1,7 +1,7 @@
 /* Regras do sistema ONE HISTORY. Roda no navegador e no servidor. */
 
 export const PERICIAS: readonly { categoria: string; itens: readonly (readonly [string, string, string])[] }[] = [
-  { categoria: 'Combate', itens: [['lutaDesarmada', 'Luta desarmada', 'Atacar e se defender sem armas.'], ['esquiva', 'Esquiva', 'Sair do caminho de um ataque ou perigo.'], ['aparar', 'Aparar', 'Bloquear ou desviar um golpe com arma ou escudo.'], ['arremesso', 'Arremesso', 'Lançar objetos e armas de arremesso com precisão.']] },
+  { categoria: 'Combate', itens: [['combate', 'Combate', 'Lutar com armas e técnicas de combate.'], ['lutaDesarmada', 'Luta desarmada', 'Atacar e se defender sem armas.'], ['esquiva', 'Esquiva', 'Sair do caminho de um ataque ou perigo.'], ['aparar', 'Aparar', 'Bloquear ou desviar um golpe com arma ou escudo.'], ['arremesso', 'Arremesso', 'Lançar objetos e armas de arremesso com precisão.']] },
   { categoria: 'Magia', itens: [['encantar', 'Encantar', 'Imbuir objetos com efeitos mágicos.'], ['canalizacaoMagica', 'Canalização mágica', 'Conduzir mana pelo corpo ou por um objeto com estabilidade.'], ['controleMana', 'Controle de mana', 'Dosar a mana e evitar desperdício ou descontrole.'], ['ritualistica', 'Ritualística', 'Conduzir rituais e entender seus círculos e etapas.'], ['identificacaoMagica', 'Identificação mágica', 'Reconhecer magias, encantamentos e seus efeitos.'], ['extracaoNucleo', 'Extração de núcleo', 'Retirar o núcleo de uma criatura sem danificá-lo.'], ['resistenciaEspiritual', 'Resistência espiritual', 'Resistir a influências sobre a mente e o espírito.']] },
   { categoria: 'Físicas e movimentação', itens: [['acrobacia', 'Acrobacia', 'Saltar, rolar e fazer manobras corporais.'], ['escalada', 'Escalada', 'Subir muros, árvores e encostas.'], ['natacao', 'Natação', 'Nadar, mergulhar e resistir a correntezas.'], ['corrida', 'Corrida', 'Correr rápido e manter o ritmo em perseguições.'], ['equilibrio', 'Equilíbrio', 'Manter-se de pé em superfícies estreitas ou instáveis.'], ['furtividade', 'Furtividade', 'Mover-se sem ser visto ou ouvido.'], ['sobrevivencia', 'Sobrevivência', 'Achar abrigo, água e caminho em ambientes hostis.']] },
   { categoria: 'Conhecimento', itens: [['historia', 'História', 'Conhecer eventos, povos e figuras do passado.'], ['geografia', 'Geografia', 'Conhecer regiões, rotas, climas e mapas.'], ['religiao', 'Religião', 'Conhecer crenças, cultos, ritos e símbolos sagrados.'], ['mitologia', 'Mitologia', 'Conhecer lendas, deuses e contos antigos.'], ['investigacao', 'Investigação', 'Procurar pistas e deduzir o que aconteceu.'], ['medicina', 'Medicina', 'Diagnosticar e tratar ferimentos e doenças sem magia.'], ['alquimia', 'Alquimia', 'Identificar e preparar poções, venenos e reagentes.'], ['engenharia', 'Engenharia', 'Projetar, entender e consertar máquinas e mecanismos.'], ['arquitetura', 'Arquitetura', 'Entender construções, estruturas e seus pontos fracos.'], ['matematica', 'Matemática', 'Fazer cálculos e resolver problemas lógicos.'], ['linguistica', 'Linguística', 'Entender idiomas, dialetos e escritas desconhecidas.'], ['estrategiaMilitar', 'Estratégia militar', 'Planejar batalhas e ler táticas inimigas.'], ['tecnologia', 'Tecnologia', 'Entender e operar dispositivos avançados.']] },
@@ -10,9 +10,11 @@ export const PERICIAS: readonly { categoria: string; itens: readonly (readonly [
   { categoria: 'Profissões e ofícios', itens: [['profissao', 'Profissão', 'Exercer um ofício escolhido pelo personagem.'], ['musica', 'Música', 'Tocar instrumentos, cantar e compor.'], ['danca', 'Dança', 'Dançar com técnica, em apresentações ou eventos.'], ['escultura', 'Escultura', 'Criar e avaliar obras em pedra, madeira ou argila.'], ['criptografia', 'Criptografia', 'Criar e decifrar códigos e mensagens secretas.'], ['conhecimentoCriaturas', 'Conhecimento de criaturas', 'Identificar criaturas, seus hábitos e fraquezas.'], ['conhecimentoArtefatos', 'Conhecimento de artefatos', 'Reconhecer artefatos, sua origem e sua função.'], ['metalurgica', 'Metalúrgica', 'Trabalhar metais e forjar peças.']] },
 ];
 
-export type AtributoPericia = 'destreza' | 'tracao' | 'onisciencia' | 'onipotencia' | 'encanto';
+/* As chaves `onisciencia` e `onipotencia` ficaram com o nome antigo para não migrar as fichas gravadas. Na tela, são Genialidade e Determinação. */
+export type AtributoPericia = 'destreza' | 'tracao' | 'vitalidade' | 'onisciencia' | 'onipotencia' | 'encanto';
+export const ATRIBUTOS: readonly AtributoPericia[] = ['tracao', 'vitalidade', 'destreza', 'onisciencia', 'onipotencia', 'encanto'];
 const deAtributo = (atributo: AtributoPericia, chaves: string) => Object.fromEntries(chaves.split(' ').map(k => [k, atributo]));
-/* O atributo de cada perícia, da lista do sistema. Ele dá vantagem na rolagem, mas seu valor não soma no resultado. Sorte não está na lista. */
+/* O atributo padrão de cada perícia, da lista do sistema. Ele dá vantagem na rolagem, mas seu valor não soma no resultado. Sorte e Combate não estão na lista. */
 export const ATRIBUTO_DA_PERICIA: Readonly<Record<string, AtributoPericia | undefined>> = {
   ...deAtributo('destreza', 'lutaDesarmada esquiva acrobacia escalada natacao corrida equilibrio furtividade arrombamento truques pilotagem danca'),
   ...deAtributo('tracao', 'aparar arremesso'),
@@ -31,15 +33,16 @@ export const GRUPOS = {
     ['destreza', 'Destreza', 'Capacidade de se mexer rapidamente.'],
   ],
   mente: [
-    ['onisciencia', 'Onisciência', 'Seu nível de conhecimento.'],
-    ['onipotencia', 'Onipotência', 'Soma na mana.'],
+    ['onisciencia', 'Genialidade', 'Seu nível de conhecimento.'],
+    ['onipotencia', 'Determinação', 'Soma na mana.'],
     ['encanto', 'Encanto', ''],
   ],
 } as const satisfies Record<string, readonly (readonly string[])[]>;
 
 export type Grupo = keyof typeof GRUPOS;
 export const NOMES_GRUPOS = Object.keys(GRUPOS) as Grupo[];
-export const TIERS: Record<number, number> = { 1: 2, 2: 2.3, 3: 2.5 };
+/* O tier saiu do sistema: toda ficha usa o multiplicador que era do tier 1. */
+export const MULTIPLICADOR_MANA = 2;
 export const DADOS = [4, 6, 8, 10, 12, 20, 100];
 
 export interface Estagio { min: number; nome: string; txt: string; perda?: number }
@@ -92,7 +95,7 @@ export const LIMITE_NOTAS_MONSTRO = 4000;
 
 export interface DadosFicha {
   player: string; nome: string; idade: string; raca: string; estilo: string;
-  tier: number; inventario: string; notas: string;
+  inventario: string; notas: string;
   manaPerdida: number; fadiga: number; vidaAtual: number; manaAtual: number; nucleo: number;
   elementos: Record<string, number>; armas: Record<string, number>;
   corpo: Record<string, number>; mente: Record<string, number>; pericias: Record<string, number>;
@@ -102,6 +105,8 @@ export interface DadosFicha {
   elementosCriados: ElementoCriado[];
   /* Bônus livre de cada perícia. Soma na rolagem, mas não gasta PP, que vem do treino. */
   periciasOutros: Record<string, number>;
+  /* Atributo escolhido na ficha no lugar do padrão da perícia. Sem entrada, vale `ATRIBUTO_DA_PERICIA`. */
+  periciasAtributo: Record<string, AtributoPericia>;
   /* Elementos base que o personagem tem. A ficha começa sem nenhum, e o jogador adiciona os dele. */
   elementosAtivos: string[];
   habilidades: Habilidade[];
@@ -110,7 +115,7 @@ export interface DadosFicha {
 }
 
 type BaseVida = Pick<DadosFicha, 'corpo' | 'ajustes'>;
-type BaseMana = Pick<DadosFicha, 'mente' | 'tier' | 'manaPerdida' | 'nucleo' | 'ajustes'>;
+type BaseMana = Pick<DadosFicha, 'mente' | 'manaPerdida' | 'nucleo' | 'ajustes'>;
 
 /* Cada estágio soma ao que os anteriores já deram. Fichas gravadas antes do núcleo não têm o campo e ficam no primeiro estágio. */
 export function bonusNucleo(estagioNucleo: number | undefined) {
@@ -138,10 +143,13 @@ export const PONTOS_POR_VANTAGEM = 15;
 export const vantagemDosPontos = (pontos: number) => Math.floor(pontos / PONTOS_POR_VANTAGEM);
 /* Armas e elementos somam 1/3 do valor, para baixo: com 15, são 1 dado de vantagem e +5. */
 export const somaDosPontos = (pontos: number) => Math.floor(pontos / 3);
+/* O atributo escolhido na ficha vale mais que o padrão. Fichas antigas não têm `periciasAtributo`. */
+export const atributoDaPericia = (f: Partial<Pick<DadosFicha, 'periciasAtributo'>>, chave: string): AtributoPericia | undefined =>
+  f.periciasAtributo?.[chave] ?? ATRIBUTO_DA_PERICIA[chave];
 /* Regra do criador do sistema. A perícia usa os pontos do atributo dela, e Sorte não tem atributo. */
-export function vantagemDaRolagem(f: Pick<DadosFicha, 'corpo' | 'mente' | 'elementos' | 'armas'>, grupo: Grupo, chave: string) {
+export function vantagemDaRolagem(f: Pick<DadosFicha, 'corpo' | 'mente' | 'elementos' | 'armas'> & Partial<Pick<DadosFicha, 'periciasAtributo'>>, grupo: Grupo, chave: string) {
   if (grupo !== 'pericias') return vantagemDosPontos(f[grupo][chave] ?? 0);
-  const atributo = ATRIBUTO_DA_PERICIA[chave];
+  const atributo = atributoDaPericia(f, chave);
   return atributo ? vantagemDosPontos(f.corpo[atributo] ?? f.mente[atributo] ?? 0) : 0;
 }
 /* Atributo é bruto: dá vantagem, mas o valor dele não soma no resultado, nem na rolagem dele mesmo. */
@@ -156,7 +164,7 @@ export const custoMagia = (f: Pick<DadosFicha, 'nucleo'>, m: Pick<Magia, 'custo'
 /* O ajuste fica por cima da fórmula: subir atributo continua valendo. Fichas antigas não têm `ajustes`. */
 export const vidaMax = (f: BaseVida) => Math.max(0, 15 + f.corpo.vitalidade * 2 + (f.ajustes?.vida ?? 0));
 /* Todo arredondamento do sistema é para baixo. O 1e-9 evita que 10 × 2,3 vire 22,999… e perca um ponto. */
-export const manaBase = (f: Omit<BaseMana, 'manaPerdida'>) => Math.floor(30 + f.mente.onipotencia * TIERS[f.tier] + 1e-9) + bonusNucleo(f.nucleo).mana + (f.ajustes?.mana ?? 0);
+export const manaBase = (f: Omit<BaseMana, 'manaPerdida'>) => Math.floor(30 + f.mente.onipotencia * MULTIPLICADOR_MANA + 1e-9) + bonusNucleo(f.nucleo).mana + (f.ajustes?.mana ?? 0);
 export const manaMax = (f: BaseMana) => Math.max(0, manaBase(f) - f.manaPerdida);
 
 export function estagio(pct: number): Estagio {
@@ -258,7 +266,6 @@ export function normalizar(entrada: unknown): DadosFicha {
   const f: DadosFicha = {
     player: texto(o.player, 80), nome: texto(o.nome, 80), idade: texto(String(o.idade ?? ''), 20),
     raca: texto(o.raca, 60), estilo: texto(o.estilo, 80),
-    tier: TIERS[Number(o.tier)] ? Number(o.tier) : 1,
     inventario: texto(o.inventario, 8000), notas: texto(o.notas, 12000),
     manaPerdida: inteiro(o.manaPerdida, 0, 99999),
     fadiga: inteiro(o.fadiga, 0, 100),
@@ -277,6 +284,7 @@ export function normalizar(entrada: unknown): DadosFicha {
     magias: normalizarMagias(o.magias, elementosCriados),
     elementosCriados,
     periciasOutros: {},
+    periciasAtributo: {},
     elementosAtivos: Array.isArray(o.elementosAtivos) ? GRUPOS.elementos.map(([k]) => k as string).filter(k => (o.elementosAtivos as unknown[]).includes(k)) : [],
     habilidades: normalizarHabilidades(o.habilidades),
     publica: o.publica === true,
@@ -289,6 +297,9 @@ export function normalizar(entrada: unknown): DadosFicha {
   for (const [k] of GRUPOS.pericias) {
     const outros = inteiro(outrosPericias[k] ?? 0, 0, 999);
     if (outros) f.periciasOutros[k] = outros;
+    /* Escolha igual ao padrão não é guardada: se o padrão mudar, a ficha acompanha. */
+    const atributo = objeto(o.periciasAtributo)[k];
+    if (ATRIBUTOS.includes(atributo as AtributoPericia) && atributo !== ATRIBUTO_DA_PERICIA[k]) f.periciasAtributo[k] = atributo as AtributoPericia;
   }
   for (const { id } of elementosCriados) {
     const limite = limites[chaveCriado(id)];

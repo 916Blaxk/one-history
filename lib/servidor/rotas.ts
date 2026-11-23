@@ -18,7 +18,7 @@ const LIMITE_FICHAS = 200, LIMITE_CAMPANHAS = 50, LIMITE_MEMBROS = 60;
 const LIMITE_ROLAGENS = 500, PAGINA_CHAT = 50;
 const ALFABETO_CODIGO = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 const FOTO_VALIDA = /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/;
-const CAMPOS_FICHA = new Set(['player', 'nome', 'idade', 'raca', 'estilo', 'tier', 'inventario', 'notas', 'manaPerdida', 'fadiga', 'vidaAtual', 'manaAtual', 'nucleo', 'magias', 'elementosCriados', 'elementosAtivos', 'habilidades', 'periciasOutros']);
+const CAMPOS_FICHA = new Set(['player', 'nome', 'idade', 'raca', 'estilo', 'inventario', 'notas', 'manaPerdida', 'fadiga', 'vidaAtual', 'manaAtual', 'nucleo', 'magias', 'elementosCriados', 'elementosAtivos', 'habilidades', 'periciasOutros', 'periciasAtributo']);
 const JANELA_MS = 15 * 60 * 1000;
 
 export class Erro extends Error {
@@ -171,7 +171,7 @@ function resumoFicha(f: LinhaFicha, usuarioId: string, mestreId: string, nomes: 
   /* Vida, mana e fadiga dos outros não saem do servidor para quem não é mestre. */
   if (f.donoId !== usuarioId && mestreId !== usuarioId) return { ...base, completo: false };
   return {
-    ...base, completo: true, ...(mestreId === usuarioId && f.donoId === mestreId ? { privada: R.fichaPrivada(f, mestreId) } : {}), estilo: f.dados.estilo, tier: f.dados.tier, fadiga: f.dados.fadiga,
+    ...base, completo: true, ...(mestreId === usuarioId && f.donoId === mestreId ? { privada: R.fichaPrivada(f, mestreId) } : {}), estilo: f.dados.estilo, fadiga: f.dados.fadiga,
     vidaAtual: f.dados.vidaAtual, vidaMax: R.vidaMax(f.dados), manaAtual: f.dados.manaAtual, manaMax: R.manaMax(f.dados),
   };
 }
