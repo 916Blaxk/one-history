@@ -1,12 +1,13 @@
 # Próximos passos
 
-Última atualização: 8 de novembro de 2026.
+Última atualização: 23 de novembro de 2026.
 
 ## Situação
 
-- **Site:** https://one-history-production.up.railway.app
-- **Publicação:** cada envio para a branch `main` publica sozinho no Railway. Veja [publicar.md](publicar.md).
-- **Banco:** SQLite em volume do Railway, montado em `/data`, com 500 MB.
+- **Site:** https://one-history.onrender.com, no plano grátis do Render desde 23 de novembro de 2026. Dorme depois de 15 minutos sem acesso e leva cerca de 1 minuto para acordar.
+- **Publicação:** cada envio para a branch `main` publica sozinho no Render, pelo `render.yaml`. Veja [migrar-para-render.md](migrar-para-render.md).
+- **Banco:** Turso grátis, `libsql://one-history-gxrcia.aws-us-east-1.turso.io`, na região AWS us-east-1. Os dados do Railway foram copiados em 23 de novembro de 2026, às 21h55 de Brasília. O workflow `Manter acordado` visita o site todo dia, para o Turso não arquivar o banco.
+- **Railway:** o site antigo, https://one-history-production.up.railway.app, continua ligado por alguns dias como reserva. O que for gravado nele depois da cópia não passa para o Turso.
 - **Forma de trabalho:** direto na `main`, com commit e envio ao terminar cada tarefa, depois dos testes.
 - **Regras e perícias:** decisões em [pericias.md](pericias.md).
 
@@ -41,6 +42,8 @@ Nenhuma no momento.
 - **Retirada de fundo (6 de novembro de 2026):** feita por cor, no navegador, nas imagens do token, com uma barra de força. Funciona melhor em fundo liso; foto com fundo complexo pediria um modelo de IA, cerca de 55 MB na primeira vez.
 
 ## Pendências
+
+- **Trocar de vez para o Render:** conferir o site novo com uma conta real, passar o endereço aos jogadores e, depois de alguns dias, parar o Railway. Antes de apagar o Railway, apagar a tarefa `One History - baixar backup` e passar a copiar do Turso. Veja o passo 6 de [migrar-para-render.md](migrar-para-render.md).
 
 - **Sair do Railway (23 de novembro de 2026):** o usuário quer hospedagem grátis. Decidido: Render no plano grátis, com o banco no Turso. O `render.yaml` está pronto, e o passo a passo está em [migrar-para-render.md](migrar-para-render.md). Falta criar as contas, copiar os dados e criar o serviço.
 - **Botões de apagar e o nome "magia":** falta o usuário responder se o problema era não achar os botões de apagar ficha e campanha, e se "Adicionar magia", "Magia sem nome" e "Conjurar" viram "habilidade".
