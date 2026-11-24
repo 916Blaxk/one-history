@@ -74,6 +74,7 @@ Para conferir, abra o banco no painel do Turso, vá no editor de SQL e rode `SEL
 
 4. Confirme e espere o primeiro deploy, que leva alguns minutos. O log deve terminar com `One History em http://localhost:...`.
 5. O endereço do site aparece no topo do serviço, algo como `https://one-history.onrender.com`.
+6. No GitHub, abra o repositório em **Settings > Secrets and variables > Actions > Variables** e crie a variável `URL_SITE` com esse endereço. O workflow `Manter acordado` visita o site uma vez por dia, para o Turso não arquivar o banco depois de 10 dias sem uso. Para testar, rode o workflow pela aba **Actions**, em **Run workflow**. Ele deve terminar com `HTTP 401`, que é a resposta esperada.
 
 Não defina `NODE_ENV=production`, porque o build precisa das dependências de desenvolvimento. Não aumente o número de instâncias: duas instâncias teriam mesas diferentes na memória.
 

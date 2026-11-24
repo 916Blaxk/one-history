@@ -1,0 +1,38 @@
+name: Manter acordado
+
+# Uma visita por dia ao site no Render. O banco grátis do Turso é arquivado depois de 10 dias sem uso,
+# e o grupo pode passar mais que isso sem jogar. Cada visita acorda o Render por cerca de 15 minutos,
+# perto de 8 das 750 horas grátis do mês.
+on:
+  schedule:
+    # 12:00 UTC, 9:00 em Brasília.
+    - cron: '0 12 * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  visitar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Visitar o site
+        env:
+          # Variável do repositório, em Settings > Secrets and variables > Actions > Variables.
+          URL_SITE: ${{ vars.URL_SITE }}
+        run: |
+          if [ -z "$URL_SITE" ]; then
+            echo "::notice::Defina a variável URL_SITE com o endereço do site no Render."
+            exit 0
+          fi
+          # Com um cookie de sessão qualquer, a API procura a sessão no banco antes de recusar com 401.
+          # Assim a visita toca o Turso, e não só o servidor. O Render pode levar até 2 minutos para acordar.
+          for tentativa in 1 2 3; do
+            status=$(curl -s -o /dev/null -w '%{http_code}' --max-time 180 \
+              -H 'Cookie: oh_sessao=manter-acordado' "${URL_SITE%/}/api/conta" || true)
+            echo "Tentativa $tentativa: HTTP $status"
+            if [ "$status" = "401" ]; then exit 0; fi
+            sleep 30
+          done
+          echo "::error::O site não respondeu 401. Veja se o Render está no ar e se o banco do Turso não foi arquivado."
+          exit 1
