@@ -570,7 +570,8 @@ test('campanha: mestre convida, jogador entra pelo link, tudo aparece ao vivo', 
   /* A rolagem do jogador cai no registro da mesa do mestre. */
   await jogador.getByRole('button', { name: 'Rolar d20 de Destreza' }).click();
   await mestre.getByRole('link', { name: /Voltar para A Queda de Vael/ }).click();
-  const rolagemTheo = mestre.locator('.chat-painel .msg').filter({ hasText: 'Theo' }).first();
+  await mestre.getByRole('button', { name: 'Chat de dados' }).click();
+  const rolagemTheo = mestre.locator('.chat-flutuante .msg').filter({ hasText: 'Theo' }).first();
   await expect(rolagemTheo).toContainText('Destreza');
   await expect(rolagemTheo).toContainText('d20');
   await expect(rolagemTheo).not.toHaveClass(/msg-minha/);
@@ -579,15 +580,17 @@ test('campanha: mestre convida, jogador entra pelo link, tudo aparece ao vivo', 
   await expect(jogador.locator('.chat-popup .msg-rotulo')).toHaveText('Destreza');
   await jogador.getByRole('button', { name: 'Fechar o resultado da rolagem' }).click();
   await jogador.locator('.chat-pilula').click();
-  await mestre.locator('.chat-painel').getByRole('button', { name: 'Rolar d100' }).click();
-  await expect(mestre.locator('.chat-painel .msg-minha')).toHaveCount(1);
+  await mestre.locator('.chat-flutuante').getByRole('button', { name: 'Rolar d100' }).click();
+  await expect(mestre.locator('.chat-flutuante .msg-minha')).toHaveCount(1);
   await expect(jogador.locator('.chat-flutuante .msg').filter({ hasText: 'Mestra Dora' })).toHaveCount(1, { timeout: 10000 });
   await jogador.locator('.chat-fechar').click();
-  await mestre.locator('.chat-painel').getByRole('button', { name: 'Rolar d4', exact: true }).click();
+  await mestre.locator('.chat-flutuante').getByRole('button', { name: 'Rolar d4', exact: true }).click();
   await expect(jogador.locator('.chat-contagem')).toHaveText('1', { timeout: 10000 });
   await expect(jogador.locator('.chat-flutuante')).toHaveCount(0);
   await jogador.locator('.chat-pilula').click();
   await expect(jogador.locator('.chat-flutuante .msg').filter({ hasText: 'Mestra Dora' })).toHaveCount(2);
+  /* Aberto, o chat cobre a coluna lateral da campanha: o mestre recolhe para voltar a ela. */
+  await mestre.getByRole('button', { name: 'Recolher o chat de dados' }).click();
 
   /* Um terceiro entra pelo código e não vê a vida dos outros. */
   const codigo = (await mestre.locator('#codigo-convite').textContent())!;

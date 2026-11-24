@@ -372,7 +372,7 @@ export function ChatPanel({
           onClick={() => setIsOpen((open) => !open)}
         >
           <MessageCircle size={19} />
-          <span>{isOpen ? 'Fechar chat' : 'Chat'}</span>
+          <span className="chat-toggle-texto">{isOpen ? 'Fechar chat' : 'Chat da mesa'}</span>
           {messages.length > 0 && !isOpen && <b>{messages.length}</b>}
         </button>
       )}

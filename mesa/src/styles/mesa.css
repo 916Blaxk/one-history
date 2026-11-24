@@ -847,11 +847,6 @@ button:disabled {
   gap: 10px;
   font-family: var(--mesa-texto);
 }
-@media (min-width: 1100px) {
-  .chat-widget {
-    right: 380px;
-  }
-}
 .chat-toggle {
   display: flex;
   align-items: center;
@@ -2349,4 +2344,102 @@ button:disabled {
 }
 .token-biblioteca-button:hover {
   background: #8fb0ff1a;
+}
+
+/* Chat da mesa na lateral direita, como no C.R.I.S, a pedido dos jogadores.
+   No computador, uma aba presa na borda abre e recolhe um painel da altura da tela.
+   No celular, o botão Chat da barra de baixo continua, mas o painel entra pela direita. */
+@keyframes chat-deslizar {
+  from {
+    translate: 100% 0;
+  }
+  to {
+    translate: 0 0;
+  }
+}
+@media (min-width: 769px) {
+  .chat-widget {
+    display: contents;
+  }
+  .chat-toggle,
+  .chat-toggle:hover {
+    position: fixed;
+    z-index: 7;
+    top: 50%;
+    right: 0;
+    translate: 0 -50%;
+    flex-direction: column;
+    gap: 10px;
+    width: 40px;
+    min-height: 0;
+    padding: 14px 0;
+    border: 1px solid #8b5cf6;
+    border-right: 0;
+    border-radius: 8px 0 0 8px;
+    background: linear-gradient(180deg, #4f7bff, #8b5cf6);
+    color: #0b0e1a;
+    box-shadow: -4px 0 16px #0008;
+    transition: right 0.2s ease-out;
+  }
+  .chat-toggle.is-open {
+    right: min(370px, calc(100vw - 40px));
+    background: linear-gradient(180deg, #4f7bff, #8b5cf6);
+    color: #0b0e1a;
+  }
+  /* Os controles do mapa ficam na direita: abre espaço para a aba não tapar nenhum deles. */
+  .map-panel {
+    right: 52px;
+  }
+  .chat-toggle-texto {
+    writing-mode: vertical-rl;
+    rotate: 180deg;
+    white-space: nowrap;
+  }
+  .chat-widget .chat-panel {
+    position: fixed;
+    z-index: 6;
+    inset: 0 0 0 auto;
+    width: min(370px, calc(100vw - 40px));
+    height: auto;
+    min-height: 0;
+    border-width: 0 0 0 1px;
+    border-color: #8b5cf6;
+    border-radius: 0;
+    background: #141a2ef5;
+    animation: chat-deslizar 0.2s ease-out;
+  }
+}
+@media (max-width: 768px) {
+  .chat-panel.mobile-bottom-sheet {
+    inset: 0 0 calc(var(--mobile-nav-height) + var(--virtual-keyboard-inset)) auto !important;
+    width: min(88vw, 370px) !important;
+    height: auto !important;
+    max-height: none !important;
+    border: 0 !important;
+    border-left: 1px solid #8b5cf6 !important;
+    border-radius: 0 !important;
+    animation: chat-deslizar 0.2s ease-out;
+  }
+  .chat-panel .mobile-sheet-handle {
+    display: none;
+  }
+  /* A caixa de quem está conectado fica fora do mapa, numa camada acima, e taparia o X do chat. */
+  body:has(.chat-panel.mobile-bottom-sheet) .room-presence {
+    display: none;
+  }
+  .chat-keyboard-open .chat-panel.mobile-bottom-sheet {
+    top: auto !important;
+    bottom: var(--virtual-keyboard-inset) !important;
+    height: var(--visual-viewport-height) !important;
+    max-height: none !important;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .chat-widget .chat-panel,
+  .chat-panel.mobile-bottom-sheet {
+    animation: none;
+  }
+  .chat-toggle {
+    transition: none;
+  }
 }

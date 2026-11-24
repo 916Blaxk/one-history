@@ -195,8 +195,6 @@ a.camp-linha:hover .rol-nome{color:var(--primary-claro)}
 .msg-nova{animation:chegar .22s ease-out}
 .chat-rolar{display:grid;gap:8px;padding-top:10px;border-top:1px solid var(--border)}
 
-.chat-painel{grid-template-rows:auto minmax(0,380px) auto}
-.chat-painel .chat-lista{height:380px}
 
 .chat-pilula:hover{background:var(--secondary);outline:1px solid var(--primary-claro)}
 .chat-contagem{min-width:22px;padding:3px 6px;background:var(--capitular-letra);color:#131a3d;border-radius:2px;text-align:center;font:700 13px/1.1 var(--f-texto)}
@@ -538,8 +536,6 @@ a.rol-linha:hover,a.camp-linha:hover{background:transparent}
   .busca{max-width:none;flex-basis:100%}
   .rol-acao{gap:8px}
   .rol-acao .btn{flex:1 1 0}
-  .chat-painel{grid-template-rows:auto minmax(0,220px) auto}
-  .chat-painel .chat-lista{height:220px}
 
   /* Entrada: a marca aparece, mas o formulário já cabe na primeira tela */
   .entrada{gap:22px;padding-block:24px 32px;align-items:start}

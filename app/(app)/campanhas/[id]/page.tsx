@@ -4,7 +4,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
 import useSWR from 'swr';
 import { toast } from 'sonner';
-import { CorpoChat } from '@/components/Chat';
+import { ChatFlutuante } from '@/components/Chat';
 import { BotaoConfirmar } from '@/components/comuns';
 import { CabecalhoRol, LinhaFicha } from '@/components/LinhaFicha';
 import { api, buscar, mensagem } from '@/lib/cliente';
@@ -146,16 +146,6 @@ export default function PaginaCampanha() {
             </section>
           )}
 
-          <section className="painel chat-painel" aria-label="Chat de dados">
-            <h2 className="titulo-grupo">Chat de dados</h2>
-            <CorpoChat chat={chat} aoRolar={async (lados, bonus) => {
-              try {
-                const r = await api<{ rolagem: Mensagem }>('POST', `${url}/rolar`, { lados, bonus });
-                chat.receber(r.rolagem);
-              } catch (e) { toast.error(mensagem(e)); }
-            }} />
-          </section>
-
           <section className="painel">
             <h2 className="titulo-grupo">Pessoas</h2>
             <ul>
@@ -208,6 +198,17 @@ export default function PaginaCampanha() {
           )}
         </div>
       </div>
+      {/* O mesmo chat lateral da ficha: os jogadores reclamaram do chat preso numa coluna, que no celular ficava lá embaixo. */}
+      <ChatFlutuante
+        chat={chat}
+        escopo={`${c.nome}: todos da mesa veem`}
+        aoRolar={async (lados, bonus) => {
+          try {
+            const r = await api<{ rolagem: Mensagem }>('POST', `${url}/rolar`, { lados, bonus });
+            chat.receber(r.rolagem);
+          } catch (e) { toast.error(mensagem(e)); }
+        }}
+      />
     </>
   );
 }
