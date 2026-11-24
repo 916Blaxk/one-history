@@ -510,6 +510,19 @@ test('chat de dados: o d20 não fica coberto pelo pop-up nem pelo chat aberto no
   await expect(p.locator('.chat-flutuante .msg')).toHaveCount(2);
   await p.getByRole('button', { name: 'Rolar d20 de Destreza' }).click();
   await expect(p.locator('.chat-flutuante .msg')).toHaveCount(3);
+
+  /* Aberto, o chat fica preso na lateral direita, da altura da tela, e não no fim da página.
+     A regra dos painéis já o deixou em position:relative, e ele ia parar lá embaixo. */
+  await p.evaluate(() => window.scrollTo(0, 0));
+  await p.locator('.chat-flutuante').evaluate(el => Promise.all(el.getAnimations().map(a => a.finished)));
+  const painel = (await p.locator('.chat-flutuante').boundingBox())!;
+  expect(painel.y).toBe(0);
+  expect(painel.height).toBe(800);
+  expect(Math.round(painel.x + painel.width)).toBe(1280);
+
+  /* A aba presa na borda do painel recolhe o chat. */
+  await p.getByRole('button', { name: 'Recolher o chat de dados' }).click();
+  await expect(p.locator('.chat-flutuante')).toHaveCount(0);
 });
 
 test('campanha: mestre convida, jogador entra pelo link, tudo aparece ao vivo', async ({ browser }) => {

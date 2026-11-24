@@ -198,24 +198,15 @@ a.camp-linha:hover .rol-nome{color:var(--primary-claro)}
 .chat-painel{grid-template-rows:auto minmax(0,380px) auto}
 .chat-painel .chat-lista{height:380px}
 
-.chat-pilula{position:fixed;z-index:10;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:8px 16px;background:var(--secondary);color:var(--sobre-gradiente);border:1px solid var(--primary-claro);border-radius:2px;font:700 15px/1 var(--f-rotulo);letter-spacing:.05em;box-shadow:0 4px 14px rgb(0 0 0 / .28)}
 .chat-pilula:hover{background:var(--secondary);outline:1px solid var(--primary-claro)}
 .chat-contagem{min-width:22px;padding:3px 6px;background:var(--capitular-letra);color:#131a3d;border-radius:2px;text-align:center;font:700 13px/1.1 var(--f-texto)}
-.chat-flutuante{position:fixed;z-index:10;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));width:340px;height:min(560px,calc(100dvh - 32px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px)));display:grid;grid-template-rows:auto minmax(0,1fr) auto;gap:10px;padding:12px;background:var(--surface);border:1px solid var(--border);border-top:3px double var(--primary-claro);box-shadow:0 8px 28px rgb(0 0 0 / .32)}
 .chat-cab{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
 .chat-escopo{margin-top:2px;font-size:13px;line-height:1.25;color:var(--text-muted);overflow-wrap:anywhere}
 .chat-fechar{flex:none;width:32px;height:32px;padding:0;background:transparent;border:1px solid var(--border);border-radius:2px;font-size:20px;line-height:1;color:var(--text-muted)}
 .chat-fechar:hover{border-color:var(--primary-claro);color:var(--primary-claro)}
-/* Fica logo acima da pílula, que continua à mão para abrir o chat inteiro. */
-.chat-popup{position:fixed;z-index:10;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(70px + env(safe-area-inset-bottom,0px));width:300px;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;gap:8px;padding:10px;background:var(--surface);border:1px solid var(--primary-claro);box-shadow:0 8px 28px rgb(0 0 0 / .32)}
 .chat-popup ul{grid-column:1;grid-row:1;list-style:none}
 .chat-popup .chat-fechar{grid-column:2;grid-row:1}
 .chat-popup .msg-balao{width:100%;max-width:none}
-@media (max-width:859px){
-  /* No celular vira uma folha inferior, e a página ganha folga para nada ficar preso atrás dela. */
-  .chat-flutuante{left:max(8px,env(safe-area-inset-left,0px));right:max(8px,env(safe-area-inset-right,0px));bottom:calc(8px + env(safe-area-inset-bottom,0px));width:auto;height:min(52dvh,460px)}
-  body:has(.chat-flutuante) .folio{padding-bottom:min(56dvh,500px)}
-}
 
 /* ---------- Conta ---------- */
 .conta-grade{display:grid;gap:20px;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));max-width:980px}
@@ -581,15 +572,6 @@ a.rol-linha:hover,a.camp-linha:hover{background:transparent}
   /* Na escada de fadiga, só o degrau atual explica o efeito: a lista cabe sem rolar tanto. */
   .degrau:not([aria-current="true"]) .degrau-txt,.degrau:not([aria-current="true"]) .degrau-custo{display:none}
 
-  /* O chat fica acima da barra e não cobre os controles da ficha */
-  /* Redondo e com o dado: o nome continua lá para leitores de tela, sem cobrir a ficha. */
-  .chat-pilula{bottom:calc(var(--barra-inferior) + 10px);right:10px;width:52px;height:52px;min-height:0;padding:0;justify-content:center;border-radius:50%;font-size:0;letter-spacing:0;box-shadow:0 4px 14px #000a}
-  .chat-pilula::before{content:"";width:32px;height:32px;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 1 29 8.5v15L16 31 3 23.500v-15z' fill='%231c2440' stroke='%238fb0ff' stroke-width='1.5'/%3E%3Cpath d='M16 8 24 21H8zM16 1v7M3 8.500 16 8l13 .5M3 23.500 8 21 3 8.500M29 23.500 24 21l5-12.500M16 31l-8-10M16 31l8-10' fill='none' stroke='%238fb0ff' stroke-width='1'/%3E%3C/svg%3E") center/contain no-repeat}
-  .chat-contagem{position:absolute;top:-4px;right:-4px;font-size:12px;border-radius:999px}
-  .chat-flutuante{bottom:calc(var(--barra-inferior) + 6px);z-index:10}
-  .chat-popup{left:8px;right:8px;bottom:calc(var(--barra-inferior) + 70px);width:auto}
-  body:has(.chat-popup) .folio{padding-bottom:220px}
-  .ficha-grade{padding-bottom:64px}
 }
 @media (max-width:360px){
   .passo{grid-template-columns:38px 40px 38px}
@@ -925,4 +907,37 @@ body::after{content:"";position:fixed;z-index:-1;inset:0;pointer-events:none;bac
   .bloco-foto{gap:8px;width:auto}
   .orbe-entrada{margin:24px auto 34px}
   body:not(:has(.entrada))::before{opacity:.06}
+}
+
+/* ---------- Chat de dados na lateral ----------
+   Fica no fim de propósito: a regra dos painéis põe position:relative em .chat-flutuante,
+   e foi isso que jogou o chat aberto para o fim da página. Os jogadores pediram, como no C.R.I.S,
+   uma aba na borda direita que abre e recolhe o chat sem tirar ninguém do lugar na ficha. */
+:root{--largura-chat:360px;--largura-aba:40px}
+.chat-pilula,.chat-pilula:hover{position:fixed;z-index:11;top:50%;right:0;translate:0 -50%;display:flex;flex-direction:column;align-items:center;gap:10px;width:var(--largura-aba);min-height:0;padding:14px 0;background:linear-gradient(180deg,#4f7bff,#8b5cf6);color:var(--sobre-gradiente);border:1px solid #8b5cf6;border-right:0;border-radius:8px 0 0 8px;font:700 14px/1 var(--f-texto);letter-spacing:.04em;box-shadow:-4px 0 16px #0008;outline:0}
+.chat-pilula:hover{background:linear-gradient(180deg,#6f94ff,#8b5cf6)}
+.chat-pilula:focus-visible{outline:2px solid var(--primary-claro);outline-offset:2px}
+.chat-pilula::before{content:"";flex:none;width:24px;height:24px;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 1 29 8.5v15L16 31 3 23.500v-15z' fill='%231c2440' stroke='%238fb0ff' stroke-width='1.5'/%3E%3Cpath d='M16 8 24 21H8zM16 1v7M3 8.500 16 8l13 .5M3 23.500 8 21 3 8.500M29 23.500 24 21l5-12.500M16 31l-8-10M16 31l8-10' fill='none' stroke='%238fb0ff' stroke-width='1'/%3E%3C/svg%3E") center/contain no-repeat}
+.chat-pilula-texto{writing-mode:vertical-rl;rotate:180deg;white-space:nowrap}
+.chat-contagem{min-width:22px;border-radius:999px}
+.chat-pilula-aberta,.chat-pilula-aberta:hover{position:absolute;right:100%;translate:0 -50%}
+@keyframes chat-deslizar{from{translate:100% 0}to{translate:0 0}}
+.chat-flutuante{position:fixed;z-index:10;inset:0 0 0 auto;width:var(--largura-chat);max-width:calc(100vw - var(--largura-aba));height:auto;display:grid;grid-template-rows:auto minmax(0,1fr) auto;gap:10px;padding:calc(14px + env(safe-area-inset-top,0px)) max(14px,env(safe-area-inset-right,0px)) calc(14px + env(safe-area-inset-bottom,0px)) 14px;background:var(--surface);border:0;border-left:1px solid #8b5cf6;border-radius:0;box-shadow:-10px 0 30px #0009;animation:chat-deslizar .2s ease-out}
+/* Ao lado da aba, na mesma altura: o resultado aparece onde o olho já vai procurar o chat. */
+.chat-popup{position:fixed;z-index:10;top:50%;right:calc(var(--largura-aba) + 10px);bottom:auto;left:auto;translate:0 -50%;width:300px;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;gap:8px;padding:10px}
+.chat-popup ul{grid-column:1;grid-row:1;list-style:none}
+.chat-popup .chat-fechar{grid-column:2;grid-row:1}
+.chat-popup .msg-balao{width:100%;max-width:none}
+/* A aba fechada não tapa a borda da ficha. O chat aberto só empurra a ficha em tela larga:
+   abaixo disso, as três colunas ficariam apertadas demais, então ele cobre a coluna da direita. */
+@media (min-width:860px){body:has(.chat-pilula) .folio{padding-right:calc(var(--largura-aba) + 24px)}}
+@media (min-width:1500px){body:has(.chat-flutuante) .folio{padding-right:calc(var(--largura-chat) + 24px)}}
+@media (max-width:859px){
+  :root{--largura-aba:32px}
+  .chat-pilula,.chat-pilula:hover{top:42%;gap:8px;padding:10px 0;font-size:12px}
+  .chat-pilula::before{width:20px;height:20px}
+  .chat-contagem{font-size:12px}
+  .chat-flutuante{bottom:var(--barra-inferior);width:min(88vw,var(--largura-chat));padding-bottom:14px}
+  .chat-popup{top:42%;left:8px;right:calc(var(--largura-aba) + 6px);width:auto}
+  body:has(.chat-pilula) .folio{padding-right:calc(var(--largura-aba) + 8px)}
 }

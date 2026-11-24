@@ -130,7 +130,7 @@ function PopupRolagem({ m, aoFechar }: { m: Mensagem; aoFechar: () => void }) {
   );
 }
 
-/* Janela flutuante da ficha: mostra o pop-up ao rolar, abre pela pílula e avisa quando chega rolagem de outra pessoa com ela fechada. */
+/* Painel lateral da ficha: mostra o pop-up ao rolar, abre pela pílula e avisa quando chega rolagem de outra pessoa com ela fechada. */
 export function ChatFlutuante({ chat, aoRolar, escopo }: { chat: ChatDados; aoRolar: (lados: number, bonus: number) => void; escopo: string }) {
   const { aberto, setAberto, mensagens, carregando, destaque, setDestaque } = chat;
   /* O chat inteiro já mostra o resultado: fechar o chat não traz de volta um pop-up antigo. */
@@ -153,15 +153,19 @@ export function ChatFlutuante({ chat, aoRolar, escopo }: { chat: ChatDados; aoRo
     return (
       <>
         {destaque && <PopupRolagem m={destaque} aoFechar={() => setDestaque(null)} />}
-        <button type="button" className="chat-pilula" onClick={() => setAberto(true)}>
-          Chat de dados
+        <button type="button" className="chat-pilula" aria-expanded="false" onClick={() => setAberto(true)}>
+          <span className="chat-pilula-texto">Chat de dados</span>
           {naoLidas > 0 && <span className="chat-contagem" aria-label={`${naoLidas} ${naoLidas === 1 ? 'rolagem nova' : 'rolagens novas'}`}>{naoLidas}</span>}
         </button>
       </>
     );
   }
+  /* Os jogadores pediram o chat na lateral, como no C.R.I.S: a mesma aba que abre fica presa na borda do painel e o recolhe. */
   return (
     <section className="chat-flutuante" aria-label="Chat de dados">
+      <button type="button" className="chat-pilula chat-pilula-aberta" aria-expanded="true" aria-label="Recolher o chat de dados" onClick={() => setAberto(false)}>
+        <span className="chat-pilula-texto" aria-hidden="true">Chat de dados</span>
+      </button>
       <header className="chat-cab">
         <div>
           <h2 className="titulo-grupo">Chat de dados</h2>
