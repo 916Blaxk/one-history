@@ -648,6 +648,46 @@ describe('chat de dados', () => {
     expect((await jog.c('GET', `/api/campanhas/${c.id}/chat`)).status).toBe(404);
   });
 
+  it('o banner da conta aparece nas rolagens para quem vê o chat, e só para quem vê', async () => {
+    const { mestre, jog, intruso, c, codigo, f } = await mesa();
+    await jog.c('POST', `/api/convites/${codigo}/entrar`);
+    await jog.c('POST', `/api/campanhas/${c.id}/fichas`, { fichaId: f.id });
+    expect((await jog.c('GET', '/api/conta')).corpo.usuario.bannerV).toBe(0);
+    expect((await jog.c('POST', '/api/conta/banner', { banner: 'data:text/html;base64,PHNjcmlwdD4=' })).status).toBe(400);
+    expect((await jog.c('POST', '/api/conta/banner', {})).status).toBe(400);
+    const png = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
+    const salvo = (await jog.c('POST', '/api/conta/banner', { banner: png })).corpo.usuario;
+    expect(salvo.bannerV).toBeGreaterThan(0);
+    expect((await jog.c('GET', '/api/conta')).corpo.usuario.bannerV).toBe(salvo.bannerV);
+    expect((await jog.c('GET', '/api/conta/banner')).status).toBe(200);
+
+    const r = (await jog.c('POST', `/api/fichas/${f.id}/rolar`, { lados: 20 })).corpo.rolagem;
+    expect(r.bannerV).toBe(salvo.bannerV);
+    await mestre.c('POST', `/api/campanhas/${c.id}/rolar`, { lados: 6 });
+    const visao = (await mestre.c('GET', `/api/campanhas/${c.id}/chat`)).corpo.mensagens;
+    expect(visao.map((m: { bannerV: number }) => m.bannerV)).toEqual([salvo.bannerV, 0]);
+    expect(JSON.stringify(visao)).not.toContain('base64');
+    expect((await mestre.c('GET', `/api/rolagens/${r.id}/banner`)).status).toBe(200);
+    expect((await intruso.c('GET', `/api/rolagens/${r.id}/banner`)).status).toBe(404);
+    expect((await mestre.c('GET', `/api/rolagens/${visao[1].id}/banner`)).status).toBe(404);
+
+    /* Remover tira o banner de todas as rolagens, inclusive das antigas. */
+    expect((await jog.c('DELETE', '/api/conta/banner')).corpo.usuario.bannerV).toBe(0);
+    const depois = (await mestre.c('GET', `/api/campanhas/${c.id}/chat`)).corpo.mensagens;
+    expect(depois[0].bannerV).toBe(0);
+    expect((await mestre.c('GET', `/api/rolagens/${r.id}/banner`)).status).toBe(404);
+  });
+
+  it('o banner de uma rolagem solo só abre para o dono', async () => {
+    const a = await novaConta(), b = await novaConta();
+    const png = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
+    await a.c('POST', '/api/conta/banner', { banner: png });
+    const f = await novaFicha(a.c);
+    const r = (await a.c('POST', `/api/fichas/${f.id}/rolar`, { lados: 20 })).corpo.rolagem;
+    expect((await a.c('GET', `/api/rolagens/${r.id}/banner`)).status).toBe(200);
+    expect((await b.c('GET', `/api/rolagens/${r.id}/banner`)).status).toBe(404);
+  });
+
   it('histórico da ficha e da campanha não se misturam quando a ficha muda de lugar', async () => {
     const { jog, c, codigo, f } = await mesa();
     await jog.c('POST', `/api/convites/${codigo}/entrar`);

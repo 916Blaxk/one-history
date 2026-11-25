@@ -29,6 +29,9 @@ export async function api<T = unknown>(metodo: string, url: string, corpo?: unkn
 
 export const buscar = <T,>(url: string) => api<T>('GET', url);
 export const urlFoto = (id: string, v: number) => `/api/fichas/${id}/foto?v=${v}`;
+export const urlBanner = (rolagemId: string, v: number) => `/api/rolagens/${encodeURIComponent(rolagemId)}/banner?v=${v}`;
+/* Banner reduzido ao formato do balão do chat: largo e baixo. */
+export const MOLDURA_BANNER = { l: 720, a: 240 };
 export const mensagem = (e: unknown) => (e instanceof Error ? e.message : 'Algo deu errado. Tente de novo em instantes.');
 export const pct = (a: number, b: number) => (b > 0 ? Math.max(0, Math.min(100, a / b * 100)) : 0);
 export const virgula = (n: number) => String(n).replace('.', ',');

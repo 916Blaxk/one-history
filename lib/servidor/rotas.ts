@@ -77,7 +77,7 @@ function cabecalhoCookie(req: Request, valor: string, maxAge: number) {
   const https = req.headers.get('x-forwarded-proto') === 'https' || req.url.startsWith('https:');
   return `${COOKIE}=${valor}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${maxAge}${https ? '; Secure' : ''}`;
 }
-const usuarioPublico = (u: UsuarioSessao | typeof usuarios.$inferSelect) => ({ id: u.id, nome: u.nome, email: u.email });
+const usuarioPublico = (u: { id: string; nome: string; email: string; bannerV?: number }) => ({ id: u.id, nome: u.nome, email: u.email, bannerV: u.bannerV ?? 0 });
 const nomeFicha = (d: R.DadosFicha) => d.nome || 'Sem nome';
 const colunasFicha = {
   id: fichas.id, donoId: fichas.donoId, campanhaId: fichas.campanhaId, dados: fichas.dados, registro: fichas.registro,
@@ -250,7 +250,7 @@ async function registrarRolagem(
 ): Promise<Mensagem> {
   const total = r.detalhe.total;
   const linha = await gravarRolagem({ campanhaId, fichaId, usuarioId: usuario.id, autor, rotulo, det: detalheRolagem(r.detalhe), total, expressao: r.expressao, detalhe: r.detalhe });
-  return { id: linha.id, em: linha.em, autor, rotulo, det: linha.det, total, minha: true, fichaId, fotoV };
+  return { id: linha.id, em: linha.em, autor, rotulo, det: linha.det, total, minha: true, fichaId, fotoV, bannerV: usuario.bannerV };
 }
 
 /* Página do histórico, da mais antiga para a mais nova. `antes` é o cursor "em_id" da mensagem mais antiga já carregada. */
@@ -264,12 +264,13 @@ async function listarChat(escopo: SQL, url: string, usuarioId: string): Promise<
     const id = antes.slice(corte + 1);
     filtros.push(or(lt(rolagens.em, em), and(eq(rolagens.em, em), lt(rolagens.id, id)))!);
   }
-  const linhas = await db.select({ r: rolagens, fotoV: fichas.fotoV, campanhaDaFicha: fichas.campanhaId }).from(rolagens)
-    .leftJoin(fichas, eq(rolagens.fichaId, fichas.id)).where(and(...filtros))
+  const linhas = await db.select({ r: rolagens, fotoV: fichas.fotoV, campanhaDaFicha: fichas.campanhaId, bannerV: usuarios.bannerV }).from(rolagens)
+    .leftJoin(fichas, eq(rolagens.fichaId, fichas.id)).leftJoin(usuarios, eq(rolagens.usuarioId, usuarios.id)).where(and(...filtros))
     .orderBy(desc(rolagens.em), desc(rolagens.id)).limit(PAGINA_CHAT + 1);
   return {
     temMais: linhas.length > PAGINA_CHAT,
-    mensagens: linhas.slice(0, PAGINA_CHAT).reverse().map(({ r, fotoV, campanhaDaFicha }) => ({
+    mensagens: linhas.slice(0, PAGINA_CHAT).reverse().map(({ r, fotoV, campanhaDaFicha, bannerV }) => ({
+      bannerV: bannerV ?? 0,
       id: r.id, em: r.em, autor: r.autor, rotulo: r.rotulo, det: r.det, total: r.total,
       minha: r.usuarioId === usuarioId, fichaId: r.fichaId,
       /* Quem não tem mais acesso à foto (a ficha saiu da campanha) vê a inicial, não uma imagem quebrada. */
@@ -339,6 +340,24 @@ rota('PATCH', '/api/conta', async ctx => {
   const nome = validar(nomePessoa, ctx.corpo.nome);
   await db.update(usuarios).set({ nome }).where(eq(usuarios.id, ctx.usuario.id));
   return { usuario: { ...usuarioPublico(ctx.usuario), nome } };
+});
+
+/* Banner das rolagens. A versão muda a cada troca: o endereço da imagem muda junto, e o cache longo não mostra a antiga. */
+rota('POST', '/api/conta/banner', async ctx => {
+  const banner = fotoDaEntrada(ctx.corpo.banner);
+  if (!banner) throw new Erro(400, 'Escolha uma imagem para o banner.');
+  const bannerV = Math.max(Date.now(), ctx.usuario.bannerV + 1);
+  await db.update(usuarios).set({ banner, bannerV }).where(eq(usuarios.id, ctx.usuario.id));
+  return { usuario: { ...usuarioPublico(ctx.usuario), bannerV } };
+});
+rota('DELETE', '/api/conta/banner', async ctx => {
+  await db.update(usuarios).set({ banner: null, bannerV: 0 }).where(eq(usuarios.id, ctx.usuario.id));
+  return { usuario: { ...usuarioPublico(ctx.usuario), bannerV: 0 } };
+});
+rota('GET', '/api/conta/banner', async ctx => {
+  const [u] = await db.select({ banner: usuarios.banner }).from(usuarios).where(eq(usuarios.id, ctx.usuario.id));
+  if (!u?.banner) throw new Erro(404, 'Você ainda não tem banner.');
+  return respostaFoto(u.banner, 'private, max-age=31536000, immutable');
 });
 
 rota('POST', '/api/conta/senha', async ctx => {
@@ -637,6 +656,15 @@ rota('POST', '/api/campanhas/:id/rolar', async ctx => {
 rota('GET', '/api/campanhas/:id/chat', async ctx => {
   const c = await campanhaDoMembro(ctx.params.id, ctx.usuario);
   return listarChat(escopoCampanha(c.id), ctx.req.url, ctx.usuario.id);
+});
+
+/* O banner de quem fez a rolagem, para quem vê o mesmo chat. Vai pela rolagem para o chat não precisar do id da conta. */
+rota('GET', '/api/rolagens/:id/banner', async ctx => {
+  const [r] = await db.select({ campanhaId: rolagens.campanhaId, usuarioId: rolagens.usuarioId, banner: usuarios.banner }).from(rolagens)
+    .innerJoin(usuarios, eq(rolagens.usuarioId, usuarios.id)).where(eq(rolagens.id, ctx.params.id));
+  const pode = r && (r.campanhaId ? await papelEm(r.campanhaId, ctx.usuario.id) : r.usuarioId === ctx.usuario.id);
+  if (!pode || !r.banner) throw new Erro(404, 'Banner não encontrado.');
+  return respostaFoto(r.banner, 'private, max-age=31536000, immutable');
 });
 
 rota('POST', '/api/campanhas/:id/fichas', async ctx => {

@@ -3,8 +3,9 @@ import { useRouter } from 'next/navigation';
 import { useRef, useState } from 'react';
 import useSWR from 'swr';
 import { toast } from 'sonner';
+import AjusteFoto, { fotoDaTela } from '@/components/AjusteFoto';
 import { BotaoConfirmar } from '@/components/comuns';
-import { api, buscar, mensagem } from '@/lib/cliente';
+import { api, buscar, mensagem, MOLDURA_BANNER } from '@/lib/cliente';
 import type { Usuario } from '@/lib/tipos';
 
 export default function PaginaConta() {
@@ -12,6 +13,8 @@ export default function PaginaConta() {
   const { data, mutate } = useSWR<{ usuario: Usuario }>('/api/conta', buscar);
   const senhaExcluir = useRef<HTMLInputElement>(null);
   const [erroExcluir, setErroExcluir] = useState('');
+  const entradaBanner = useRef<HTMLInputElement>(null);
+  const [bannerEscolhido, setBannerEscolhido] = useState<File | null>(null);
   const u = data?.usuario;
   if (!u) return <p className="apagado">Abrindo sua conta…</p>;
 
@@ -40,6 +43,46 @@ export default function PaginaConta() {
           </div>
           <button className="btn">Salvar nome</button>
         </form>
+
+        <section className="painel">
+          <h2 className="titulo-grupo">Banner das rolagens</h2>
+          <p className="apagado">Aparece no fundo das suas rolagens no chat de dados, em todas as fichas e campanhas.</p>
+          <div className="banner-previa" role="img" aria-label={u.bannerV ? 'Seu banner atual' : 'Sem banner'}
+            style={u.bannerV ? { backgroundImage: `url("/api/conta/banner?v=${u.bannerV}")` } : undefined}>
+            {!u.bannerV && 'Sem banner'}
+          </div>
+          <div className="banner-botoes">
+            <button type="button" className="btn" onClick={() => entradaBanner.current?.click()}>{u.bannerV ? 'Trocar banner' : 'Enviar banner'}</button>
+            {u.bannerV > 0 && <button type="button" className="btn" onClick={async () => {
+              try {
+                await mutate(await api<{ usuario: Usuario }>('DELETE', '/api/conta/banner'), { revalidate: false });
+                toast.success('Banner removido.');
+              } catch (e) { toast.error(mensagem(e)); }
+            }}>Remover</button>}
+          </div>
+          <input ref={entradaBanner} type="file" accept="image/*" hidden aria-label="Imagem do banner" onChange={ev => {
+            const a = ev.target.files?.[0];
+            ev.target.value = '';
+            if (a) setBannerEscolhido(a);
+          }} />
+          {bannerEscolhido && (
+            <AjusteFoto
+              key={`${bannerEscolhido.name}-${bannerEscolhido.lastModified}`}
+              arquivo={bannerEscolhido}
+              titulo="Ajustar o banner"
+              moldura={MOLDURA_BANNER}
+              aoCancelar={() => setBannerEscolhido(null)}
+              aoFalhar={() => { setBannerEscolhido(null); toast.error('Não consegui ler essa imagem. Use um arquivo JPG, PNG ou WebP.'); }}
+              aoSalvar={async tela => {
+                setBannerEscolhido(null);
+                try {
+                  await mutate(await api<{ usuario: Usuario }>('POST', '/api/conta/banner', { banner: fotoDaTela(tela) }), { revalidate: false });
+                  toast.success('Banner salvo. As suas rolagens já aparecem com ele.');
+                } catch (e) { toast.error(mensagem(e)); }
+              }}
+            />
+          )}
+        </section>
 
         <form className="painel" onSubmit={async ev => {
           ev.preventDefault();

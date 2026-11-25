@@ -9,6 +9,9 @@ export const usuarios = sqliteTable('usuarios', {
   email: text('email').notNull().unique(),
   senhaHash: text('senha_hash').notNull(),
   criadoEm: integer('criado_em').notNull(),
+  /* Fundo das rolagens da pessoa no chat de dados. Fica na conta, e não na ficha: os jogadores pediram um só para todas as fichas. */
+  banner: text('banner'),
+  bannerV: integer('banner_v').notNull().default(0),
 });
 
 /* Guarda só o hash do token: quem ler o banco não consegue se passar por ninguém. */

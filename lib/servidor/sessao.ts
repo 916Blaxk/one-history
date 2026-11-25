@@ -28,7 +28,7 @@ export async function criarSessao(usuarioId: string) {
 }
 export async function usuarioDoToken(token: string | undefined | null): Promise<(Usuario & { senhaHash: string }) | null> {
   if (!token) return null;
-  const [linha] = await db.select({ id: usuarios.id, nome: usuarios.nome, email: usuarios.email, senhaHash: usuarios.senhaHash, expira: sessoes.expira })
+  const [linha] = await db.select({ id: usuarios.id, nome: usuarios.nome, email: usuarios.email, bannerV: usuarios.bannerV, senhaHash: usuarios.senhaHash, expira: sessoes.expira })
     .from(sessoes).innerJoin(usuarios, eq(sessoes.usuarioId, usuarios.id)).where(eq(sessoes.hash, hashToken(token)));
   if (!linha || linha.expira < Date.now()) return null;
   const { expira: _, ...u } = linha;
@@ -41,5 +41,5 @@ export async function usuarioDaSessao(): Promise<Usuario | null> {
   /* Importado aqui: o servidor da mesa carrega este arquivo fora do Next, onde next/headers quebra ao carregar. */
   const { cookies } = await import('next/headers');
   const u = await usuarioDoToken((await cookies()).get(COOKIE)?.value);
-  return u && { id: u.id, nome: u.nome, email: u.email };
+  return u && { id: u.id, nome: u.nome, email: u.email, bannerV: u.bannerV };
 }

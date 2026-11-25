@@ -714,3 +714,39 @@ test('ficha: criar elemento, dano na magia e fadiga só com o mestre', async ({ 
   await expect(mestre.locator('#v-fadiga')).toHaveValue('20');
   await expect.poll(async () => { await jogador.reload(); return jogador.locator('#v-fadiga').inputValue(); }, { timeout: 15000 }).toBe('20');
 });
+
+test('chat de dados: o banner enviado na conta aparece no fundo das rolagens', async ({ browser }) => {
+  const p = await novaPessoa(browser, 'Lia');
+  await criarFicha(p, 'Brisa');
+  const fichaUrl = p.url();
+
+  await p.goto('/conta');
+  await expect(p.getByRole('img', { name: 'Sem banner' })).toBeVisible();
+  const png = await p.evaluate(() => {
+    const c = document.createElement('canvas');
+    c.width = 900; c.height = 300;
+    const ctx = c.getContext('2d')!;
+    ctx.fillStyle = '#c0392b'; ctx.fillRect(0, 0, 900, 300);
+    return c.toDataURL('image/png').split(',')[1]!;
+  });
+  await p.getByLabel('Imagem do banner').setInputFiles({ name: 'banner.png', mimeType: 'image/png', buffer: Buffer.from(png, 'base64') });
+  await expect(p.getByRole('dialog', { name: 'Ajustar o banner' })).toBeVisible();
+  await p.getByRole('button', { name: 'Salvar', exact: true }).click();
+  await expect(p.getByRole('img', { name: 'Seu banner atual' })).toBeVisible();
+
+  await p.goto(fichaUrl);
+  await p.getByRole('button', { name: 'Chat de dados' }).click();
+  await p.getByRole('button', { name: 'Rolar d6', exact: true }).click();
+  const balao = p.locator('.chat-flutuante .msg-com-banner');
+  await expect(balao).toHaveCount(1);
+  expect(await balao.evaluate(el => getComputedStyle(el).backgroundImage)).toMatch(/\/api\/rolagens\/.+\/banner\?v=\d+/);
+
+  /* Sem banner, o balão volta ao fundo de sempre, inclusive nas rolagens antigas. */
+  await p.goto('/conta');
+  await p.getByRole('button', { name: 'Remover' }).click();
+  await expect(p.getByRole('img', { name: 'Sem banner' })).toBeVisible();
+  await p.goto(fichaUrl);
+  await p.getByRole('button', { name: 'Chat de dados' }).click();
+  await expect(p.locator('.chat-flutuante .msg')).toHaveCount(1);
+  await expect(p.locator('.msg-com-banner')).toHaveCount(0);
+});

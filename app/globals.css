@@ -937,3 +937,11 @@ body::after{content:"";position:fixed;z-index:-1;inset:0;pointer-events:none;bac
   .chat-popup{top:42%;left:8px;right:calc(var(--largura-aba) + 6px);width:auto}
   body:has(.chat-pilula) .folio{padding-right:calc(var(--largura-aba) + 8px)}
 }
+
+/* ---------- Banner das rolagens ---------- */
+/* Escurecido à esquerda, onde fica o número: qualquer imagem que o jogador enviar continua legível. */
+.msg .msg-com-banner{width:min(300px,88%);background:linear-gradient(90deg,#0b0e1ad0 0%,#0b0e1a80 50%,#0b0e1a26 100%),var(--banner) center/cover no-repeat var(--surface-2);text-shadow:0 1px 3px #000c}
+.msg .msg-com-banner .msg-hora,.msg .msg-com-banner .msg-det{color:#d6dcf0}
+.chat-popup .msg .msg-com-banner{width:100%}
+.banner-previa{aspect-ratio:3/1;width:100%;border:1px solid var(--border);border-radius:4px;background:center/cover no-repeat var(--surface-2);display:grid;place-items:center;color:var(--text-muted);font-size:14px}
+.banner-botoes{display:flex;flex-wrap:wrap;gap:8px}

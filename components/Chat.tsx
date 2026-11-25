@@ -2,6 +2,7 @@
 import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { DADOS, inteiro } from '@/lib/regras';
 import type { Mensagem } from '@/lib/tipos';
+import { urlBanner } from '@/lib/cliente';
 import type { ChatDados } from '@/lib/useChat';
 import { Capitular } from './comuns';
 
@@ -34,10 +35,11 @@ function TotalGirando({ total }: { total: number }) {
 }
 
 function BalaoRolagem({ m, nova }: { m: Mensagem; nova: boolean }) {
+  const banner = m.bannerV ? { '--banner': `url("${urlBanner(m.id, m.bannerV)}")` } as React.CSSProperties : undefined;
   return (
     <li className={`msg${m.minha ? ' msg-minha' : ''}${nova ? ' msg-nova' : ''}`}>
       {!m.minha && <Capitular className="msg-foto" nome={m.autor} fichaId={m.fichaId ?? undefined} fotoV={m.fotoV} />}
-      <div className="msg-balao">
+      <div className={`msg-balao${banner ? ' msg-com-banner' : ''}`} style={banner}>
         <p className="msg-topo"><span className="msg-autor">{m.autor}</span> <time className="msg-hora">{horaCurta(m.em)}</time></p>
         <div className="msg-corpo">
           <span className="msg-total">{nova && m.minha ? <TotalGirando total={m.total} /> : m.total}</span>
