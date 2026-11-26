@@ -34,8 +34,7 @@ export default function Armas({ armas, ataque, aoMudar, aoAtacar, aoRolarDano }:
       <div className="cab-grupo cab-pericias">
         <h2 className="titulo-grupo">Armas</h2>
       </div>
-      <p className="grupo-desc">O ataque rola a perícia Combate. Arma leve usa Destreza, pesada usa Tração, e a média usa o atributo escolhido.</p>
-      {armas.length === 0 && <p className="apagado">Nenhuma arma ainda. Adicione a primeira arma desta ficha.</p>}
+      {armas.length === 0 && <p className="apagado">Nenhuma arma ainda.</p>}
       <ul className="lista-magias">
         {armas.map(a => {
           const aberta = abertas.has(a.id), nome = a.nome || 'Arma sem nome';

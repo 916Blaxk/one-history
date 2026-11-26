@@ -228,20 +228,6 @@ a.camp-linha:hover .rol-nome{color:var(--primary-claro)}
 .fenda{display:none;position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
 .fenda polyline{fill:none;stroke:var(--e99);stroke-width:1.5;vector-effect:non-scaling-stroke}
 
-.ficha-grade{display:grid;gap:32px;grid-template-columns:minmax(0,1fr)}
-.col-cena{order:-1}
-@media (min-width:860px){
-  .ficha-grade{grid-template-columns:minmax(0,1fr) 340px;align-items:start}
-  .col-cena{order:0;grid-column:2;grid-row:1 / span 2}
-  .col-id{grid-column:1;grid-row:1}
-  .col-attr{grid-column:1;grid-row:2}
-}
-@media (min-width:1240px){
-  .ficha-grade{grid-template-columns:250px minmax(0,1fr) 350px}
-  .col-id{grid-column:1;grid-row:1}
-  .col-attr{grid-column:2;grid-row:1}
-  .col-cena{grid-column:3;grid-row:1}
-}
 
 .col-id{display:grid;gap:14px;align-content:start}
 @media (min-width:860px) and (max-width:1239px){
@@ -559,9 +545,6 @@ a.rol-linha:hover,a.camp-linha:hover{background:transparent}
   .ficha-secoes{position:sticky;top:0;z-index:4;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));margin:0 calc(max(16px,env(safe-area-inset-left,0px)) * -1) 18px;background:color-mix(in srgb,var(--surface) 96%,transparent);border-block:1px solid var(--border);backdrop-filter:blur(8px)}
   .ficha-secoes button{min-height:48px;background:transparent;border:0;font:700 15px/1 var(--f-rotulo);letter-spacing:.03em;color:var(--text-muted)}
   .ficha-secoes button[aria-pressed="true"]{color:var(--primary-claro);box-shadow:inset 0 -3px 0 var(--primary-claro);background:color-mix(in srgb,var(--primary-claro) 7%,transparent)}
-  .ficha-grade[data-secao="cena"] .col-id,.ficha-grade[data-secao="cena"] .col-attr,
-  .ficha-grade[data-secao="perfil"] .col-attr,.ficha-grade[data-secao="perfil"] .col-cena,
-  .ficha-grade[data-secao="atributos"] .col-id,.ficha-grade[data-secao="atributos"] .col-cena{display:none}
   .bloco-foto{max-width:none;justify-items:center}
   .retrato{width:min(58vw,220px);font-size:96px}
   .foto-botoes{width:min(58vw,220px)}
@@ -769,9 +752,6 @@ body:has(.entrada){background:radial-gradient(900px 560px at 18% 12%,color-mix(i
 }
 
 /* ---------- Distribuição da ficha: três colunas de altura parecida ---------- */
-@media (min-width:1240px){
-  .ficha-grade{grid-template-columns:300px minmax(0,1fr) 340px;gap:24px}
-}
 .col-id>div{padding:16px;background:var(--surface);border:1px solid var(--border);border-radius:14px;box-shadow:0 6px 20px #0000003d}
 .col-id .campo textarea{min-height:110px}
 .col-id .nucleo-linha{padding:8px 0 4px}
@@ -1274,3 +1254,139 @@ html[data-tema="amarelo"]{--vida:#ff1f1f;--vida-2:#ff8a00;--mana:#1f6bff;--mana-
 .cartao-divisor{align-self:stretch;width:1px;margin-block:4px;background:linear-gradient(transparent,#ffffff59,transparent)}
 .cartao-prefixo{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#ffffff99}
 .chat-popup .cartao-duplo{padding-right:30px}
+
+
+/* ---------- Ficha em três colunas, no espírito do C.R.I.S ----------
+   Esquerda: o que muda durante a cena (vida, mana, fadiga, núcleo). Meio: atributos, elementos e perícias.
+   Direita: abas de armas, habilidades, talentos, inventário e anotações. As seções não são cartões:
+   um título com um fio embaixo separa cada uma, e só os itens de lista (armas, magias) têm moldura. */
+.ficha-grade{display:grid;gap:28px;grid-template-columns:minmax(0,1fr);align-items:start}
+.col-cena,.col-atributos,.col-abas{display:grid;gap:14px;align-content:start;min-width:0}
+@media (min-width:860px){
+  .ficha-grade{grid-template-columns:290px minmax(0,1fr);grid-template-areas:"cena atributos" "cena abas";column-gap:32px;row-gap:36px}
+  /* Vida, mana e fadiga acompanham a rolagem: as perícias são longas, e a coluna da cena é curta. */
+  .col-cena{grid-area:cena;position:sticky;top:16px}
+  .col-atributos{grid-area:atributos}
+  .col-abas{grid-area:abas}
+}
+@media (min-width:1280px){
+  .ficha-grade{grid-template-columns:290px minmax(0,1.05fr) minmax(0,1fr);grid-template-areas:"cena atributos abas";column-gap:36px}
+}
+
+.secao-cab{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding-bottom:6px;border-bottom:1px solid color-mix(in srgb,var(--secondary) 35%,var(--border))}
+.secao-cab:not(:first-child){margin-top:8px}
+.col-atributos .grupo-desc{margin:-6px 0 0;font-size:12.5px;color:var(--text-muted)}
+.secao-cab .sp-saldo{font:700 13px/1 var(--f-titulo);letter-spacing:.04em;color:var(--secondary-claro)}
+.secao-cab .sp-saldo.sp-acima{color:var(--vida)}
+.subtitulo-grupo{margin:0 0 2px;font:700 11px/1 var(--f-texto);letter-spacing:.16em;text-transform:uppercase;color:var(--text-muted)}
+
+/* Campos de identidade em linha, como numa ficha de papel: rótulo pequeno e um fio embaixo. */
+.campo-linha{display:grid;gap:3px;min-width:0}
+.campo-linha label{font:700 10.5px/1 var(--f-texto);letter-spacing:.14em;text-transform:uppercase;color:var(--text-muted)}
+.campo-linha input,.campo-linha select{width:100%;min-height:30px;padding:2px 0;background:transparent;border:0;border-bottom:1px solid color-mix(in srgb,var(--text) 30%,transparent);border-radius:0;box-shadow:none;color:var(--text);font:500 15px/1.2 var(--f-texto)}
+.campo-linha input:focus,.campo-linha select:focus{outline:none;border-bottom-color:var(--secondary-claro);box-shadow:0 1px 0 var(--secondary-claro)}
+.campo-linha select option{background:var(--surface);color:var(--text)}
+.placa-chips{display:none}
+.placa-campos{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px 22px;margin-top:10px}
+
+/* Vida e mana: a barra é o controle, com setas dentro e o número no meio. */
+.medidor{display:grid;gap:6px}
+.medidor-rot{justify-self:center;font:700 13px/1 var(--f-titulo);letter-spacing:.18em;text-transform:uppercase;color:var(--cor-2,var(--cor));text-shadow:0 0 12px color-mix(in srgb,var(--cor) 50%,transparent)}
+.medidor-barra{position:relative;isolation:isolate;display:grid;grid-template-columns:auto auto minmax(0,1fr) auto auto;align-items:center;height:44px;overflow:hidden;background:color-mix(in srgb,var(--cor) 12%,var(--surface-2));border:1px solid color-mix(in srgb,var(--cor) 55%,var(--border));border-radius:8px;box-shadow:inset 0 2px 6px #0008}
+.medidor-cheio{position:absolute;inset:0 auto 0 0;z-index:-1;background:linear-gradient(90deg,color-mix(in srgb,var(--cor) 65%,#000),var(--cor) 65%,var(--cor-2,var(--cor)));box-shadow:0 0 18px color-mix(in srgb,var(--cor) 60%,transparent);transition:width .25s ease}
+.medidor-barra button{display:grid;place-items:center;width:34px;height:100%;padding:0;background:transparent;border:0;color:#fff;opacity:.8}
+.medidor-barra button:hover{opacity:1;background:#ffffff1f}
+.medidor-barra button svg{width:18px;height:18px;filter:drop-shadow(0 1px 2px #000)}
+.medidor-num{display:flex;align-items:center;justify-content:center;gap:2px;min-width:0;font:700 20px/1 var(--f-titulo);color:#fff;text-shadow:0 1px 3px #000;font-variant-numeric:lining-nums tabular-nums}
+.medidor-num input{width:3.4ch;min-width:0;padding:0;background:transparent;border:0;border-radius:0;box-shadow:none;text-align:center;font:inherit;color:inherit;-moz-appearance:textfield;appearance:textfield}
+.medidor-num input::-webkit-inner-spin-button,.medidor-num input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.medidor-num input:focus{outline:none;box-shadow:inset 0 -2px 0 #fff}
+.medidor-num b{min-width:3.4ch;text-align:center;font-weight:700}
+.col-cena .formula{margin:0;font-size:12px;line-height:1.3;text-align:center;color:var(--text-muted)}
+.col-cena .perda-perm{font-size:12.5px}
+
+/* Fadiga: régua de estágios em botões pequenos; o texto é só o do estágio atual. */
+.fadiga-bloco{display:grid;gap:8px;padding-top:14px;border-top:1px solid var(--border)}
+.fadiga-topo{display:flex;align-items:baseline;justify-content:space-between}
+.fadiga-topo .medidor-rot{justify-self:auto;color:var(--estagio-cor);text-shadow:none}
+.fadiga-num{display:flex;align-items:baseline;gap:2px;font:700 22px/1 var(--f-titulo);color:var(--text)}
+.fadiga-num input{width:3ch;padding:0;background:transparent;border:0;border-bottom:1px solid var(--border);border-radius:0;box-shadow:none;text-align:right;font:inherit;color:inherit;-moz-appearance:textfield;appearance:textfield}
+.fadiga-num input::-webkit-inner-spin-button{-webkit-appearance:none}
+.fadiga-bloco input[type=range]{width:100%;margin:0;accent-color:var(--estagio-cor)}
+.fadiga-degraus{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:3px}
+.fadiga-degraus button{min-height:28px;padding:0;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;font:600 11.5px/1 var(--f-texto);color:var(--text-muted);font-variant-numeric:tabular-nums}
+.fadiga-degraus button:hover{border-color:var(--estagio-cor);color:var(--text)}
+.fadiga-degraus button.passou{color:var(--text);border-color:color-mix(in srgb,var(--estagio-cor) 45%,var(--border))}
+.fadiga-degraus button[aria-pressed="true"]{background:var(--estagio-cor);border-color:var(--estagio-cor);color:#000}
+.fadiga-estagio{margin:0;font-size:13px;line-height:1.35;color:var(--text-muted)}
+.fadiga-estagio b{color:var(--text)}
+.fadiga-custo{color:var(--estagio-cor);font-weight:600}
+.fadiga-bloco .btn-forte{width:100%}
+
+/* Núcleo em uma linha: a bolinha e o estágio. Os bônus somados ficam numa linha curta e na dica. */
+.nucleo-bloco{display:grid;grid-template-columns:38px minmax(0,1fr);gap:4px 12px;align-items:center;padding-top:14px;border-top:1px solid var(--border)}
+.nucleo-bloco .orbe{width:34px;grid-row:span 2}
+.nucleo-bloco .formula{text-align:left}
+
+/* Atributos: o emblema do hexágono ao lado da lista, sem caixas em volta de cada linha. */
+.atributos-bloco{display:grid;grid-template-columns:170px minmax(0,1fr);gap:18px;align-items:center}
+.atributos-bloco .grafico-atributos{width:100%;max-width:none;margin:0}
+.atributos-linhas{display:grid;gap:12px}
+.col-atributos .attr,.proficiencias .attr{margin:0;padding:3px 0;background:none;border:0;border-bottom:1px solid color-mix(in srgb,var(--border) 55%,transparent);border-radius:0;box-shadow:none;grid-template-columns:minmax(0,1fr) auto auto}
+.col-atributos .attr label,.proficiencias .attr label{font-size:15px;font-weight:600}
+.col-atributos .attr label small,.proficiencias .attr label small{display:inline;margin-left:6px;font-size:12px;font-weight:500}
+.col-atributos .attr input,.proficiencias .attr input{font-size:17px}
+.col-atributos .passo,.proficiencias .passo{height:30px;background:var(--surface-2)}
+.col-atributos .rolar,.proficiencias .rolar{height:30px}
+.col-atributos .attr[data-grupo="elementos"]{padding-bottom:6px}
+.col-atributos .pericias{margin-top:-4px}
+
+/* Abas da direita: o conteúdo de cada aba sem moldura própria; armas e magias continuam como itens de lista. */
+.col-abas .abas{flex-wrap:wrap}
+.col-abas .painel-aba>div,.col-abas .painel-aba>div:hover{padding:0;background:none;border:0;box-shadow:none}
+.col-abas .magia{background:var(--surface);background-image:none;border:1px solid var(--border);border-radius:10px;box-shadow:none}
+.col-abas .magia:hover{border-color:color-mix(in srgb,var(--secondary) 55%,var(--border))}
+.proficiencias{display:grid;gap:2px}
+/* As proficiências usam a mesma linha dos atributos (a regra antiga punha o nome numa linha e o controle em outra). */
+.proficiencias .attr[data-grupo="armas"]{grid-template-columns:minmax(0,1fr) auto auto}
+.proficiencias .attr[data-grupo="armas"] label{grid-column:auto}
+.proficiencias .attr[data-grupo="armas"] .passo{justify-self:auto}
+.proficiencias .attr[data-grupo="armas"][data-ativo="true"]{border-color:color-mix(in srgb,var(--border) 55%,transparent);box-shadow:none}
+/* O nome da aba já diz o que é: o título repetido dentro dela sai, e fica só o saldo quando houver. */
+.col-abas .painel-aba .cab-grupo .titulo-grupo{display:none}
+.col-abas .painel-aba .cab-grupo:not(:has(.sp-saldo)){display:none}
+.col-abas .abas{flex-wrap:nowrap;gap:0;overflow-x:auto;scrollbar-width:none}
+.col-abas .abas button{flex:none;padding:8px 8px;font-size:13px;white-space:nowrap}
+.elementos-acoes{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+/* Os elementos criados ocupam a linha inteira; o botão de criar e a lista de adicionar ficam lado a lado. */
+.elementos-acoes .elementos-criados{display:contents}
+.elementos-criados>.attr,.elementos-criados>.elemento-form{flex:1 1 100%}
+.elementos-acoes .elemento-adicionar{width:auto;min-width:200px}
+.texto-livre{width:100%;min-height:360px;padding:12px 14px;resize:vertical;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;color:var(--text);font:400 15px/1.5 var(--f-texto)}
+.texto-livre:focus{outline:none;border-color:var(--secondary-claro);box-shadow:0 0 0 2px color-mix(in srgb,var(--secondary) 35%,transparent)}
+
+@media (max-width:859px){
+  /* No celular os campos saem da coluna estreita ao lado da foto e ocupam a largura do cabeçalho. */
+  .placa-texto{display:contents}
+  .placa-nome{grid-column:2;grid-row:1;align-self:center}
+  .placa-campos{grid-column:1 / -1;grid-row:3;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 16px;margin-top:4px}
+  .campo-nome,.campo-estilo{grid-column:1 / -1}
+  .campo-linha input,.campo-linha select{min-height:44px;font-size:16px}
+  /* As três partes do celular: Cena, Atributos e Perfil (identidade e abas). */
+  .ficha:not([data-secao="perfil"]) .placa-campos,
+  .ficha[data-secao="cena"] .col-atributos,.ficha[data-secao="cena"] .col-abas,
+  .ficha[data-secao="atributos"] .col-cena,.ficha[data-secao="atributos"] .col-abas,
+  .ficha[data-secao="perfil"] .col-cena,.ficha[data-secao="perfil"] .col-atributos{display:none}
+  .medidor-barra{height:52px}
+  .medidor-barra button{width:46px}
+  .medidor-num,.medidor-num input,.fadiga-num input{font-size:22px}
+  .fadiga-degraus button{min-height:44px;font-size:13px}
+  .atributos-bloco{grid-template-columns:minmax(0,1fr)}
+  .atributos-bloco .grafico-atributos{max-width:200px;margin:0 auto}
+  .texto-livre{font-size:16px;min-height:260px}
+  /* Alvos de toque de 44 px no celular: a altura compacta dos atributos é só do computador. */
+  .col-atributos .passo,.proficiencias .passo{height:46px}
+  .col-atributos .rolar,.proficiencias .rolar{height:44px}
+  /* Fora da aba, as perícias agora aparecem direto no celular: letra de 16 px para o iPhone não dar zoom. */
+  .pericias input,.pericias select{font-size:16px}
+}

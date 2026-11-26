@@ -269,7 +269,6 @@ test('perícias: existe a classe Magia, e as adicionais foram distribuídas', as
   const p = await novaPessoa(browser, 'Lua');
   await criarFicha(p, 'Arcana');
   await expect(p.getByText('Perícias adicionais')).toHaveCount(0);
-  await p.getByRole('tab', { name: 'Perícias' }).click();
 
   /* Tabela única, em ordem alfabética, com o atributo de cada perícia. */
   const nomes = await p.locator('.pericias .pericia-nome').allTextContents();
@@ -324,11 +323,10 @@ test('dono e mestre mudam o núcleo, que soma na mana; perícia conta PP e conti
 
   await p.goto(`/fichas/${fichaId}`);
   await p.getByLabel('Estágio do núcleo').selectOption({ label: 'Laranja escuro' });
-  await expect(p.getByText('Total até aqui: +7 de mana, −2 de gasto universal de mana, +24 AP')).toBeVisible();
+  await expect(p.getByText('+7 mana · −2 gasto · +24 AP')).toBeVisible();
   await expect(p.getByText(/\+ núcleo 7 = 37$/)).toBeVisible();
   await expect(p.getByText('0 de 49 AP usados')).toBeVisible();
 
-  await p.getByRole('tab', { name: 'Perícias' }).click();
   await p.locator('#a-pericias-esquiva').fill('4');
   await p.locator('#a-pericias-esquiva').press('Enter');
   await expect(p.getByText('4 de 20 PP usados')).toBeVisible();
@@ -336,7 +334,6 @@ test('dono e mestre mudam o núcleo, que soma na mana; perícia conta PP e conti
 
   await p.reload();
   await expect(p.getByLabel('Estágio do núcleo')).toHaveValue('3');
-  await p.getByRole('tab', { name: 'Perícias' }).click();
   await expect(p.getByText('4 de 20 PP usados')).toBeVisible();
 });
 
@@ -357,7 +354,6 @@ test('totais e limites só avisam: dono e mestre passam deles, e o site mostra e
   await expect(jogador.getByText('30 de 25 AP usados')).toHaveClass(/sp-acima/);
 
   /* A perícia começa com limite 5 e os PP com 20, mas o valor é salvo mesmo acima deles. */
-  await jogador.getByRole('tab', { name: 'Perícias' }).click();
   await expect(jogador.getByText('Limite por perícia: 5.')).toBeVisible();
   const esquiva = jogador.locator('.pericia-linha').filter({ hasText: 'Esquiva' });
   await jogador.locator('#a-pericias-esquiva').fill('5');
@@ -371,28 +367,27 @@ test('totais e limites só avisam: dono e mestre passam deles, e o site mostra e
   await expect(jogador.getByText('40 de 20 PP usados')).toHaveClass(/sp-acima/);
   await expect(jogador.getByRole('status').filter({ hasText: 'Salvo' })).toBeVisible();
 
-  /* O jogador também tem os bônus e os limites. */
+  /* O jogador também tem os bônus e os limites, no modo de ajustes. */
+  await jogador.getByRole('button', { name: 'Ajustes e limites' }).click();
   await jogador.getByLabel('Bônus em PP').fill('5');
   await jogador.getByLabel('Bônus em PP').press('Enter');
   await expect(jogador.getByText('40 de 25 PP usados')).toBeVisible();
   await jogador.getByLabel('Bônus em vida').fill('10');
   await jogador.getByLabel('Bônus em vida').press('Enter');
   await expect(jogador.getByText('15 + vitalidade 0 × 2 + ajuste 10 = 25')).toBeVisible();
-  await expect(jogador.getByRole('button', { name: 'Definir limites' })).toBeVisible();
+  await expect(jogador.getByRole('button', { name: 'Concluir ajustes' })).toBeVisible();
   await expect(jogador.getByRole('status').filter({ hasText: 'Salvo' })).toBeVisible();
 
   /* O mestre aumenta o limite geral e define o de uma perícia só. */
   await mestre.goto(`/fichas/${fichaId}`);
-  await mestre.getByRole('tab', { name: 'Perícias' }).click();
+  await mestre.getByRole('button', { name: 'Ajustes e limites' }).click();
   await mestre.getByLabel('Bônus em limite por perícia').fill('2');
   await mestre.getByLabel('Bônus em limite por perícia').press('Enter');
   await expect(mestre.getByText('Limite por perícia: 7.')).toBeVisible();
-  await mestre.getByRole('button', { name: 'Definir limites' }).click();
   await mestre.getByLabel('Limite de Aparar').fill('2');
   await expect(mestre.getByRole('status').filter({ hasText: 'Salvo' })).toBeVisible();
 
   await jogador.reload();
-  await jogador.getByRole('tab', { name: 'Perícias' }).click();
   await expect(jogador.getByText('Máx. 2')).toBeVisible();
   await jogador.locator('#a-pericias-aparar').fill('9');
   await jogador.locator('#a-pericias-aparar').press('Enter');
@@ -436,9 +431,8 @@ test('magias: adicionar, conjurar com desconto de mana e continuar depois de rec
   await expect(p.getByText('Nenhuma magia ainda.')).toBeVisible();
   await p.getByRole('button', { name: 'Adicionar magia' }).click();
   await p.getByLabel('Nome da magia').fill('Faísca');
-  await p.getByRole('tab', { name: /Atributos/ }).click();
+  /* Atributos e elementos ficam sempre à vista, ao lado das abas. */
   await p.getByLabel('Adicionar elemento').selectOption('fogo');
-  await p.getByRole('tab', { name: /^Habilidades/ }).click();
   await p.getByLabel('Elemento', { exact: true }).selectOption({ label: 'Fogo' });
   await p.getByLabel('Custo de mana').fill('5');
   await p.getByLabel('Custo de mana').press('Enter');

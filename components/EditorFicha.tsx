@@ -2,7 +2,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useRef, useState } from 'react';
-import { Axe, Camera, Crop, Droplets, Feather, Flame, HeartPulse, Mountain, Sword, Trash2, Wind, type LucideIcon } from 'lucide-react';
+import { Axe, Camera, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Crop, Droplets, Feather, Flame, HeartPulse, Mountain, Sword, Trash2, Wind, type LucideIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import AjusteFoto, { arquivoDeDataUrl, fotoDaTela } from '@/components/AjusteFoto';
 import Armas from '@/components/Armas';
@@ -29,7 +29,7 @@ const ICONES: Record<string, LucideIcon> = { fogo: Flame, agua: Droplets, vento:
 const TETO_DA_BARRA = 20;
 
 const CAMPOS_TEXTO = [
-  ['player', 'Player', true], ['nome', 'Nome', true], ['idade', 'Idade', false], ['raca', 'Raça', false], ['estilo', 'Estilo de magia', true],
+  ['nome', 'Nome'], ['player', 'Player'], ['raca', 'Raça'], ['idade', 'Idade'], ['estilo', 'Estilo de magia'],
 ] as const;
 
 export default function EditorFicha({ f, ed, chat }: {
@@ -39,9 +39,9 @@ export default function EditorFicha({ f, ed, chat }: {
   const entradaFoto = useRef<HTMLInputElement>(null);
   const [fotoEscolhida, setFotoEscolhida] = useState<{ arquivo: File; original?: string; ajuste?: Enquadramento | null } | null>(null);
   const [editandoLimites, setEditandoLimites] = useState(false);
-  const [aba, setAba] = useState<'atributos' | 'pericias' | 'armas' | 'magias' | 'habilidades'>('atributos');
+  const [aba, setAba] = useState<'armas' | 'magias' | 'habilidades' | 'inventario' | 'notas'>('armas');
   /* Só o celular usa: no computador, as três colunas ficam sempre à vista. */
-  const [secao, setSecao] = useState<'cena' | 'perfil' | 'atributos'>('cena');
+  const [secao, setSecao] = useState<'cena' | 'atributos' | 'perfil'>('cena');
   const url = `/api/fichas/${f.id}`;
   const vm = R.vidaMax(f), mm = R.manaMax(f), e = R.estagio(f.fadiga), perdido = e.min === 100, perda = R.perdaDeCena(f);
   const campanha = f.contexto.campanha;
@@ -152,7 +152,8 @@ export default function EditorFicha({ f, ed, chat }: {
     const dicaRolagem = `Rolar ${vantagem ? `${vantagem + 1}d20, fica o maior` : 'd20'}${soma ? `, + ${soma}` : ''}`;
     return (
       <div className={`attr${cor ? ` c-${k}` : ''}`} data-grupo={g} data-ativo={f[g][k] > 0} data-acima={limite !== undefined && f[g][k] > limite} key={k}>
-        <label htmlFor={idCampo}>{Icone && <Icone className="attr-icone" aria-hidden="true" />}{rotulo}{desc && <small>{desc}</small>}{limite !== undefined && !editandoLimites && <small>Máx. {limite}</small>}</label>
+        {/* A descrição vira dica: na linha, ela empurrava a ficha e repetia o que o nome já diz. */}
+        <label htmlFor={idCampo} title={desc || undefined}>{Icone && <Icone className="attr-icone" aria-hidden="true" />}{rotulo}{limite !== undefined && !editandoLimites && <small>Máx. {limite}</small>}</label>
         <div className="passo">
           <button type="button" aria-label={`Diminuir ${rotulo}`} onClick={() => mudarAttr(g, k, f[g][k] - 1)}>−</button>
           <CampoNumero id={idCampo} min={0} valor={f[g][k]} aoMudar={v => mudarAttr(g, k, v)} />
@@ -170,22 +171,32 @@ export default function EditorFicha({ f, ed, chat }: {
       </div>
     );
   };
-  const blocoVital = (chave: 'vidaAtual' | 'manaAtual', rotulo: string, classe: string, atual: number, max: number, formula: string, extra?: React.ReactNode) => (
-    <div className={`vital ${classe}`}>
-      <div className="vital-topo">
-        <label className="vital-rot" htmlFor={`v-${chave}`}>{rotulo}</label>
-        <span className="vital-num"><CampoNumero id={`v-${chave}`} min={0} aoVivo valor={atual} aoMudar={v => mudarVital(chave, v)} /><span>/ {chave === 'vidaAtual' ? <CampoNumero id="v-vidaMaxima" aria-label="Vida máxima" min={0} valor={max} aoMudar={mudarVidaMaxima} /> : <b>{max}</b>}</span></span>
+  /* Vida e mana como no C.R.I.S: a barra é o próprio controle, com as setas dentro e o número no meio. */
+  const PASSOS = [[-5, ChevronsLeft], [-1, ChevronLeft], [1, ChevronRight], [5, ChevronsRight]] as const;
+  const medidor = (chave: 'vidaAtual' | 'manaAtual', rotulo: string, classe: string, atual: number, max: number, formula: string, extra?: React.ReactNode) => {
+    const passo = ([d, Icone]: typeof PASSOS[number]) => {
+      const nome = `${d > 0 ? '+' : '−'}${Math.abs(d)}`;
+      return <button type="button" key={d} aria-label={nome} title={nome} onClick={() => mudarVital(chave, atual + d)}><Icone aria-hidden="true" /></button>;
+    };
+    return (
+      <div className={`medidor ${classe}`}>
+        <label className="medidor-rot" htmlFor={`v-${chave}`}>{rotulo}</label>
+        <div className="medidor-barra">
+          <i className="medidor-cheio" style={{ width: `${pct(atual, max)}%` }} aria-hidden="true" />
+          {PASSOS.slice(0, 2).map(passo)}
+          <span className="medidor-num">
+            <CampoNumero id={`v-${chave}`} min={0} aoVivo valor={atual} aoMudar={v => mudarVital(chave, v)} />
+            <span aria-hidden="true">/</span>
+            {chave === 'vidaAtual' ? <CampoNumero id="v-vidaMaxima" aria-label="Vida máxima" min={0} valor={max} aoMudar={mudarVidaMaxima} /> : <b>{max}</b>}
+          </span>
+          {PASSOS.slice(2).map(passo)}
+        </div>
+        <p className="formula">{formula}</p>
+        {extra}
       </div>
-      <span className="barra"><i style={{ width: `${pct(atual, max)}%` }} /></span>
-      <div className="vital-botoes">
-        {[-5, -1, 1, 5].map(d => <button type="button" key={d} onClick={() => mudarVital(chave, atual + d)}>{d > 0 ? '+' : '−'}{Math.abs(d)}</button>)}
-      </div>
-      <p className="formula">{formula}</p>
-      {extra}
-    </div>
-  );
+    );
+  };
 
-  const chips = [f.player, f.idade && `${f.idade} anos`, f.raca, f.estilo].filter(Boolean);
   const base = R.manaBase(f);
   const bonus = R.bonusNucleo(f.nucleo), ppUsados = R.ppGastos(f), ppMax = R.ppTotal(f), apUsados = R.apGastos(f), apMax = R.apTotal(f);
   const parcelaAjuste = (v: number) => (v ? ` ${v > 0 ? '+' : '−'} ajuste ${Math.abs(v)}` : '');
@@ -195,9 +206,15 @@ export default function EditorFicha({ f, ed, chat }: {
       <CampoNumero id={`c-ajuste-${chave}`} valor={f.ajustes[chave]} aoMudar={v => mudarAjuste(chave, v)} />
     </label>
   );
+  /* Bônus e limites são correções do mestre, raras durante o jogo: só aparecem no modo de ajustes. */
+  const soAjustes = (no: React.ReactNode) => (editandoLimites ? no : null);
+  const abas = [
+    ['armas', `Armas (${f.arsenal.length})`], ['magias', `Habilidades (${f.magias.length})`], ['habilidades', `Talentos (${f.habilidades.length})`],
+    ['inventario', 'Inventário'], ['notas', 'Notas'],
+  ] as const;
 
   return (
-    <article className="ficha" data-estagio={e.min}>
+    <article className="ficha" data-estagio={e.min} data-secao={secao}>
       <div className="veu" data-estagio={e.min} aria-hidden="true" />
       <div className="ficha-barra">
         <Link className="btn" href={voltar.href}>← {voltar.txt}</Link>
@@ -205,7 +222,7 @@ export default function EditorFicha({ f, ed, chat }: {
         {campanha && !f.contexto.souMestre && <Link className="btn" href={`/campanhas/${campanha.id}`}>Campanha: {campanha.nome}</Link>}
         {f.contexto.souMestre && !f.contexto.souDono && <span className="selo">Ficha de {f.contexto.donoNome}</span>}
         <span className="espaco" />
-        <button type="button" className="btn" aria-pressed={editandoLimites} onClick={() => setEditandoLimites(a => !a)}>{editandoLimites ? 'Concluir limites' : 'Definir limites'}</button>
+        <button type="button" className="btn" aria-pressed={editandoLimites} onClick={() => setEditandoLimites(a => !a)}>{editandoLimites ? 'Concluir ajustes' : 'Ajustes e limites'}</button>
         {f.contexto.souDono && <button type="button" className="btn" onClick={duplicar}>Duplicar</button>}
         {f.contexto.souDono && <BotaoConfirmar rotulo="Apagar" confirmar="Confirmar: apagar para sempre" aoConfirmar={apagar} />}
       </div>
@@ -244,9 +261,15 @@ export default function EditorFicha({ f, ed, chat }: {
         </div>
         <div className="placa-texto">
           <h1 className="placa-nome">{perdido ? '???' : f.nome || 'Sem nome'}</h1>
-          <ul className="placa-chips">
-            {perdido ? <li>???</li> : chips.map(c => <li key={c}>{c}</li>)}
-          </ul>
+          {/* Os dados de quem é o personagem ficam no cabeçalho, em linha, como numa ficha de papel. */}
+          <div className="placa-campos">
+            {CAMPOS_TEXTO.map(([k, rotulo]) => (
+              <div className={`campo-linha campo-${k}`} key={k}>
+                <label htmlFor={`c-${k}`}>{rotulo}</label>
+                <input id={`c-${k}`} type="text" value={f[k]} onChange={ev => ed.definir({ ...f, [k]: ev.target.value }, { [k]: ev.target.value })} />
+              </div>
+            ))}
+          </div>
         </div>
         <svg className="fenda" viewBox="0 0 1000 100" preserveAspectRatio="none" aria-hidden="true">
           <polyline points="0,62 90,48 170,71 260,38 330,55 430,20 490,64 590,44 650,78 760,30 840,58 920,36 1000,70" />
@@ -256,129 +279,130 @@ export default function EditorFicha({ f, ed, chat }: {
       </header>
 
       <div className="ficha-secoes" role="group" aria-label="Parte da ficha">
-        {([['cena', 'Cena'], ['perfil', 'Perfil'], ['atributos', 'Atributos']] as const).map(([id, rotulo]) => (
+        {([['cena', 'Cena'], ['atributos', 'Atributos'], ['perfil', 'Perfil']] as const).map(([id, rotulo]) => (
           <button type="button" key={id} aria-pressed={secao === id} onClick={() => { setSecao(id); window.scrollTo({ top: 0 }); }}>{rotulo}</button>
         ))}
       </div>
-      <div className="ficha-grade" data-secao={secao}>
-        <section className="col-id" aria-label="Identidade">
-          <div className="campos">
-            {CAMPOS_TEXTO.map(([k, rotulo, largo]) => (
-              <div className={`campo${largo ? ' campo-largo' : ''}`} key={k}>
-                <label className="rotulo" htmlFor={`c-${k}`}>{rotulo}</label>
-                <input id={`c-${k}`} type="text" value={f[k]} onChange={ev => ed.definir({ ...f, [k]: ev.target.value }, { [k]: ev.target.value })} />
-              </div>
-            ))}
-          </div>
-          <div className="bloco-nucleo">
-            <div className="cab-grupo"><h2 className="titulo-grupo">Núcleo</h2></div>
-            <div className="nucleo-linha">
-              <span className="orbe" aria-hidden="true" style={{ '--orbe': COR_DO_NUCLEO[f.nucleo] } as React.CSSProperties} />
-              <span className="nucleo-nome">{R.NUCLEOS[f.nucleo].nome}</span>
+      <div className="ficha-grade">
+        <aside className="col-cena" aria-label="Em cena">
+          {medidor('vidaAtual', 'Vida', 'cor-vida', f.vidaAtual, vm, `15 + vitalidade ${f.corpo.vitalidade} × 2${parcelaAjuste(f.ajustes.vida)} = ${vm}`, soAjustes(campoBonus('vida', 'vida')))}
+          {medidor('manaAtual', 'Mana', 'cor-mana', f.manaAtual, mm,
+            `30 + determinação ${f.mente.onipotencia} × ${R.MULTIPLICADOR_MANA}${bonus.mana ? ` + núcleo ${bonus.mana}` : ''}${parcelaAjuste(f.ajustes.mana)} = ${base}${f.manaPerdida ? `, menos ${f.manaPerdida} perdida = ${mm}` : ''}`,
+            <>
+              {soAjustes(campoBonus('mana', 'mana'))}
+              {/* A perda vem do fim de cena. O campo só aparece quando há perda, ou para corrigir no modo de ajustes. */}
+              {(f.manaPerdida > 0 || editandoLimites) && (
+                <label className="perda-perm" htmlFor="c-mana-perdida">
+                  Mana total perdida para sempre
+                  <CampoNumero id="c-mana-perdida" min={0} valor={f.manaPerdida} aoMudar={v => mudarComMaximos(c => { c.manaPerdida = R.inteiro(v, 0, 99999); }, c => ({ manaPerdida: c.manaPerdida }))} />
+                </label>
+              )}
+            </>)}
+
+          <div className="fadiga-bloco">
+            <div className="fadiga-topo">
+              <label className="medidor-rot" htmlFor="v-fadiga">Fadiga mental</label>
+              <span className="fadiga-num"><CampoNumero id="v-fadiga" min={0} max={100} aoVivo valor={f.fadiga} aoMudar={mudarFadiga} />%</span>
             </div>
-            <div className="campo">
-              <label className="rotulo" htmlFor="c-nucleo">Estágio do núcleo</label>
-              <select id="c-nucleo" value={f.nucleo} onChange={ev => mudarComMaximos(c => { c.nucleo = R.inteiro(ev.target.value, 0, R.NUCLEOS.length - 1); }, c => ({ nucleo: c.nucleo }))}>
+            <input id="r-fadiga" type="range" min={0} max={100} step={1} value={f.fadiga} aria-label="Fadiga mental em porcentagem" onChange={ev => mudarFadiga(ev.target.value)} />
+            {/* Os estágios viram uma régua de botões; o texto aparece só do estágio atual. */}
+            <div className="fadiga-degraus" role="group" aria-label="Estágios da fadiga">
+              {R.ESTAGIOS.map(s => (
+                <button type="button" key={s.min} className={s.min <= f.fadiga ? 'passou' : undefined} aria-pressed={s.min === e.min} title={s.nome} onClick={() => mudarFadiga(s.min)}>
+                  {String(s.min).padStart(2, '0')}%<span className="so-leitor"> {s.nome}</span>
+                </button>
+              ))}
+            </div>
+            <p className="fadiga-estagio">
+              <b>{e.nome}</b>{e.txt && <span> {e.txt}</span>}
+              {e.perda && <span className="fadiga-custo"> Ao fim da cena: perde {e.perda}% da mana total.</span>}
+            </p>
+            <button type="button" className="btn btn-forte" onClick={encerrarCena}>{perda ? `Encerrar cena: −${perda} de mana total` : 'Encerrar cena'}</button>
+            <ul className="registro">
+              {f.registro.slice(0, 3).map(r => <li key={r.em}>{dataCurta(r.em)}: {r.txt}</li>)}
+            </ul>
+          </div>
+
+          <div className="nucleo-bloco" title={`Núcleo até aqui: +${bonus.mana} de mana, −${bonus.gasto} de gasto universal de mana, +${bonus.ap} AP`}>
+            <span className="orbe" aria-hidden="true" style={{ '--orbe': COR_DO_NUCLEO[f.nucleo] } as React.CSSProperties} />
+            <div className="campo-linha">
+              <label htmlFor="c-nucleo">Núcleo</label>
+              <select id="c-nucleo" aria-label="Estágio do núcleo" value={f.nucleo} onChange={ev => mudarComMaximos(c => { c.nucleo = R.inteiro(ev.target.value, 0, R.NUCLEOS.length - 1); }, c => ({ nucleo: c.nucleo }))}>
                 {R.NUCLEOS.map((n, i) => <option key={n.nome} value={i}>{n.nome}</option>)}
               </select>
             </div>
-            {R.NUCLEOS[f.nucleo].txt && <p className="formula">{R.NUCLEOS[f.nucleo].txt}</p>}
-            <p className="formula">Total até aqui: +{bonus.mana} de mana, −{bonus.gasto} de gasto universal de mana, +{bonus.ap} AP</p>
+            <p className="formula">+{bonus.mana} mana · −{bonus.gasto} gasto · +{bonus.ap} AP</p>
           </div>
-                      {([['inventario', 'Inventário'], ['notas', 'Anotações']] as const).map(([k, rotulo]) => (
-            <div className="campo" key={k}>
-              <label className="rotulo" htmlFor={`c-${k}`}>{rotulo}</label>
-              <textarea id={`c-${k}`} value={f[k]} onChange={ev => ed.definir({ ...f, [k]: ev.target.value }, { [k]: ev.target.value })} />
+        </aside>
+
+        <section className="col-atributos" aria-label="Atributos e perícias">
+          <div className="secao-cab">
+            <h2 className="titulo-grupo">Atributos</h2>
+            <span className={`sp-saldo${apUsados > apMax ? ' sp-acima' : ''}`} title="Atributos, armas e elementos usam os mesmos pontos.">{apUsados} de {apMax} AP usados</span>
+          </div>
+          {soAjustes(campoBonus('ap', 'AP'))}
+          <div className="atributos-bloco">
+            <div className="grafico-atributos"><GraficoAtributos corpo={f.corpo} mente={f.mente} compacto /></div>
+            <div className="atributos-linhas">
+              <div className="grupo-corpo"><h3 className="subtitulo-grupo">Corpo</h3>{R.GRUPOS.corpo.map(i => linhaAttr('corpo', i))}</div>
+              <div className="grupo-mente"><h3 className="subtitulo-grupo">Mente</h3>{R.GRUPOS.mente.map(i => linhaAttr('mente', i))}</div>
             </div>
-          ))}
+          </div>
+
+          <div className="secao-cab"><h2 className="titulo-grupo">Elementos</h2></div>
+          {elementosDaFicha.length === 0 && f.elementosCriados.length === 0 && <p className="apagado">Nenhum elemento ainda.</p>}
+          <div className="elementos-lista">{elementosDaFicha.map(i => linhaAttr('elementos', i, true))}</div>
+          <div className="elementos-acoes">
+            <ElementosCriados
+              f={f} editandoLimites={editandoLimites}
+              aoMudar={elementosCriados => ed.definir({ ...f, elementosCriados }, { elementosCriados })}
+              aoMudarLimite={mudarLimite}
+              aoRolar={atributo => rolar({ atributo })}
+            />
+            {elementosDaFicha.length < R.GRUPOS.elementos.length && (
+              <select className="elemento-adicionar" aria-label="Adicionar elemento" value="" onChange={ev => adicionarElemento(ev.target.value)}>
+                <option value="" disabled>+ Adicionar elemento</option>
+                {R.GRUPOS.elementos.filter(([k]) => !elementosDaFicha.some(([el]) => el === k)).map(([k, rotulo]) => <option key={k} value={k}>{rotulo}</option>)}
+              </select>
+            )}
+          </div>
+
+          <div className="secao-cab">
+            <h2 className="titulo-grupo">Perícias</h2>
+            <span className={`sp-saldo${ppUsados > ppMax ? ' sp-acima' : ''}`}>{ppUsados} de {ppMax} PP usados</span>
+          </div>
+          <p className="grupo-desc">Limite por perícia: {Math.max(0, R.LIMITE_PERICIA_INICIAL + f.ajustes.limitePericia)}.</p>
+          {soAjustes(<>{campoBonus('pp', 'PP')}{campoBonus('limitePericia', 'limite por perícia')}</>)}
+          <TabelaPericias
+            f={f} editandoLimites={editandoLimites}
+            aoMudarTreino={(k, v) => mudarAttr('pericias', k, v)}
+            aoMudarOutros={(k, v) => {
+              const periciasOutros = { ...f.periciasOutros, [k]: R.inteiro(v, 0, 999) };
+              ed.definir({ ...f, periciasOutros }, { periciasOutros });
+            }}
+            aoMudarAtributo={(k, atributo) => {
+              const periciasAtributo = { ...f.periciasAtributo };
+              if (!atributo || atributo === R.ATRIBUTO_DA_PERICIA[k]) delete periciasAtributo[k];
+              else periciasAtributo[k] = atributo;
+              ed.definir({ ...f, periciasAtributo }, { periciasAtributo });
+            }}
+            aoMudarLimite={mudarLimite}
+            aoRolar={k => rolar({ atributo: `pericias.${k}` })}
+          />
         </section>
 
-        <section className="col-attr" aria-label="Atributos e magias">
+        <section className="col-abas" aria-label="Armas, habilidades e anotações">
           <div className="abas" role="tablist" aria-label="Seções da ficha">
-            <button type="button" role="tab" id="aba-atributos" aria-controls="painel-atributos" aria-selected={aba === 'atributos'} onClick={() => setAba('atributos')}>Atributos</button>
-            <button type="button" role="tab" id="aba-pericias" aria-controls="painel-pericias" aria-selected={aba === 'pericias'} onClick={() => setAba('pericias')}>Perícias</button>
-            <button type="button" role="tab" id="aba-armas" aria-controls="painel-armas" aria-selected={aba === 'armas'} onClick={() => setAba('armas')}>Armas ({f.arsenal.length})</button>
-            <button type="button" role="tab" id="aba-magias" aria-controls="painel-magias" aria-selected={aba === 'magias'} onClick={() => setAba('magias')}>Habilidades ({f.magias.length})</button>
-            <button type="button" role="tab" id="aba-habilidades" aria-controls="painel-habilidades" aria-selected={aba === 'habilidades'} onClick={() => setAba('habilidades')}>Talentos ({f.habilidades.length})</button>
+            {abas.map(([id, rotulo]) => (
+              <button type="button" role="tab" key={id} id={`aba-${id}`} aria-controls={`painel-${id}`} aria-selected={aba === id} onClick={() => setAba(id)}>{rotulo}</button>
+            ))}
           </div>
-          {/* Ficam montadas e só escondidas: trocar de aba não perde o filtro de perícias nem as magias abertas. */}
-          <div className="painel-aba" id="painel-atributos" role="tabpanel" aria-labelledby="aba-atributos" hidden={aba !== 'atributos'}>
-            <div>
-              <div className="cab-grupo cab-pericias">
-                <h2 className="titulo-grupo">Pontos de atributo</h2>
-                <span className={`sp-saldo${apUsados > apMax ? ' sp-acima' : ''}`}>{apUsados} de {apMax} AP usados</span>
-              </div>
-              <p className="grupo-desc">Atributos, armas e elementos usam os mesmos pontos.</p>
-              {campoBonus('ap', 'AP')}
-            </div>
-            <div>
-              <div className="cab-grupo"><h2 className="titulo-grupo">Elementos</h2></div>
-              <p className="grupo-desc">Afinidades mágicas: fogo, água, vento...</p>
-              {elementosDaFicha.length === 0 && f.elementosCriados.length === 0 && <p className="apagado">Nenhum elemento ainda. Adicione as afinidades do personagem.</p>}
-              <div className="elementos-lista">{elementosDaFicha.map(i => linhaAttr('elementos', i, true))}</div>
-              <ElementosCriados
-                f={f} editandoLimites={editandoLimites}
-                aoMudar={elementosCriados => ed.definir({ ...f, elementosCriados }, { elementosCriados })}
-                aoMudarLimite={mudarLimite}
-                aoRolar={atributo => rolar({ atributo })}
-              />
-              {elementosDaFicha.length < R.GRUPOS.elementos.length && (
-                <select className="elemento-adicionar" aria-label="Adicionar elemento" value="" onChange={ev => adicionarElemento(ev.target.value)}>
-                  <option value="" disabled>+ Adicionar elemento</option>
-                  {R.GRUPOS.elementos.filter(([k]) => !elementosDaFicha.some(([e]) => e === k)).map(([k, rotulo]) => <option key={k} value={k}>{rotulo}</option>)}
-                </select>
-              )}
-            </div>
-            <div>
-              <div className="cab-grupo"><h2 className="titulo-grupo">Atributos</h2></div>
-              <p className="grupo-desc">Corpo e mente: tração, vitalidade, encanto...</p>
-              <div className="atributos-corpo">
-              <div className="grafico-atributos"><GraficoAtributos corpo={f.corpo} mente={f.mente} /></div>
-              <div className="duas-col">
-                <div className="grupo-corpo">
-                  <h3 className="subtitulo-grupo">Corpo</h3>
-                  {R.GRUPOS.corpo.map(i => linhaAttr('corpo', i))}
-                </div>
-                <div className="grupo-mente">
-                  <h3 className="subtitulo-grupo">Mente</h3>
-                  {R.GRUPOS.mente.map(i => linhaAttr('mente', i))}
-                </div>
-              </div>
-              </div>
-            </div>
-            <div>
-              <div className="cab-grupo"><h2 className="titulo-grupo">Armas</h2></div>
-              <div className="lista-armas">{R.GRUPOS.armas.map(i => linhaAttr('armas', i))}</div>
-            </div>
-          </div>
-          <div className="painel-aba" id="painel-pericias" role="tabpanel" aria-labelledby="aba-pericias" hidden={aba !== 'pericias'}>
-            <div>
-              <div className="cab-grupo cab-pericias">
-                <h2 className="titulo-grupo">Perícias</h2>
-                <span className={`sp-saldo${ppUsados > ppMax ? ' sp-acima' : ''}`}>{ppUsados} de {ppMax} PP usados</span>
-              </div>
-              <p className="grupo-desc">Limite por perícia: {Math.max(0, R.LIMITE_PERICIA_INICIAL + f.ajustes.limitePericia)}.</p>
-              {campoBonus('pp', 'PP')}
-              {campoBonus('limitePericia', 'limite por perícia')}
-              <TabelaPericias
-                f={f} editandoLimites={editandoLimites}
-                aoMudarTreino={(k, v) => mudarAttr('pericias', k, v)}
-                aoMudarOutros={(k, v) => {
-                  const periciasOutros = { ...f.periciasOutros, [k]: R.inteiro(v, 0, 999) };
-                  ed.definir({ ...f, periciasOutros }, { periciasOutros });
-                }}
-                aoMudarAtributo={(k, atributo) => {
-                  const periciasAtributo = { ...f.periciasAtributo };
-                  if (!atributo || atributo === R.ATRIBUTO_DA_PERICIA[k]) delete periciasAtributo[k];
-                  else periciasAtributo[k] = atributo;
-                  ed.definir({ ...f, periciasAtributo }, { periciasAtributo });
-                }}
-                aoMudarLimite={mudarLimite}
-                aoRolar={k => rolar({ atributo: `pericias.${k}` })}
-              />
-            </div>
-          </div>
+          {/* Ficam montadas e só escondidas: trocar de aba não perde as armas e magias abertas. */}
           <div className="painel-aba" id="painel-armas" role="tabpanel" aria-labelledby="aba-armas" hidden={aba !== 'armas'}>
+            <div className="proficiencias">
+              <h3 className="subtitulo-grupo">Proficiência</h3>
+              {R.GRUPOS.armas.map(i => linhaAttr('armas', i))}
+            </div>
             <Armas
               armas={f.arsenal} ataque={a => { const { valor, vantagem } = R.ataqueDaArma(f, a); return expressaoDaRolagem(valor, vantagem); }}
               aoMudar={arsenal => ed.definir({ ...f, arsenal }, { arsenal })}
@@ -394,45 +418,14 @@ export default function EditorFicha({ f, ed, chat }: {
           <div className="painel-aba" id="painel-habilidades" role="tabpanel" aria-labelledby="aba-habilidades" hidden={aba !== 'habilidades'}>
             <Habilidades habilidades={f.habilidades} aoMudar={habilidades => ed.definir({ ...f, habilidades }, { habilidades })} />
           </div>
-        </section>
-
-        <aside className="col-cena" aria-label="Em cena">
-          {blocoVital('vidaAtual', 'Vida', 'cor-vida', f.vidaAtual, vm, `15 + vitalidade ${f.corpo.vitalidade} × 2${parcelaAjuste(f.ajustes.vida)} = ${vm}`, campoBonus('vida', 'vida'))}
-          {blocoVital('manaAtual', 'Mana', 'cor-mana', f.manaAtual, mm,
-            `30 + determinação ${f.mente.onipotencia} × ${R.MULTIPLICADOR_MANA}${bonus.mana ? ` + núcleo ${bonus.mana}` : ''}${parcelaAjuste(f.ajustes.mana)} = ${base}${f.manaPerdida ? `, menos ${f.manaPerdida} perdida = ${mm}` : ''}`,
-            <>
-              {campoBonus('mana', 'mana')}
-              <label className="perda-perm" htmlFor="c-mana-perdida">
-                Mana total perdida para sempre
-                <CampoNumero id="c-mana-perdida" min={0} valor={f.manaPerdida} aoMudar={v => mudarComMaximos(c => { c.manaPerdida = R.inteiro(v, 0, 99999); }, c => ({ manaPerdida: c.manaPerdida }))} />
-              </label>
-            </>)}
-
-          <div className="fadiga">
-            <div className="vital-topo">
-              <label className="vital-rot" htmlFor="v-fadiga">Fadiga mental</label>
-              <span className="vital-num"><CampoNumero id="v-fadiga" min={0} max={100} aoVivo valor={f.fadiga} aoMudar={mudarFadiga} /><span>%</span></span>
+          {([['inventario', 'Inventário'], ['notas', 'Anotações']] as const).map(([k, rotulo]) => (
+            <div className="painel-aba" id={`painel-${k}`} role="tabpanel" aria-labelledby={`aba-${k}`} hidden={aba !== k} key={k}>
+              <label className="so-leitor" htmlFor={`c-${k}`}>{rotulo}</label>
+              <textarea className="texto-livre" id={`c-${k}`} value={f[k]} placeholder={k === 'inventario' ? 'Itens, dinheiro, o que o personagem carrega…' : 'Pistas, nomes, o que aconteceu na sessão…'}
+                onChange={ev => ed.definir({ ...f, [k]: ev.target.value }, { [k]: ev.target.value })} />
             </div>
-            <input id="r-fadiga" type="range" min={0} max={100} step={1} value={f.fadiga} aria-label="Fadiga mental em porcentagem" onChange={ev => mudarFadiga(ev.target.value)} />
-            <ol className="escada">
-              {R.ESTAGIOS.map(s => (
-                <li key={s.min}>
-                  <button type="button" className={`degrau est-${s.min}${s.min <= f.fadiga ? ' passou' : ''}`} aria-current={s.min === e.min ? 'true' : undefined} onClick={() => mudarFadiga(s.min)}>
-                    <b>{String(s.min).padStart(2, '0')}%</b>
-                    <span className="degrau-nome">{s.nome}</span>
-                    {s.txt && <span className="degrau-txt">{s.txt}</span>}
-                    {s.perda && <span className="degrau-custo">Ao fim da cena: perde {s.perda}% da mana total</span>}
-                  </button>
-                </li>
-              ))}
-            </ol>
-            <button type="button" className="btn btn-forte" onClick={encerrarCena}>{perda ? `Encerrar cena: −${perda} de mana total` : 'Encerrar cena'}</button>
-            <ul className="registro">
-              {f.registro.slice(0, 3).map(r => <li key={r.em}>{dataCurta(r.em)}: {r.txt}</li>)}
-            </ul>
-          </div>
-
-        </aside>
+          ))}
+        </section>
       </div>
       <ChatFlutuante
         chat={chat}

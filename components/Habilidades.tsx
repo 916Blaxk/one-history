@@ -23,7 +23,7 @@ export default function Habilidades({ habilidades, aoMudar }: { habilidades: R.H
   return (
     <div className="habilidades">
       <div className="cab-grupo"><h2 className="titulo-grupo">Talentos</h2></div>
-      {habilidades.length === 0 && <p className="apagado">Nenhum talento ainda. Crie o primeiro e descreva o que o personagem sabe fazer.</p>}
+      {habilidades.length === 0 && <p className="apagado">Nenhum talento ainda.</p>}
       <ul className="lista-magias">
         {habilidades.map(h => {
           const aberta = abertas.has(h.id), nome = h.nome || 'Talento sem nome';

@@ -48,7 +48,7 @@ export default function Magias({ magias, criados, elementos, gastoUniversal, aoM
         <h2 className="titulo-grupo">Habilidades</h2>
         {gastoUniversal > 0 && <span className="sp-saldo">Gasto universal: −{gastoUniversal} de mana</span>}
       </div>
-      {magias.length === 0 && <p className="apagado">Nenhuma magia ainda. Adicione o primeiro feitiço desta ficha.</p>}
+      {magias.length === 0 && <p className="apagado">Nenhuma magia ainda.</p>}
       <ul className="lista-magias">
         {magias.map(m => {
           const aberta = abertas.has(m.id), custo = Math.max(0, m.custo - gastoUniversal), nome = m.nome || 'Magia sem nome', elemento = nomeElemento(m.elemento);
