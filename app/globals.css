@@ -292,6 +292,7 @@ a.camp-linha:hover .rol-nome{color:var(--primary-claro)}
 .magia-nome:hover{color:var(--primary-claro)}
 .magia-nome small{display:block;font-size:13px;font-weight:400;color:var(--text-muted)}
 .magia-custo{font-size:13px;color:var(--text-muted);white-space:nowrap}
+.arma-botoes{display:flex;gap:6px}
 .magia-corpo{padding:10px;border-top:1px dotted var(--border)}
 .magia-campos{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
 .magia-descricao{white-space:pre-wrap;overflow-wrap:anywhere}

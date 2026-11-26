@@ -254,7 +254,7 @@ test('mesa: mapa, névoa, combate, magia e ferramentas na mesma sessão', async 
     p.on('pageerror', e => erros.push(e.message));
     p.on('dialog', d => void d.accept());
   }
-  await jogador.request.patch(`/api/fichas/${fichaId}`, { data: { magias: [{ id: 'm1', nome: 'Bola de fogo', elemento: 'fogo', custo: 10, dano: '3d6', alcance: '', duracao: '', descricao: '' }] } });
+  await jogador.request.patch(`/api/fichas/${fichaId}`, { data: { magias: [{ id: 'm1', nome: 'Bola de fogo', elemento: 'fogo', custo: 10, dano: '3d6', alcance: '', duracao: '', descricao: '' }], arsenal: [{ id: 'a1', nome: 'Espada', categoria: 'pesada', dano: '1d8' }] } });
   await abrirMesa(mestre, campanhaId);
   await abrirMesa(jogador, campanhaId);
 
@@ -328,6 +328,13 @@ test('mesa: mapa, névoa, combate, magia e ferramentas na mesma sessão', async 
   /* O dano rola no chat da mesa, e o mestre vê. */
   await mestre.getByRole('button', { name: 'Abrir chat' }).click();
   await expect(mestre.locator('.chat-roll-label').last()).toHaveText('Bola de fogo');
+  /* As armas da ficha aparecem no lugar das linhas de armas leves, médias e pesadas. */
+  await jogador.locator('.mini-sheet-group summary', { hasText: 'Armas' }).click();
+  await expect(jogador.getByRole('button', { name: /^Rolar Armas leves/ })).toHaveCount(0);
+  await jogador.getByRole('button', { name: 'Rolar Ataque com Espada: 1d20' }).click();
+  await expect(mestre.locator('.chat-roll-label').last()).toHaveText('Ataque com Espada');
+  await jogador.getByRole('button', { name: 'Rolar Dano de Espada: 1d8' }).click();
+  await expect(mestre.locator('.chat-roll-label').last()).toHaveText('Dano de Espada');
   /* Com o chat aberto, a barra de ferramentas do mestre fica escondida. */
   await mestre.getByRole('button', { name: 'Fechar chat' }).first().click();
   /* O dono edita a fadiga e encerra a cena, como o mestre, e vê o que o mestre mudar. */

@@ -605,6 +605,29 @@ describe('magias', () => {
   });
 });
 
+describe('armas', () => {
+  it('a arma ataca pela perícia Combate com o atributo da categoria e rola o dano guardado', async () => {
+    const a = await novaConta('Guerreira');
+    const f = await novaFicha(a.c, { nome: 'Bia' });
+    const arsenal = [
+      { id: 'espada', nome: 'Espada', categoria: 'pesada', atributo: 'destreza', dano: '1d8+2' },
+      { id: 'pau', nome: 'Pau', categoria: 'leve', dano: 'muito' },
+    ];
+    const salvo = (await a.c('PATCH', `/api/fichas/${f.id}`, { arsenal, corpo: { tracao: 15 }, pericias: { combate: 3 } })).corpo.ficha;
+    expect(salvo.arsenal[0]).toMatchObject({ nome: 'Espada', atributo: 'tracao' });
+    const ataque = (await a.c('POST', `/api/fichas/${f.id}/rolar`, { atributo: 'arma.espada' })).corpo.rolagem;
+    expect(ataque.rotulo).toBe('Ataque com Espada');
+    expect(ataque.det).toMatch(/^2d20, fica o maior \(\d+, \d+\) \+ 3$/);
+    const dano = (await a.c('POST', `/api/fichas/${f.id}/rolar`, { atributo: 'dano.espada' })).corpo.rolagem;
+    expect(dano.rotulo).toBe('Dano de Espada');
+    expect(dano.det).toMatch(/^1d8 \(\d\) \+ 2$/);
+    expect((await a.c('POST', `/api/fichas/${f.id}/rolar`, { atributo: 'dano.pau' })).status).toBe(400);
+    expect((await a.c('POST', `/api/fichas/${f.id}/rolar`, { atributo: 'arma.nao-existe' })).status).toBe(400);
+    const resumo = (await a.c('GET', `/api/fichas/${f.id}/resumo`)).corpo;
+    expect(resumo.acoes.filter((x: { categoria: string }) => x.categoria === 'Armas').map((x: { id: string }) => x.id)).toEqual(['arma.espada', 'dano.espada', 'arma.pau', 'dano.pau']);
+  });
+});
+
 describe('resumo da ficha', () => {
   it('o dono e o mestre leem; o colega e quem está fora não leem', async () => {
     const { mestre, jog, intruso, c, codigo } = await mesa();
@@ -617,8 +640,8 @@ describe('resumo da ficha', () => {
     expect(r.status).toBe(200);
     expect(r.corpo.nome).toBe('Rael');
     expect(r.corpo.recursos[0]).toEqual({ id: 'vida', rotulo: 'Vida', atual: 25, max: 25 });
-    /* Sem elemento adicionado, os cinco elementos base não viram rolagem. */
-    expect(r.corpo.acoes).toHaveLength(65);
+    /* Sem elemento adicionado, os cinco elementos base não viram rolagem. Sem arma no arsenal, nenhuma arma vira. */
+    expect(r.corpo.acoes).toHaveLength(62);
     expect(r.corpo.acoes.find((a: { id: string }) => a.id === 'corpo.destreza').expressao).toBe('1d20');
     expect((await mestre.c('GET', `/api/fichas/${f.id}/resumo`)).status).toBe(200);
     expect((await colega.c('GET', `/api/fichas/${f.id}/resumo`)).status).toBe(404);

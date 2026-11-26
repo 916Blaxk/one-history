@@ -5,6 +5,7 @@ import { useRef, useState } from 'react';
 import { Axe, Droplets, Feather, Flame, HeartPulse, Mountain, Sword, Wind, type LucideIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import AjusteFoto, { arquivoDeDataUrl, fotoDaTela } from '@/components/AjusteFoto';
+import Armas from '@/components/Armas';
 import { ChatFlutuante } from '@/components/Chat';
 import { BotaoConfirmar, CampoNumero, Capitular } from '@/components/comuns';
 import ElementosCriados from '@/components/ElementosCriados';
@@ -15,6 +16,7 @@ import TabelaPericias from '@/components/TabelaPericias';
 import { api, dataCurta, mensagem, pct } from '@/lib/cliente';
 import { MOLDURA_FOTO, type Enquadramento } from '@/lib/enquadramento';
 import * as R from '@/lib/regras';
+import { expressaoDaRolagem } from '@/lib/resumoFicha';
 import type { Ficha, Mensagem } from '@/lib/tipos';
 import type { useChat } from '@/lib/useChat';
 import type { useFichaEditavel } from '@/lib/useFicha';
@@ -37,7 +39,7 @@ export default function EditorFicha({ f, ed, chat }: {
   const entradaFoto = useRef<HTMLInputElement>(null);
   const [fotoEscolhida, setFotoEscolhida] = useState<{ arquivo: File; original?: string; ajuste?: Enquadramento | null } | null>(null);
   const [editandoLimites, setEditandoLimites] = useState(false);
-  const [aba, setAba] = useState<'atributos' | 'pericias' | 'magias' | 'habilidades'>('atributos');
+  const [aba, setAba] = useState<'atributos' | 'pericias' | 'armas' | 'magias' | 'habilidades'>('atributos');
   /* Só o celular usa: no computador, as três colunas ficam sempre à vista. */
   const [secao, setSecao] = useState<'cena' | 'perfil' | 'atributos'>('cena');
   const url = `/api/fichas/${f.id}`;
@@ -292,6 +294,7 @@ export default function EditorFicha({ f, ed, chat }: {
           <div className="abas" role="tablist" aria-label="Seções da ficha">
             <button type="button" role="tab" id="aba-atributos" aria-controls="painel-atributos" aria-selected={aba === 'atributos'} onClick={() => setAba('atributos')}>Atributos</button>
             <button type="button" role="tab" id="aba-pericias" aria-controls="painel-pericias" aria-selected={aba === 'pericias'} onClick={() => setAba('pericias')}>Perícias</button>
+            <button type="button" role="tab" id="aba-armas" aria-controls="painel-armas" aria-selected={aba === 'armas'} onClick={() => setAba('armas')}>Armas ({f.arsenal.length})</button>
             <button type="button" role="tab" id="aba-magias" aria-controls="painel-magias" aria-selected={aba === 'magias'} onClick={() => setAba('magias')}>Habilidades ({f.magias.length})</button>
             <button type="button" role="tab" id="aba-habilidades" aria-controls="painel-habilidades" aria-selected={aba === 'habilidades'} onClick={() => setAba('habilidades')}>Talentos ({f.habilidades.length})</button>
           </div>
@@ -371,6 +374,13 @@ export default function EditorFicha({ f, ed, chat }: {
                 aoRolar={k => rolar({ atributo: `pericias.${k}` })}
               />
             </div>
+          </div>
+          <div className="painel-aba" id="painel-armas" role="tabpanel" aria-labelledby="aba-armas" hidden={aba !== 'armas'}>
+            <Armas
+              armas={f.arsenal} ataque={a => { const { valor, vantagem } = R.ataqueDaArma(f, a); return expressaoDaRolagem(valor, vantagem); }}
+              aoMudar={arsenal => ed.definir({ ...f, arsenal }, { arsenal })}
+              aoAtacar={a => void rolar({ atributo: `arma.${a.id}` })} aoRolarDano={a => void rolar({ atributo: `dano.${a.id}` })}
+            />
           </div>
           <div className="painel-aba" id="painel-magias" role="tabpanel" aria-labelledby="aba-magias" hidden={aba !== 'magias'}>
             <Magias

@@ -5,7 +5,7 @@ import { DiceExpressionError, rollDice } from '../../mesa/src/features/chat/dice
 import type { DiceRollResult } from '../../mesa/src/features/chat/dice-types';
 import { normalizarEnquadramento } from '../enquadramento';
 import * as R from '../regras';
-import { expressaoDaRolagem, lerAcao, resumoDaFicha } from '../resumoFicha';
+import { danoNoLimite, lerRolagem, resumoDaFicha } from '../resumoFicha';
 import type { Ficha, Mensagem, PaginaChat, Papel, ResumoFicha } from '../tipos';
 import { avisarMesa } from './barramento';
 import { db } from './db';
@@ -18,7 +18,7 @@ const LIMITE_FICHAS = 200, LIMITE_CAMPANHAS = 50, LIMITE_MEMBROS = 60;
 const LIMITE_ROLAGENS = 500, PAGINA_CHAT = 50;
 const ALFABETO_CODIGO = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 const FOTO_VALIDA = /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/;
-const CAMPOS_FICHA = new Set(['player', 'nome', 'idade', 'raca', 'estilo', 'inventario', 'notas', 'manaPerdida', 'fadiga', 'vidaAtual', 'manaAtual', 'nucleo', 'magias', 'elementosCriados', 'elementosAtivos', 'habilidades', 'periciasOutros', 'periciasAtributo']);
+const CAMPOS_FICHA = new Set(['player', 'nome', 'idade', 'raca', 'estilo', 'inventario', 'notas', 'manaPerdida', 'fadiga', 'vidaAtual', 'manaAtual', 'nucleo', 'magias', 'elementosCriados', 'elementosAtivos', 'habilidades', 'periciasOutros', 'periciasAtributo', 'arsenal']);
 const JANELA_MS = 15 * 60 * 1000;
 
 export class Erro extends Error {
@@ -208,15 +208,11 @@ function rolar(lados: number, bonus: number) {
   const expressao = `1d${lados}${bonus > 0 ? `+${bonus}` : bonus < 0 ? `-${-bonus}` : ''}`;
   return { expressao, detalhe: rollDice(expressao) };
 }
-function rolarDaFicha(valor: number, vantagem: number) {
-  const expressao = expressaoDaRolagem(valor, vantagem);
-  return { expressao, detalhe: rollDice(expressao) };
-}
 /* O dano é texto livre na ficha: aceita o que o rolador da mesa aceita, com o mesmo limite de dados. */
 function rolarDano(dano: string, nome: string) {
   const expressao = dano.trim();
   if (!expressao) throw new Erro(400, `${nome} não tem dano para rolar.`);
-  if ((expressao.match(/[dD]/g)?.length ?? 0) > 10) throw new Erro(400, `O dano de ${nome} excede o limite do rolador.`);
+  if (!danoNoLimite(expressao)) throw new Erro(400, `O dano de ${nome} excede o limite do rolador.`);
   try {
     return { expressao, detalhe: rollDice(expressao) };
   } catch (erro) {
@@ -526,25 +522,28 @@ rota('POST', '/api/fichas/:id/rolar', async ctx => {
   const f = await fichaEditavel(ctx.params.id, ctx.usuario);
   let rotulo = '';
   let r: ReturnType<typeof rolar>;
+  /* Dano tem vários dados e somas: o texto curto das rolagens de atributo leria 2d6 como vantagem. */
+  let livre = false;
   if (ctx.corpo.atributo) {
     /* Valor e vantagem vêm do que está guardado na ficha: o navegador não escolhe o bônus. */
-    const item = lerAcao(R.normalizar(f.dados), String(ctx.corpo.atributo));
+    const item = lerRolagem(R.normalizar(f.dados), String(ctx.corpo.atributo));
     if (!item) throw new Erro(400, 'Esse atributo não existe na ficha.');
     rotulo = item.rotulo;
-    r = rolarDaFicha(item.valor, item.vantagem);
+    livre = item.livre;
+    r = livre ? rolarDano(item.expressao, item.nome) : { expressao: item.expressao, detalhe: rollDice(item.expressao) };
   } else if (ctx.corpo.magia) {
     /* O dano vem da magia guardada: o navegador só diz qual magia conjurou. */
     const magia = R.normalizar(f.dados).magias.find(m => m.id === String(ctx.corpo.magia));
     if (!magia) throw new Erro(400, 'Essa magia não existe na ficha.');
     rotulo = magia.nome || 'Magia sem nome';
     r = rolarDano(magia.dano, rotulo);
+    livre = true;
   } else {
     r = rolar(Number(ctx.corpo.lados), R.inteiro(ctx.corpo.bonus, -999, 999));
   }
   const [campanha] = f.campanhaId ? await db.select({ mestreId: campanhas.mestreId }).from(campanhas).where(eq(campanhas.id, f.campanhaId)) : [];
   /* Todos da mesa veem a rolagem: o nome, a foto e o id entregariam a ficha privada. */
-  /* Dano tem vários dados e somas: o texto curto das rolagens de atributo leria 2d6 como vantagem. */
-  const det = ctx.corpo.magia ? textoDaRolagem(r.detalhe) : detalheRolagem(r.detalhe);
+  const det = livre ? textoDaRolagem(r.detalhe) : detalheRolagem(r.detalhe);
   if (campanha && R.fichaPrivada(f, campanha.mestreId)) return { rolagem: await registrarRolagem(f.campanhaId, null, ctx.usuario, 'Mestre', rotulo, r, 0, det) };
   return { rolagem: await registrarRolagem(f.campanhaId, f.id, ctx.usuario, nomeFicha(f.dados), rotulo, r, f.fotoV, det) };
 });

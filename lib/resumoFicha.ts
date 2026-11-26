@@ -42,14 +42,46 @@ export function lerAcao(d: R.DadosFicha, acao: string) {
   };
 }
 
+/* O dano é texto livre: o mesmo limite de dados vale na ficha e na mesa. */
+export const LIMITE_DADOS_DANO = 10;
+export const danoNoLimite = (expressao: string) => (expressao.match(/[dD]/g)?.length ?? 0) <= LIMITE_DADOS_DANO;
+
+const nomeDaArma = (a: R.Arma) => a.nome || 'Arma sem nome';
+const rotuloAtaque = (a: R.Arma) => `Ataque com ${nomeDaArma(a)}`;
+const rotuloDano = (a: R.Arma) => `Dano de ${nomeDaArma(a)}`;
+
+/* Toda rolagem pronta da ficha, pela chave que o navegador manda. `livre` marca o dano, que é texto digitado e pode não ser válido. */
+export function lerRolagem(d: R.DadosFicha, acao: string): { rotulo: string; nome: string; expressao: string; livre: boolean } | null {
+  const [tipo, id] = [acao.slice(0, acao.indexOf('.')), acao.slice(acao.indexOf('.') + 1)];
+  if (tipo === 'arma' || tipo === 'dano') {
+    const arma = d.arsenal.find(a => a.id === id);
+    if (!arma) return null;
+    if (tipo === 'dano') return arma.dano.trim() ? { rotulo: rotuloDano(arma), nome: nomeDaArma(arma), expressao: arma.dano.trim(), livre: true } : null;
+    const { valor, vantagem } = R.ataqueDaArma(d, arma);
+    return { rotulo: rotuloAtaque(arma), nome: nomeDaArma(arma), expressao: expressaoDaRolagem(valor, vantagem), livre: false };
+  }
+  const item = lerAcao(d, acao);
+  return item && { rotulo: item.rotulo, nome: item.rotulo, expressao: expressaoDaRolagem(item.valor, item.vantagem), livre: false };
+}
+
+/* Na mesa, as armas do personagem tomam o lugar das linhas de armas leves, médias e pesadas. */
+function acoesDasArmas(d: R.DadosFicha): AcaoRolagem[] {
+  return d.arsenal.flatMap(a => {
+    const { valor, vantagem } = R.ataqueDaArma(d, a);
+    const ataque = { id: `arma.${a.id}`, grupo: 'armas' as const, categoria: NOME_GRUPO.armas, rotulo: rotuloAtaque(a), valor, expressao: expressaoDaRolagem(valor, vantagem) };
+    const dano = a.dano.trim();
+    return dano ? [ataque, { id: `dano.${a.id}`, grupo: 'armas' as const, categoria: NOME_GRUPO.armas, rotulo: rotuloDano(a), valor: 0, expressao: dano }] : [ataque];
+  });
+}
+
 export function acoesDeRolagem(d: R.DadosFicha): AcaoRolagem[] {
   const criados = d.elementosCriados.map(e => {
     const valor = R.somaDosPontos(e.valor);
     return { id: R.chaveCriado(e.id), grupo: 'elementos' as const, categoria: NOME_GRUPO.elementos, rotulo: e.nome, valor, expressao: expressaoDaRolagem(valor, R.vantagemDosPontos(e.valor)) };
   });
   /* Elemento que o personagem não tem não vira rolagem na mesa. */
-  const itensDe = (g: R.Grupo): readonly (readonly string[])[] => (g === 'elementos' ? R.elementosDaFicha(d) : R.GRUPOS[g]);
-  return [...criados, ...R.NOMES_GRUPOS.flatMap(g => itensDe(g).map(item => {
+  const itensDe = (g: R.Grupo): readonly (readonly string[])[] => (g === 'elementos' ? R.elementosDaFicha(d) : g === 'armas' ? [] : R.GRUPOS[g]);
+  return [...acoesDasArmas(d), ...criados, ...R.NOMES_GRUPOS.flatMap(g => itensDe(g).map(item => {
     const [k, rotulo] = item;
     const valor = R.somaDaRolagem(d, g, k);
     return {

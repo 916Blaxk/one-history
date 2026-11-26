@@ -16,7 +16,7 @@ import { avancarVez, tirarDoCombate } from '../src/shared/combate.js'
 import { CAMADA_MUNDO, MAX_NUMEROS_NEVOA, MAX_OPS_NEVOA, celulasParaOps, tamanhoDaNevoa } from '../src/shared/nevoa.js'
 import * as R from '../../lib/regras'
 import type { ImagemMonstro } from '../../lib/servidor/schema'
-import { expressaoDaRolagem, lerAcao } from '../../lib/resumoFicha'
+import { danoNoLimite, expressaoDaRolagem, lerRolagem } from '../../lib/resumoFicha'
 import { ouvirMesa, type EventoMesa } from '../../lib/servidor/barramento'
 import { alterarFicha, detalheRolagem, gravarRolagem, textoDaRolagem } from '../../lib/servidor/rotas'
 import { COOKIE, usuarioDoToken } from '../../lib/servidor/sessao'
@@ -927,16 +927,28 @@ async function handleCommand(socket: TableSocket, room: RoomState, player: RoomP
       if (!can(player.role, 'chat:roll')) return deny(socket)
       const ficha = await lerFicha(message.fichaId)
       if (!ficha || ficha.campanhaId !== room.code || (player.role !== 'gm' && ficha.donoId !== player.id)) return deny(socket)
-      const item = lerAcao(ficha.dados, message.acao)
+      const item = lerRolagem(ficha.dados, message.acao)
       if (!item) return deny(socket)
       /* O bônus vem da ficha guardada: o navegador só diz qual atributo rolar. */
-      const expression = expressaoDaRolagem(item.valor, item.vantagem)
-      const roll = rollDice(expression)
+      const expression = item.expressao
+      /* O dano da arma é texto digitado na ficha: pode não ser uma rolagem válida. */
+      if (item.livre && !danoNoLimite(expression)) {
+        socket.emit('room:event', { type: 'chat:error', text: `O dano de ${item.nome} excede o limite do rolador.` })
+        return
+      }
+      let roll: ReturnType<typeof rollDice>
+      try {
+        roll = rollDice(expression)
+      } catch (error) {
+        if (!(error instanceof DiceExpressionError)) throw error
+        socket.emit('room:event', { type: 'chat:error', text: `O dano de ${item.nome} não é uma rolagem válida (ex.: 2d6+3). ${error.message}` })
+        return
+      }
       /* Todos da mesa veem a rolagem: o nome e o id entregariam a ficha privada. */
       const privada = R.fichaPrivada(ficha, room.mestreId)
       await gravarRolagem({
         campanhaId: room.code, fichaId: privada ? null : ficha.id, usuarioId: player.id, autor: privada ? 'Mestre' : ficha.dados.nome || 'Sem nome',
-        rotulo: item.rotulo, det: detalheRolagem(roll), total: roll.total, expressao: expression, detalhe: roll,
+        rotulo: item.rotulo, det: item.livre ? textoDaRolagem(roll) : detalheRolagem(roll), total: roll.total, expressao: expression, detalhe: roll,
       })
       return
     }

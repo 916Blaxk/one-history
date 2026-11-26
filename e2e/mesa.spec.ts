@@ -400,6 +400,35 @@ test('totais e limites só avisam: dono e mestre passam deles, e o site mostra e
   await expect(jogador.getByText('49 de 25 PP usados')).toBeVisible();
 });
 
+test('armas: adicionar, escolher o atributo da média, atacar e rolar o dano', async ({ browser }) => {
+  const p = await novaPessoa(browser, 'Guerreiro Ivo');
+  await criarFicha(p, 'Lutador');
+  await p.getByRole('tab', { name: /^Armas/ }).click();
+  await expect(p.getByText('Nenhuma arma ainda.')).toBeVisible();
+  await p.getByRole('button', { name: 'Adicionar arma' }).click();
+  await p.getByLabel('Nome da arma').fill('Rapieira');
+  /* Arma leve tem Destreza fixa; só a média deixa escolher. */
+  await expect(p.getByLabel('Atributo', { exact: true })).toBeDisabled();
+  await expect(p.getByLabel('Atributo', { exact: true })).toHaveValue('destreza');
+  await p.getByLabel('Categoria').selectOption({ label: 'Média' });
+  await p.getByLabel('Atributo', { exact: true }).selectOption({ label: 'Tração' });
+  await p.getByLabel('Dano', { exact: true }).fill('1d6+1');
+  await expect(p.getByRole('status').filter({ hasText: 'Salvo' })).toBeVisible();
+
+  await p.getByRole('button', { name: 'Atacar com Rapieira' }).click();
+  await expect(p.locator('.chat-popup .msg-rotulo')).toHaveText('Ataque com Rapieira');
+  await expect(p.locator('.chat-popup .msg-det')).toHaveText(/^d20 \(\d+\)$/);
+  await p.getByRole('button', { name: 'Rolar dano de Rapieira' }).click();
+  await expect(p.locator('.chat-popup .msg-rotulo')).toHaveText('Dano de Rapieira');
+  await expect(p.locator('.chat-popup .msg-det')).toHaveText(/^1d6 \(\d\) \+ 1$/);
+
+  await p.reload();
+  await p.getByRole('tab', { name: 'Armas (1)' }).click();
+  await p.getByRole('button', { name: /^Rapieira/ }).click();
+  await expect(p.getByLabel('Atributo', { exact: true })).toHaveValue('tracao');
+  await expect(p.getByLabel('Dano', { exact: true })).toHaveValue('1d6+1');
+});
+
 test('magias: adicionar, conjurar com desconto de mana e continuar depois de recarregar', async ({ browser }) => {
   const p = await novaPessoa(browser, 'Maga Lia');
   await criarFicha(p, 'Conjuradora');

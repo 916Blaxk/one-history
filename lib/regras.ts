@@ -86,6 +86,12 @@ export const LIMITE_ELEMENTOS_CRIADOS = 20;
 export const TAMANHO_NOME_ELEMENTO = 40;
 export const LIMITE_HABILIDADES = 100;
 export interface Habilidade { id: string; nome: string; descricao: string }
+export type CategoriaArma = 'leve' | 'media' | 'pesada';
+export const CATEGORIAS_ARMA = [['leve', 'Leve'], ['media', 'Média'], ['pesada', 'Pesada']] as const;
+export type AtributoArma = 'destreza' | 'tracao';
+/* `atributo` só vale para arma média: leve e pesada têm o atributo fixo pela categoria. */
+export interface Arma { id: string; nome: string; categoria: CategoriaArma; atributo: AtributoArma; dano: string; descricao: string }
+export const LIMITE_ARMAS = 30;
 /* Tamanho máximo do texto base64 da foto da ficha. */
 export const LIMITE_FOTO = 200_000;
 /* A imagem original guardada para reajustar. Somada à foto, precisa caber no limite de um envio. */
@@ -110,6 +116,8 @@ export interface DadosFicha {
   /* Elementos base que o personagem tem. A ficha começa sem nenhum, e o jogador adiciona os dele. */
   elementosAtivos: string[];
   habilidades: Habilidade[];
+  /* As armas do personagem. As linhas fixas de `armas` continuam guardando os pontos gastos nelas. */
+  arsenal: Arma[];
   /* Só vale para ficha do mestre na própria campanha: sem isto, os jogadores não sabem que ela existe. */
   publica: boolean;
 }
@@ -157,6 +165,13 @@ export function somaDaRolagem(f: Pick<DadosFicha, 'elementos' | 'armas' | 'peric
   if (grupo === 'corpo' || grupo === 'mente') return 0;
   if (grupo === 'pericias') return f.pericias[chave]! + (f.periciasOutros[chave] ?? 0);
   return somaDosPontos(f[grupo][chave] ?? 0);
+}
+/* Regra do sistema: arma leve bate com Destreza, pesada com Tração, e a média com o que o jogador escolher. */
+export const atributoDaArma = (a: Pick<Arma, 'categoria' | 'atributo'>): AtributoArma =>
+  a.categoria === 'leve' ? 'destreza' : a.categoria === 'pesada' ? 'tracao' : a.atributo;
+/* O ataque é a perícia Combate: soma os pontos dela, e a vantagem vem do atributo da arma. */
+export function ataqueDaArma(f: Pick<DadosFicha, 'corpo' | 'pericias' | 'periciasOutros'>, a: Pick<Arma, 'categoria' | 'atributo'>) {
+  return { valor: (f.pericias.combate ?? 0) + (f.periciasOutros.combate ?? 0), vantagem: vantagemDosPontos(f.corpo[atributoDaArma(a)] ?? 0) };
 }
 /* O gasto universal do núcleo desconta do custo de toda magia, sem deixar o custo negativo. */
 export const custoMagia = (f: Pick<DadosFicha, 'nucleo'>, m: Pick<Magia, 'custo'>) => Math.max(0, m.custo - bonusNucleo(f.nucleo).gasto);
@@ -258,6 +273,21 @@ function normalizarHabilidades(entrada: unknown): Habilidade[] {
   });
 }
 
+function normalizarArmas(entrada: unknown): Arma[] {
+  if (!Array.isArray(entrada)) return [];
+  const ids = new Set<string>();
+  return entrada.slice(0, LIMITE_ARMAS).map((bruta, i) => {
+    const a = objeto(bruta);
+    /* O id entra na chave de rolagem "arma.id": não pode trazer ponto nem repetir. */
+    const pedido = texto(a.id, 40);
+    const id = /^[\w-]+$/.test(pedido) && !ids.has(pedido) ? pedido : `a${i}-${ids.size}`;
+    ids.add(id);
+    const categoria = CATEGORIAS_ARMA.some(([k]) => k === a.categoria) ? a.categoria as CategoriaArma : 'leve';
+    const atributo = atributoDaArma({ categoria, atributo: a.atributo === 'tracao' ? 'tracao' : 'destreza' });
+    return { id, nome: texto(a.nome, 80), categoria, atributo, dano: texto(a.dano, 40), descricao: texto(a.descricao, 4000) };
+  });
+}
+
 /* Transforma qualquer entrada em uma ficha válida: campos desconhecidos somem e números ficam na faixa aceita. */
 export function normalizar(entrada: unknown): DadosFicha {
   const o = objeto(entrada);
@@ -287,6 +317,7 @@ export function normalizar(entrada: unknown): DadosFicha {
     periciasAtributo: {},
     elementosAtivos: Array.isArray(o.elementosAtivos) ? GRUPOS.elementos.map(([k]) => k as string).filter(k => (o.elementosAtivos as unknown[]).includes(k)) : [],
     habilidades: normalizarHabilidades(o.habilidades),
+    arsenal: normalizarArmas(o.arsenal),
     publica: o.publica === true,
   };
   for (const g of NOMES_GRUPOS) for (const [k] of GRUPOS[g]) {

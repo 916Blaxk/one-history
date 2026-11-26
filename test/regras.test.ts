@@ -1,4 +1,4 @@
-import { acoesDeRolagem, expressaoDaRolagem, lerAcao } from '../lib/resumoFicha';
+import { acoesDeRolagem, expressaoDaRolagem, lerAcao, lerRolagem } from '../lib/resumoFicha';
 import { describe, expect, it } from 'vitest';
 import * as R from '../lib/regras';
 
@@ -38,6 +38,40 @@ describe('regras do sistema', () => {
   it('não perde mana abaixo de 60% nem em 100%', () => {
     expect(R.perdaDeCena(R.normalizar({ mente: { onipotencia: 7 }, fadiga: 59 }))).toBe(0);
     expect(R.perdaDeCena(R.normalizar({ mente: { onipotencia: 7 }, fadiga: 100 }))).toBe(0);
+  });
+
+  it('arma leve ataca com Destreza, pesada com Tração e média com o atributo escolhido, sempre pela perícia Combate', () => {
+    const f = R.normalizar({
+      corpo: { destreza: 15, tracao: 30 }, pericias: { combate: 4 }, periciasOutros: { combate: 1 },
+      arsenal: [
+        { id: 'adaga', nome: 'Adaga', categoria: 'leve', atributo: 'tracao', dano: '1d4' },
+        { id: 'machado', nome: 'Machado', categoria: 'pesada', atributo: 'destreza', dano: '' },
+        { id: 'rapieira', nome: 'Rapieira', categoria: 'media', atributo: 'destreza', dano: '1d8+2' },
+        { id: 'maca', nome: '', categoria: 'media', atributo: 'tracao' },
+        { id: 'adaga', nome: 'Repetida', categoria: 'xyz' },
+      ],
+    });
+    /* O atributo guardado segue a categoria: uma ficha editada não muda a regra. */
+    expect(f.arsenal.map(a => a.atributo)).toEqual(['destreza', 'tracao', 'destreza', 'tracao', 'destreza']);
+    expect(f.arsenal[4]).toMatchObject({ categoria: 'leve' });
+    expect(f.arsenal[4]!.id).not.toBe('adaga');
+    expect(lerRolagem(f, 'arma.adaga')).toEqual({ rotulo: 'Ataque com Adaga', nome: 'Adaga', expressao: '2d20kh1+5', livre: false });
+    expect(lerRolagem(f, 'arma.machado')!.expressao).toBe('3d20kh1+5');
+    expect(lerRolagem(f, 'arma.rapieira')!.expressao).toBe('2d20kh1+5');
+    expect(lerRolagem(f, 'arma.maca')).toMatchObject({ rotulo: 'Ataque com Arma sem nome', expressao: '3d20kh1+5' });
+    expect(lerRolagem(f, 'dano.rapieira')).toEqual({ rotulo: 'Dano de Rapieira', nome: 'Rapieira', expressao: '1d8+2', livre: true });
+    expect(lerRolagem(f, 'dano.machado')).toBeNull();
+    expect(lerRolagem(f, 'arma.nao-existe')).toBeNull();
+    expect(lerRolagem(f, 'corpo.destreza')).toMatchObject({ expressao: '2d20kh1', livre: false });
+  });
+
+  it('na mesa, as armas da ficha tomam o lugar das linhas de armas leves, médias e pesadas', () => {
+    const f = R.normalizar({ armas: { leves: 6 }, arsenal: [{ id: 'arco', nome: 'Arco', categoria: 'leve', dano: '1d6' }, { id: 'clava', nome: 'Clava', categoria: 'pesada' }] });
+    const armas = acoesDeRolagem(f).filter(a => a.categoria === 'Armas');
+    expect(armas.map(a => [a.id, a.rotulo, a.expressao])).toEqual([
+      ['arma.arco', 'Ataque com Arco', '1d20'], ['dano.arco', 'Dano de Arco', '1d6'], ['arma.clava', 'Ataque com Clava', '1d20'],
+    ]);
+    expect(acoesDeRolagem(f).some(a => a.id.startsWith('armas.'))).toBe(false);
   });
 
   it('quem está no máximo acompanha o novo máximo; quem está abaixo fica onde está', () => {
