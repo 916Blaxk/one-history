@@ -4,6 +4,11 @@ import useSWR from 'swr';
 import { toast } from 'sonner';
 import { api, buscar, mensagem as textoErro } from './cliente';
 import type { Mensagem, PaginaChat } from './tipos';
+import { extremoDaRolagem, type Extremo } from './extremo';
+
+/* O efeito de tela cheia de uma rolagem extrema. Só para a rolagem que a própria pessoa fez:
+   a de outro jogador mostra o cartão marcado, sem tomar a tela de quem não rolou. */
+export interface EfeitoExtremo { id: number; tipo: Extremo }
 
 /* A rolagem que acabou de ser pedida e ainda não voltou do servidor. O cartão aparece no clique,
    com o número girando: o resultado de verdade continua vindo só do servidor. */
@@ -23,6 +28,7 @@ export function useChat(url: string) {
   const [aberto, setAberto] = useState(false);
   const [destaque, setDestaque] = useState<Mensagem | null>(null);
   const [pendente, setPendente] = useState<RolagemPendente | null>(null);
+  const [efeito, setEfeito] = useState<EfeitoExtremo | null>(null);
 
   /* A ficha entrou ou saiu de uma campanha: é outro chat. */
   const [urlAtual, setUrlAtual] = useState(url);
@@ -59,6 +65,8 @@ export function useChat(url: string) {
       if (falta > 0 && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) await new Promise(r => setTimeout(r, falta));
       setProprias(l => [...l, m]);
       if (info.popup) setDestaque(m);
+      const extremo = extremoDaRolagem(m.det);
+      if (extremo) setEfeito({ id: p.id, tipo: extremo });
       void mutate();
     } catch (e) {
       toast.error(textoErro(e));
@@ -83,7 +91,7 @@ export function useChat(url: string) {
   }, [mensagens, url]);
 
   return {
-    mensagens, receber, rolar, pendente, carregarAnteriores, carregandoAntigas, aberto, setAberto, destaque, setDestaque,
+    mensagens, receber, rolar, pendente, efeito, setEfeito, carregarAnteriores, carregandoAntigas, aberto, setAberto, destaque, setDestaque,
     carregando: isLoading,
     temMais: temMaisAntigas ?? data?.temMais ?? false,
   };

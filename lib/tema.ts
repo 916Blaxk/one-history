@@ -1,15 +1,21 @@
 'use client';
 import { useSyncExternalStore } from 'react';
-import { CHAVE_TEMA } from './temaScript';
+import { CHAVE_TEMA, IDS_TEMA } from './temaScript';
 
 /* Preferências só de aparência, guardadas no navegador de cada pessoa: não mudam nada no jogo
    e não precisam de coluna no banco. Quem limpar o navegador volta ao padrão. */
 
-export type Tema = 'roxo' | 'azul' | 'laranja';
+export type Tema = typeof IDS_TEMA[number];
 export const TEMAS: { id: Tema; nome: string; desc: string; cores: [string, string] }[] = [
   { id: 'roxo', nome: 'Roxo', desc: 'Arcano', cores: ['#8f6bff', '#d04dff'] },
   { id: 'azul', nome: 'Azul', desc: 'Abismo', cores: ['#3d8bff', '#22d3ee'] },
   { id: 'laranja', nome: 'Laranja', desc: 'Brasa', cores: ['#ff6a1a', '#ffb52e'] },
+  { id: 'verde', nome: 'Verde', desc: 'Radioativo', cores: ['#2bff6a', '#c6ff1a'] },
+  { id: 'rosa', nome: 'Rosa', desc: 'Neon', cores: ['#ff3d9a', '#ff8ae0'] },
+  { id: 'branco', nome: 'Branco', desc: 'Luar', cores: ['#ffffff', '#b9c6ff'] },
+  { id: 'vermelho', nome: 'Vermelho', desc: 'Carmesim', cores: ['#ff1f3d', '#ff6a3d'] },
+  { id: 'marrom', nome: 'Marrom', desc: 'Terra', cores: ['#c8793a', '#e8b46c'] },
+  { id: 'amarelo', nome: 'Amarelo', desc: 'Relâmpago', cores: ['#ffc300', '#fff23a'] },
 ];
 export const TEMA_PADRAO: Tema = 'roxo';
 

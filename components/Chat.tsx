@@ -1,11 +1,13 @@
 'use client';
 import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Crown, Droplet, FlaskConical, Flame, Moon, Paintbrush, Snowflake } from 'lucide-react';
 import { DADOS, inteiro } from '@/lib/regras';
 import type { Mensagem } from '@/lib/tipos';
 import { urlBanner } from '@/lib/cliente';
 import type { ChatDados, RolagemPendente } from '@/lib/useChat';
 import { ESTILOS_DADO, useEstiloDado, type EstiloDado } from '@/lib/tema';
+import { extremoDaRolagem, separarDetalhe } from '@/lib/extremo';
 import { Capitular } from './comuns';
 
 const horaCurta = (ms: number) => new Date(ms).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
@@ -50,16 +52,68 @@ function IconeEstilo({ estilo }: { estilo: EstiloDado }) {
   }
 }
 
-/* O detalhe vem pronto do servidor ("2d20, fica o maior (14, 7) + 3"). Aqui só é separado para
-   mostrar como no C.R.I.S: a expressão pequena, os dados entre colchetes e o total grande. */
-function separarDetalhe(det: string) {
-  const m = det.match(/^(.*?)\s*\(([^)]*)\)\s*(.*)$/);
-  if (!m) return null;
-  const maior = m[1]!.includes('fica o maior');
-  const valores = m[2]!.split(',').map(v => v.trim()).filter(Boolean);
-  /* No "fica o maior", só um dado conta: os outros aparecem apagados. */
-  const guardado = maior ? valores.reduce((melhor, v, i) => (Number(v) > Number(valores[melhor]) ? i : melhor), 0) : -1;
-  return { expr: m[1]!.replace(', fica o maior', ''), maior, valores, guardado, resto: m[3]! };
+/* ---------- Rolagem extrema ----------
+   Máximo no dado: um clarão negro toma a tela (raios pretos com brilho vermelho, a tela inverte
+   e treme). 1 no dado: a tela perde a cor por um instante. Só na rolagem da própria pessoa. */
+interface Raio { pontos: string; atraso: number }
+function gerarRaios(): Raio[] {
+  const raios: Raio[] = [];
+  const total = 11;
+  for (let i = 0; i < total; i++) {
+    const angulo = (i / total) * Math.PI * 2 + (Math.random() - .5) * .5;
+    const pontos: string[] = [];
+    let r = 6 + Math.random() * 6;
+    while (r < 160) {
+      /* Desvio para o lado do raio: é o zigue-zague que faz parecer um relâmpago. */
+      const desvio = (Math.random() - .5) * 18;
+      const x = Math.cos(angulo) * r - Math.sin(angulo) * desvio;
+      const y = Math.sin(angulo) * r + Math.cos(angulo) * desvio;
+      pontos.push(`${x.toFixed(1)},${y.toFixed(1)}`);
+      r += 8 + Math.random() * 14;
+    }
+    raios.push({ pontos: pontos.join(' '), atraso: Math.round(Math.random() * 120) });
+  }
+  return raios;
+}
+
+function ClaraoNegro() {
+  const [raios] = useState(gerarRaios);
+  return (
+    <div className="clarao-negro" aria-hidden="true">
+      <div className="cn-inverte" />
+      <div className="cn-escuro" />
+      <div className="cn-vermelho" />
+      <svg className="cn-raios" viewBox="-100 -100 200 200" preserveAspectRatio="xMidYMid slice">
+        {raios.map((r, i) => (
+          <g key={i} style={{ '--atraso': `${r.atraso}ms` } as React.CSSProperties}>
+            <polyline className="cn-raio-brilho" points={r.pontos} pathLength={1} />
+            <polyline className="cn-raio-nucleo" points={r.pontos} pathLength={1} />
+          </g>
+        ))}
+      </svg>
+      <div className="cn-faiscas">
+        {Array.from({ length: 16 }, (_, i) => <i key={i} style={{ '--a': `${i * 22.5 + 7}deg`, '--d': `${(i % 4) * 40}ms` } as React.CSSProperties} />)}
+      </div>
+      <p className="cn-texto"><span>Clarão</span><span>negro</span></p>
+    </div>
+  );
+}
+
+function EfeitoTela({ chat }: { chat: ChatDados }) {
+  const { efeito, setEfeito } = chat;
+  useEffect(() => {
+    if (!efeito) return;
+    const raiz = document.documentElement;
+    const classe = efeito.tipo === 'critico' ? 'tremor-critico' : 'tremor-falha';
+    raiz.classList.add(classe);
+    const fim = setTimeout(() => setEfeito(null), efeito.tipo === 'critico' ? 1500 : 900);
+    return () => { clearTimeout(fim); raiz.classList.remove(classe); };
+  }, [efeito, setEfeito]);
+  if (!efeito) return null;
+  return createPortal(
+    efeito.tipo === 'critico' ? <ClaraoNegro key={efeito.id} /> : <div key={efeito.id} className="efeito-falha" aria-hidden="true" />,
+    document.body,
+  );
 }
 
 /* O número gira enquanto a resposta do servidor não chega. */
@@ -76,15 +130,17 @@ function NumeroGirando({ teto }: { teto: number }) {
 function CartaoRolagem({ m, nova, estilo }: { m: Mensagem; nova: boolean; estilo: EstiloDado }) {
   const banner = m.bannerV ? { '--banner': `url("${urlBanner(m.id, m.bannerV)}")` } as React.CSSProperties : undefined;
   const partes = separarDetalhe(m.det);
+  const extremo = extremoDaRolagem(m.det);
   const meuEstilo: EstiloDado = m.minha ? estilo : 'tema';
   return (
-    <li className={`cartao-linha msg${m.minha ? ' msg-minha' : ''}${nova ? ' msg-nova' : ''}`} data-estilo={meuEstilo}>
+    <li className={`cartao-linha msg${m.minha ? ' msg-minha' : ''}${nova ? ' msg-nova' : ''}`} data-estilo={meuEstilo} data-extremo={extremo ?? undefined}>
       {!m.minha && <Capitular className="msg-foto" nome={m.autor} fichaId={m.fichaId ?? undefined} fotoV={m.fotoV} />}
       <div className={`cartao msg-balao${banner ? ' msg-com-banner' : ''}`} style={banner}>
         <span className="cartao-icone"><IconeEstilo estilo={meuEstilo} /></span>
         <div className="cartao-meio">
           <p className="cartao-titulo">
             {m.rotulo ? <span className="msg-rotulo">{m.rotulo}</span> : <span aria-hidden="true">{partes?.expr ?? 'Rolagem'}</span>}
+            {extremo && <span className="cartao-selo">{extremo === 'critico' ? 'Crítico' : 'Falha'}</span>}
           </p>
           {/* O texto original fica para leitores de tela; a versão em colchetes é só visual. */}
           <span className="msg-det so-leitor">{m.det}</span>
@@ -250,6 +306,7 @@ export function ChatFlutuante({ chat, aoRolar, escopo }: { chat: ChatDados; aoRo
     const popupPendente = pendente?.popup ? pendente : null;
     return (
       <>
+        <EfeitoTela chat={chat} />
         {(popupPendente || destaque) && <PopupRolagem m={destaque} pendente={popupPendente} aoFechar={() => setDestaque(null)} />}
         <button type="button" className="chat-pilula" aria-expanded="false" onClick={() => setAberto(true)}>
           <span className="chat-pilula-texto">Chat de dados</span>
@@ -260,6 +317,8 @@ export function ChatFlutuante({ chat, aoRolar, escopo }: { chat: ChatDados; aoRo
   }
   /* Os jogadores pediram o chat na lateral, como no C.R.I.S: a mesma aba que abre fica presa na borda do painel e o recolhe. */
   return (
+    <>
+    <EfeitoTela chat={chat} />
     <section className="chat-flutuante" aria-label="Chat de dados">
       <button type="button" className="chat-pilula chat-pilula-aberta" aria-expanded="true" aria-label="Recolher o chat de dados" onClick={() => setAberto(false)}>
         <span className="chat-pilula-texto" aria-hidden="true">Chat de dados</span>
@@ -284,5 +343,6 @@ export function ChatFlutuante({ chat, aoRolar, escopo }: { chat: ChatDados; aoRo
       )}
       <CorpoChat chat={chat} aoRolar={aoRolar} />
     </section>
+    </>
   );
 }
