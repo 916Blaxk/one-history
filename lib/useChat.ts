@@ -12,7 +12,8 @@ export interface EfeitoExtremo { id: number; tipo: Extremo }
 
 /* A rolagem que acabou de ser pedida e ainda não voltou do servidor. O cartão aparece no clique,
    com o número girando: o resultado de verdade continua vindo só do servidor. */
-export interface RolagemPendente { id: number; rotulo: string; lados: number; popup: boolean }
+/* `comDano`: ataque e habilidade mostram dois números girando, acerto e dano. */
+export interface RolagemPendente { id: number; rotulo: string; lados: number; popup: boolean; comDano: boolean }
 let proximaPendente = 1;
 /* O número gira pelo menos isto, mesmo com o servidor respondendo antes: abaixo disso o giro vira um piscar. */
 const GIRO_MINIMO = 260;
@@ -54,8 +55,8 @@ export function useChat(url: string) {
 
   /* Mostra o cartão na hora e troca pelo resultado quando o servidor responde.
      `popup`: com o chat fechado, o resultado fica num pop-up ao lado da aba. */
-  const rolar = useCallback(async (info: { rotulo: string; lados?: number; popup?: boolean }, pedir: () => Promise<Mensagem>) => {
-    const p: RolagemPendente = { id: proximaPendente++, rotulo: info.rotulo, lados: info.lados ?? 20, popup: !!info.popup };
+  const rolar = useCallback(async (info: { rotulo: string; lados?: number; popup?: boolean; comDano?: boolean }, pedir: () => Promise<Mensagem>) => {
+    const p: RolagemPendente = { id: proximaPendente++, rotulo: info.rotulo, lados: info.lados ?? 20, popup: !!info.popup, comDano: !!info.comDano };
     const desde = performance.now();
     setPendente(p);
     if (info.popup) setDestaque(null);

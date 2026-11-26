@@ -55,7 +55,8 @@ describe('regras do sistema', () => {
     expect(f.arsenal.map(a => a.atributo)).toEqual(['destreza', 'tracao', 'destreza', 'tracao', 'destreza']);
     expect(f.arsenal[4]).toMatchObject({ categoria: 'leve' });
     expect(f.arsenal[4]!.id).not.toBe('adaga');
-    expect(lerRolagem(f, 'arma.adaga')).toEqual({ rotulo: 'Ataque com Adaga', nome: 'Adaga', expressao: '2d20kh1+5', livre: false });
+    /* O ataque traz o dano da arma, para acerto e dano saírem na mesma rolagem. */
+    expect(lerRolagem(f, 'arma.adaga')).toEqual({ rotulo: 'Ataque com Adaga', nome: 'Adaga', expressao: '2d20kh1+5', livre: false, dano: '1d4' });
     expect(lerRolagem(f, 'arma.machado')!.expressao).toBe('3d20kh1+5');
     expect(lerRolagem(f, 'arma.rapieira')!.expressao).toBe('2d20kh1+5');
     expect(lerRolagem(f, 'arma.maca')).toMatchObject({ rotulo: 'Ataque com Arma sem nome', expressao: '3d20kh1+5' });
@@ -288,5 +289,15 @@ describe('habilidades (magias da ficha)', () => {
   it('habilidades de antes destes campos abrem com eles vazios', () => {
     const m = R.normalizar({ magias: [{ id: 'h1', nome: 'Faísca', dano: '1d6' }] }).magias[0]!;
     expect(m).toMatchObject({ area: '', alvo: '', efeito: '', resistencia: '', pericias: '', critico: '', multiplicador: '' });
+  });
+});
+
+describe('perícia da habilidade', () => {
+  it('acha a primeira perícia do sistema no texto livre, sem acento nem maiúscula', () => {
+    expect(R.periciaDaHabilidade('Canalização mágica')).toBe('canalizacaoMagica');
+    expect(R.periciaDaHabilidade('canalizacao magica, Combate')).toBe('canalizacaoMagica');
+    expect(R.periciaDaHabilidade('Voar / combate')).toBe('combate');
+    expect(R.periciaDaHabilidade('nada disso')).toBeNull();
+    expect(R.periciaDaHabilidade('')).toBeNull();
   });
 });

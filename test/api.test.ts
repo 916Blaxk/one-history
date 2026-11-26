@@ -602,6 +602,27 @@ describe('magias', () => {
     expect((await a.c('POST', `/api/fichas/${f.id}/rolar`, { magia: 'luz' })).status).toBe(400);
     expect((await a.c('POST', `/api/fichas/${f.id}/rolar`, { magia: 'torta' })).status).toBe(400);
     expect((await a.c('POST', `/api/fichas/${f.id}/rolar`, { magia: 'nao-existe' })).status).toBe(400);
+    /* Sem perícia, conjurar rola só o dano, como antes. */
+    expect(r.dano).toBeNull();
+  });
+
+  it('com perícia na habilidade, conjurar rola o acerto pela perícia e o dano juntos', async () => {
+    const a = await novaConta('Maga');
+    const f = await novaFicha(a.c, { nome: 'Lia' });
+    const magias = [
+      { id: 'braco', nome: 'Braço de sangue', custo: 2, dano: '2d6', pericias: 'canalizacao magica, Combate' },
+      { id: 'escudo', nome: 'Escudo', custo: 1, dano: '', pericias: 'Combate' },
+    ];
+    await a.c('PATCH', `/api/fichas/${f.id}`, { magias, pericias: { canalizacaoMagica: 4 } });
+    const r = (await a.c('POST', `/api/fichas/${f.id}/rolar`, { magia: 'braco' })).corpo.rolagem;
+    expect(r.rotulo).toBe('Braço de sangue');
+    /* A primeira perícia do campo que existe no sistema, sem ligar para acento e maiúscula. */
+    expect(r.det).toMatch(/^d20 \(\d+\) \+ 4$/);
+    expect(r.dano.det).toMatch(/^2d6 \(\d, \d\)$/);
+    /* Só perícia, sem dano: rola só o acerto. */
+    const so = (await a.c('POST', `/api/fichas/${f.id}/rolar`, { magia: 'escudo' })).corpo.rolagem;
+    expect(so.det).toMatch(/^d20 \(\d+\)$/);
+    expect(so.dano).toBeNull();
   });
 });
 
@@ -618,6 +639,14 @@ describe('armas', () => {
     const ataque = (await a.c('POST', `/api/fichas/${f.id}/rolar`, { atributo: 'arma.espada' })).corpo.rolagem;
     expect(ataque.rotulo).toBe('Ataque com Espada');
     expect(ataque.det).toMatch(/^2d20, fica o maior \(\d+, \d+\) \+ 3$/);
+    /* O ataque já traz o dano: acerto à esquerda, dano à direita, numa rolagem só. */
+    expect(ataque.dano.det).toMatch(/^1d8 \(\d\) \+ 2$/);
+    expect(ataque.dano.total).toBeGreaterThanOrEqual(3);
+    expect(ataque.dano.total).toBeLessThanOrEqual(10);
+    const noChat = (await a.c('GET', `/api/fichas/${f.id}/chat`)).corpo.mensagens.find((m: { id: string }) => m.id === ataque.id);
+    expect(noChat.dano).toEqual(ataque.dano);
+    /* Dano digitado errado não deixa o ataque sair pela metade. */
+    expect((await a.c('POST', `/api/fichas/${f.id}/rolar`, { atributo: 'arma.pau' })).status).toBe(400);
     const dano = (await a.c('POST', `/api/fichas/${f.id}/rolar`, { atributo: 'dano.espada' })).corpo.rolagem;
     expect(dano.rotulo).toBe('Dano de Espada');
     expect(dano.det).toMatch(/^1d8 \(\d\) \+ 2$/);

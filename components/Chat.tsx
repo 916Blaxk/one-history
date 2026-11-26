@@ -7,7 +7,7 @@ import type { Mensagem } from '@/lib/tipos';
 import { urlBanner } from '@/lib/cliente';
 import type { ChatDados, RolagemPendente } from '@/lib/useChat';
 import { ESTILOS_DADO, useEstiloDado, type EstiloDado } from '@/lib/tema';
-import { extremoDaRolagem, separarDetalhe } from '@/lib/extremo';
+import { extremoDaRolagem, separarDetalhe, type DetalheSeparado } from '@/lib/extremo';
 import { Capitular } from './comuns';
 
 const horaCurta = (ms: number) => new Date(ms).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
@@ -135,7 +135,7 @@ function CartaoRolagem({ m, nova, estilo }: { m: Mensagem; nova: boolean; estilo
   return (
     <li className={`cartao-linha msg${m.minha ? ' msg-minha' : ''}${nova ? ' msg-nova' : ''}`} data-estilo={meuEstilo} data-extremo={extremo ?? undefined}>
       {!m.minha && <Capitular className="msg-foto" nome={m.autor} fichaId={m.fichaId ?? undefined} fotoV={m.fotoV} />}
-      <div className={`cartao msg-balao${banner ? ' msg-com-banner' : ''}`} style={banner}>
+      <div className={`cartao msg-balao${m.dano ? ' cartao-duplo' : ''}${banner ? ' msg-com-banner' : ''}`} style={banner}>
         <span className="cartao-icone"><IconeEstilo estilo={meuEstilo} /></span>
         <div className="cartao-meio">
           <p className="cartao-titulo">
@@ -144,22 +144,43 @@ function CartaoRolagem({ m, nova, estilo }: { m: Mensagem; nova: boolean; estilo
           </p>
           {/* O texto original fica para leitores de tela; a versão em colchetes é só visual. */}
           <span className="msg-det so-leitor">{m.det}</span>
-          <p className="cartao-dados" aria-hidden="true">
-            {partes ? (
-              <>
-                <span className="cartao-expr">{partes.expr}{partes.maior && <small> maior</small>}</span>{' '}
-                [{partes.valores.map((v, i) => (
-                  <Fragment key={i}>{i > 0 && ', '}<span className={partes.guardado >= 0 && i !== partes.guardado ? 'cartao-fora' : undefined}>{v}</span></Fragment>
-                ))}]{partes.resto && <> {partes.resto}</>}
-              </>
-            ) : m.det}
-          </p>
+          {m.dano && <span className="so-leitor">Acerto {m.total}. Dano: {m.dano.det} = {m.dano.total}.</span>}
+          <DadosVisuais det={m.det} partes={partes} />
+          {m.dano && <DadosVisuais det={m.dano.det} partes={separarDetalhe(m.dano.det)} prefixo="dano" />}
           <p className="cartao-autor"><span className="msg-autor">{m.autor}</span> · <time className="msg-hora">{horaCurta(m.em)}</time></p>
         </div>
-        <span className="cartao-igual" aria-hidden="true">=</span>
-        <span className="cartao-total msg-total">{m.total}</span>
+        {m.dano ? (
+          /* Ataque e habilidade: acerto à esquerda, dano à direita, como no C.R.I.S. */
+          <>
+            <span className="cartao-par"><span className="cartao-total msg-total">{m.total}</span><small aria-hidden="true">Acerto</small></span>
+            <span className="cartao-divisor" aria-hidden="true" />
+            <span className="cartao-par cartao-par-dano" aria-hidden="true"><span className="cartao-total">{m.dano.total}</span><small>Dano</small></span>
+          </>
+        ) : (
+          <>
+            <span className="cartao-igual" aria-hidden="true">=</span>
+            <span className="cartao-total msg-total">{m.total}</span>
+          </>
+        )}
       </div>
     </li>
+  );
+}
+
+/* A linha dos dados no estilo do C.R.I.S: a expressão pequena e os dados entre colchetes. */
+function DadosVisuais({ det, partes, prefixo }: { det: string; partes: DetalheSeparado | null; prefixo?: string }) {
+  return (
+    <p className="cartao-dados" aria-hidden="true">
+      {prefixo && <span className="cartao-prefixo">{prefixo} </span>}
+      {partes ? (
+        <>
+          <span className="cartao-expr">{partes.expr}{partes.maior && <small> maior</small>}</span>{' '}
+          [{partes.valores.map((v, i) => (
+            <Fragment key={i}>{i > 0 && ', '}<span className={partes.guardado >= 0 && i !== partes.guardado ? 'cartao-fora' : undefined}>{v}</span></Fragment>
+          ))}]{partes.resto && <> {partes.resto}</>}
+        </>
+      ) : det}
+    </p>
   );
 }
 
@@ -173,8 +194,18 @@ function CartaoPendente({ p, estilo }: { p: RolagemPendente; estilo: EstiloDado 
           <p className="cartao-titulo">{p.rotulo}</p>
           <p className="cartao-dados">rolando…</p>
         </div>
-        <span className="cartao-igual" aria-hidden="true">=</span>
-        <span className="cartao-total"><NumeroGirando teto={p.lados} /></span>
+        {p.comDano ? (
+          <>
+            <span className="cartao-par"><span className="cartao-total"><NumeroGirando teto={p.lados} /></span><small>Acerto</small></span>
+            <span className="cartao-divisor" aria-hidden="true" />
+            <span className="cartao-par cartao-par-dano"><span className="cartao-total"><NumeroGirando teto={12} /></span><small>Dano</small></span>
+          </>
+        ) : (
+          <>
+            <span className="cartao-igual" aria-hidden="true">=</span>
+            <span className="cartao-total"><NumeroGirando teto={p.lados} /></span>
+          </>
+        )}
       </div>
     </li>
   );

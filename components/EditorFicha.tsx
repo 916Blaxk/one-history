@@ -87,14 +87,16 @@ export default function EditorFicha({ f, ed, chat }: {
     if (custo > f.manaAtual) { toast.error(`Mana insuficiente: ${nome} custa ${custo} e a ficha tem ${f.manaAtual}.`); return; }
     mudarVital('manaAtual', f.manaAtual - custo);
     toast(`${nome}: −${custo} de mana`);
-    /* O dano rola no chat de dados, como as outras rolagens; `rolar` salva a mana antes. */
-    if (m.dano.trim()) rolar({ magia: m.id }, nome);
+    /* Acerto pela perícia da habilidade e dano rolam juntos no chat de dados; `rolar` salva a mana antes. */
+    const temPericia = R.periciaDaHabilidade(m.pericias) !== null, temDano = m.dano.trim() !== '';
+    if (temPericia || temDano) rolar({ magia: m.id }, nome, temPericia && temDano);
   }
 
-  /* `rotulo` só aparece no cartão enquanto o número gira; o nome final vem do servidor. */
-  function rolar(corpo: { atributo?: string; magia?: string; lados?: number; bonus?: number }, rotulo?: string) {
+  /* `rotulo` só aparece no cartão enquanto o número gira; o nome final vem do servidor.
+     `comDano`: o cartão já abre com dois números, acerto e dano. */
+  function rolar(corpo: { atributo?: string; magia?: string; lados?: number; bonus?: number }, rotulo?: string, comDano = false) {
     /* O cartão aparece no clique; com o chat aberto, o resultado já aparece nele. */
-    void chat.rolar({ rotulo: rotulo ?? (corpo.lados ? `d${corpo.lados}` : 'Rolando…'), lados: corpo.lados, popup: !chat.aberto }, async () => {
+    void chat.rolar({ rotulo: rotulo ?? (corpo.lados ? `d${corpo.lados}` : 'Rolando…'), lados: corpo.lados, popup: !chat.aberto, comDano }, async () => {
       /* Atributo, arma e magia usam o que está guardado no servidor (e a magia, a mana já gasta):
          salva antes o que ainda está pendente. Dado avulso não depende da ficha, então não espera. */
       if (!corpo.lados) await ed.salvarAgora();
@@ -379,7 +381,7 @@ export default function EditorFicha({ f, ed, chat }: {
             <Armas
               armas={f.arsenal} ataque={a => { const { valor, vantagem } = R.ataqueDaArma(f, a); return expressaoDaRolagem(valor, vantagem); }}
               aoMudar={arsenal => ed.definir({ ...f, arsenal }, { arsenal })}
-              aoAtacar={a => rolar({ atributo: `arma.${a.id}` }, a.nome || undefined)} aoRolarDano={a => rolar({ atributo: `dano.${a.id}` }, a.nome ? `Dano: ${a.nome}` : undefined)}
+              aoAtacar={a => rolar({ atributo: `arma.${a.id}` }, a.nome || undefined, a.dano.trim() !== '')} aoRolarDano={a => rolar({ atributo: `dano.${a.id}` }, a.nome ? `Dano: ${a.nome}` : undefined)}
             />
           </div>
           <div className="painel-aba" id="painel-magias" role="tabpanel" aria-labelledby="aba-magias" hidden={aba !== 'magias'}>

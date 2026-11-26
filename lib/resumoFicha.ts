@@ -1,5 +1,6 @@
 /* Resumo leve da ficha usado na mesa: vida, mana, rolagens prontas e magias. Roda no navegador e no servidor. */
 import * as R from './regras';
+import type { DanoDaRolagem } from './tipos';
 
 export interface AcaoRolagem { id: string; grupo: R.Grupo; categoria: string; rotulo: string; valor: number; expressao: string }
 export interface Recurso { id: 'vida' | 'mana'; rotulo: string; atual: number; max: number }
@@ -50,18 +51,35 @@ const nomeDaArma = (a: R.Arma) => a.nome || 'Arma sem nome';
 const rotuloAtaque = (a: R.Arma) => `Ataque com ${nomeDaArma(a)}`;
 const rotuloDano = (a: R.Arma) => `Dano de ${nomeDaArma(a)}`;
 
-/* Toda rolagem pronta da ficha, pela chave que o navegador manda. `livre` marca o dano, que é texto digitado e pode não ser válido. */
-export function lerRolagem(d: R.DadosFicha, acao: string): { rotulo: string; nome: string; expressao: string; livre: boolean } | null {
+/* Toda rolagem pronta da ficha, pela chave que o navegador manda. `livre` marca o dano, que é texto digitado e pode não ser válido.
+   `dano` vem no ataque com arma: as duas rolagens saem juntas, acerto e dano. */
+export function lerRolagem(d: R.DadosFicha, acao: string): { rotulo: string; nome: string; expressao: string; livre: boolean; dano?: string } | null {
   const [tipo, id] = [acao.slice(0, acao.indexOf('.')), acao.slice(acao.indexOf('.') + 1)];
   if (tipo === 'arma' || tipo === 'dano') {
     const arma = d.arsenal.find(a => a.id === id);
     if (!arma) return null;
     if (tipo === 'dano') return arma.dano.trim() ? { rotulo: rotuloDano(arma), nome: nomeDaArma(arma), expressao: arma.dano.trim(), livre: true } : null;
     const { valor, vantagem } = R.ataqueDaArma(d, arma);
-    return { rotulo: rotuloAtaque(arma), nome: nomeDaArma(arma), expressao: expressaoDaRolagem(valor, vantagem), livre: false };
+    return { rotulo: rotuloAtaque(arma), nome: nomeDaArma(arma), expressao: expressaoDaRolagem(valor, vantagem), livre: false, dano: arma.dano.trim() || undefined };
   }
   const item = lerAcao(d, acao);
   return item && { rotulo: item.rotulo, nome: item.rotulo, expressao: expressaoDaRolagem(item.valor, item.vantagem), livre: false };
+}
+
+/* Conjurar uma habilidade: o acerto vem da perícia escrita nela, o dano do campo Dano. Sem os dois, não há o que rolar. */
+export function lerHabilidade(d: R.DadosFicha, id: string): { rotulo: string; acerto?: string; dano?: string } | null {
+  const m = d.magias.find(x => x.id === id);
+  if (!m) return null;
+  const pericia = R.periciaDaHabilidade(m.pericias);
+  const acerto = pericia ? expressaoDaRolagem(R.somaDaRolagem(d, 'pericias', pericia), R.vantagemDaRolagem(d, 'pericias', pericia)) : undefined;
+  return { rotulo: m.nome || 'Magia sem nome', acerto, dano: m.dano.trim() || undefined };
+}
+
+/* O dano guardado dentro do `detalhe` da rolagem. Rolagem antiga ou sem dano devolve null. */
+export function danoDaRolagem(detalhe: unknown): DanoDaRolagem | null {
+  const dano = (detalhe && typeof detalhe === 'object' ? (detalhe as { dano?: unknown }).dano : null) as Partial<DanoDaRolagem> | null | undefined;
+  if (!dano || typeof dano.total !== 'number' || typeof dano.det !== 'string') return null;
+  return { expressao: String(dano.expressao ?? ''), total: dano.total, det: dano.det };
 }
 
 /* Na mesa, as armas do personagem tomam o lugar das linhas de armas leves, médias e pesadas. */

@@ -5,8 +5,8 @@ import { DiceExpressionError, rollDice } from '../../mesa/src/features/chat/dice
 import type { DiceRollResult } from '../../mesa/src/features/chat/dice-types';
 import { normalizarEnquadramento } from '../enquadramento';
 import * as R from '../regras';
-import { danoNoLimite, lerRolagem, resumoDaFicha } from '../resumoFicha';
-import type { Ficha, Mensagem, PaginaChat, Papel, ResumoFicha } from '../tipos';
+import { danoDaRolagem, danoNoLimite, lerHabilidade, lerRolagem, resumoDaFicha } from '../resumoFicha';
+import type { DanoDaRolagem, Ficha, Mensagem, PaginaChat, Papel, ResumoFicha } from '../tipos';
 import { avisarMesa } from './barramento';
 import { db } from './db';
 import { campanhas, chavesIntegracao, fichas, membros, mensagensMesa, mesaImagens, mesas, monstros, rolagens, sessoes, tentativas, usuarios } from './schema';
@@ -220,6 +220,11 @@ function rolarDano(dano: string, nome: string) {
     throw erro;
   }
 }
+/* O dano que acompanha o acerto. Rola antes de gravar: dano digitado errado barra a rolagem inteira, não sai meio ataque. */
+function danoJunto(dano: string, nome: string): DanoDaRolagem {
+  const r = rolarDano(dano, nome);
+  return { expressao: r.expressao, total: r.detalhe.total, det: textoDaRolagem(r.detalhe) };
+}
 /* Com vantagem, mostra todos os d20: quem joga precisa ver qual valeu. */
 export function detalheRolagem(r: DiceRollResult) {
   const g = r.groups[0], rolados = g.dice.flatMap(d => d.rolls).join(', ');
@@ -240,9 +245,12 @@ const escopoCampanha = (campanhaId: string) => eq(rolagens.campanhaId, campanhaI
 const escopoFichaSolo = (fichaId: string) => and(isNull(rolagens.campanhaId), eq(rolagens.fichaId, fichaId))!;
 
 /* Grava e avisa a mesa. É o único caminho de uma rolagem até o banco, venha do site ou da mesa. */
+/* O dano vai dentro do detalhe: quem lê o detalhe como rolagem comum continua vendo o acerto. */
+export const comDano = (r: DiceRollResult, dano: DanoDaRolagem | null): DiceRollResult & { dano?: DanoDaRolagem } => (dano ? { ...r, dano } : r);
+
 export async function gravarRolagem(d: {
   campanhaId: string | null; fichaId: string | null; usuarioId: string; autor: string; rotulo: string;
-  det: string; total: number; expressao: string; detalhe: DiceRollResult;
+  det: string; total: number; expressao: string; detalhe: DiceRollResult & { dano?: DanoDaRolagem };
 }) {
   const linha = { id: novoId('r'), em: Date.now(), ...d };
   await db.insert(rolagens).values(linha);
@@ -254,11 +262,11 @@ export async function gravarRolagem(d: {
 }
 async function registrarRolagem(
   campanhaId: string | null, fichaId: string | null, usuario: UsuarioSessao,
-  autor: string, rotulo: string, r: ReturnType<typeof rolar>, fotoV = 0, det = detalheRolagem(r.detalhe),
+  autor: string, rotulo: string, r: ReturnType<typeof rolar>, fotoV = 0, det = detalheRolagem(r.detalhe), dano: DanoDaRolagem | null = null,
 ): Promise<Mensagem> {
   const total = r.detalhe.total;
-  const linha = await gravarRolagem({ campanhaId, fichaId, usuarioId: usuario.id, autor, rotulo, det, total, expressao: r.expressao, detalhe: r.detalhe });
-  return { id: linha.id, em: linha.em, autor, rotulo, det: linha.det, total, minha: true, fichaId, fotoV, bannerV: usuario.bannerV };
+  const linha = await gravarRolagem({ campanhaId, fichaId, usuarioId: usuario.id, autor, rotulo, det, total, expressao: r.expressao, detalhe: comDano(r.detalhe, dano) });
+  return { id: linha.id, em: linha.em, autor, rotulo, det: linha.det, total, dano, minha: true, fichaId, fotoV, bannerV: usuario.bannerV };
 }
 
 /* Página do histórico, da mais antiga para a mais nova. `antes` é o cursor "em_id" da mensagem mais antiga já carregada. */
@@ -279,7 +287,7 @@ async function listarChat(escopo: SQL, url: string, usuarioId: string): Promise<
     temMais: linhas.length > PAGINA_CHAT,
     mensagens: linhas.slice(0, PAGINA_CHAT).reverse().map(({ r, fotoV, campanhaDaFicha, bannerV }) => ({
       bannerV: bannerV ?? 0,
-      id: r.id, em: r.em, autor: r.autor, rotulo: r.rotulo, det: r.det, total: r.total,
+      id: r.id, em: r.em, autor: r.autor, rotulo: r.rotulo, det: r.det, total: r.total, dano: danoDaRolagem(r.detalhe),
       minha: r.usuarioId === usuarioId, fichaId: r.fichaId,
       /* Quem não tem mais acesso à foto (a ficha saiu da campanha) vê a inicial, não uma imagem quebrada. */
       fotoV: fotoV && campanhaDaFicha === r.campanhaId ? fotoV : 0,
@@ -524,28 +532,36 @@ rota('POST', '/api/fichas/:id/rolar', async ctx => {
   let r: ReturnType<typeof rolar>;
   /* Dano tem vários dados e somas: o texto curto das rolagens de atributo leria 2d6 como vantagem. */
   let livre = false;
+  let dano: DanoDaRolagem | null = null;
   if (ctx.corpo.atributo) {
     /* Valor e vantagem vêm do que está guardado na ficha: o navegador não escolhe o bônus. */
     const item = lerRolagem(R.normalizar(f.dados), String(ctx.corpo.atributo));
     if (!item) throw new Erro(400, 'Esse atributo não existe na ficha.');
     rotulo = item.rotulo;
     livre = item.livre;
+    /* Ataque com arma: o dano da arma sai junto, na mesma rolagem. */
+    if (item.dano) dano = danoJunto(item.dano, item.nome);
     r = livre ? rolarDano(item.expressao, item.nome) : { expressao: item.expressao, detalhe: rollDice(item.expressao) };
   } else if (ctx.corpo.magia) {
-    /* O dano vem da magia guardada: o navegador só diz qual magia conjurou. */
-    const magia = R.normalizar(f.dados).magias.find(m => m.id === String(ctx.corpo.magia));
-    if (!magia) throw new Erro(400, 'Essa magia não existe na ficha.');
-    rotulo = magia.nome || 'Magia sem nome';
-    r = rolarDano(magia.dano, rotulo);
-    livre = true;
+    /* Acerto pela perícia e dano vêm da habilidade guardada: o navegador só diz qual conjurou. */
+    const h = lerHabilidade(R.normalizar(f.dados), String(ctx.corpo.magia));
+    if (!h) throw new Erro(400, 'Essa magia não existe na ficha.');
+    rotulo = h.rotulo;
+    if (h.acerto) {
+      if (h.dano) dano = danoJunto(h.dano, rotulo);
+      r = { expressao: h.acerto, detalhe: rollDice(h.acerto) };
+    } else {
+      r = rolarDano(h.dano ?? '', rotulo);
+      livre = true;
+    }
   } else {
     r = rolar(Number(ctx.corpo.lados), R.inteiro(ctx.corpo.bonus, -999, 999));
   }
   const [campanha] = f.campanhaId ? await db.select({ mestreId: campanhas.mestreId }).from(campanhas).where(eq(campanhas.id, f.campanhaId)) : [];
   /* Todos da mesa veem a rolagem: o nome, a foto e o id entregariam a ficha privada. */
   const det = livre ? textoDaRolagem(r.detalhe) : detalheRolagem(r.detalhe);
-  if (campanha && R.fichaPrivada(f, campanha.mestreId)) return { rolagem: await registrarRolagem(f.campanhaId, null, ctx.usuario, 'Mestre', rotulo, r, 0, det) };
-  return { rolagem: await registrarRolagem(f.campanhaId, f.id, ctx.usuario, nomeFicha(f.dados), rotulo, r, f.fotoV, det) };
+  if (campanha && R.fichaPrivada(f, campanha.mestreId)) return { rolagem: await registrarRolagem(f.campanhaId, null, ctx.usuario, 'Mestre', rotulo, r, 0, det, dano) };
+  return { rolagem: await registrarRolagem(f.campanhaId, f.id, ctx.usuario, nomeFicha(f.dados), rotulo, r, f.fotoV, det, dano) };
 });
 
 /* Chat de uma ficha fora de campanha: só o dono vê. Em campanha, o chat é o da mesa. */

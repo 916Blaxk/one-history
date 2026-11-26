@@ -18,7 +18,7 @@ import * as R from '../../lib/regras'
 import type { ImagemMonstro } from '../../lib/servidor/schema'
 import { danoNoLimite, expressaoDaRolagem, lerRolagem } from '../../lib/resumoFicha'
 import { ouvirMesa, type EventoMesa } from '../../lib/servidor/barramento'
-import { alterarFicha, detalheRolagem, gravarRolagem, textoDaRolagem } from '../../lib/servidor/rotas'
+import { alterarFicha, comDano, detalheRolagem, gravarRolagem, textoDaRolagem } from '../../lib/servidor/rotas'
 import { COOKIE, usuarioDoToken } from '../../lib/servidor/sessao'
 import {
   LIMITE_MONSTROS, campanhaExiste, carregarHistorico, contarMonstros, gravarMonstro, lerMonstro, carregarMesa, gravarMensagem, lerAcesso, lerFicha, lerFichasDaCampanha, lerMembros, rolagemParaChat, salvarMesa, type EstadoMesa,
@@ -937,7 +937,17 @@ async function handleCommand(socket: TableSocket, room: RoomState, player: RoomP
         return
       }
       let roll: ReturnType<typeof rollDice>
+      /* Ataque com arma traz o dano junto, como no site: acerto e dano na mesma rolagem. */
+      let dano: { expressao: string; total: number; det: string } | null = null
       try {
+        if (item.dano) {
+          if (!danoNoLimite(item.dano)) {
+            socket.emit('room:event', { type: 'chat:error', text: `O dano de ${item.nome} excede o limite do rolador.` })
+            return
+          }
+          const rolagemDano = rollDice(item.dano)
+          dano = { expressao: item.dano, total: rolagemDano.total, det: textoDaRolagem(rolagemDano) }
+        }
         roll = rollDice(expression)
       } catch (error) {
         if (!(error instanceof DiceExpressionError)) throw error
@@ -948,7 +958,7 @@ async function handleCommand(socket: TableSocket, room: RoomState, player: RoomP
       const privada = R.fichaPrivada(ficha, room.mestreId)
       await gravarRolagem({
         campanhaId: room.code, fichaId: privada ? null : ficha.id, usuarioId: player.id, autor: privada ? 'Mestre' : ficha.dados.nome || 'Sem nome',
-        rotulo: item.rotulo, det: item.livre ? textoDaRolagem(roll) : detalheRolagem(roll), total: roll.total, expressao: expression, detalhe: roll,
+        rotulo: item.rotulo, det: item.livre ? textoDaRolagem(roll) : detalheRolagem(roll), total: roll.total, expressao: expression, detalhe: comDano(roll, dano),
       })
       return
     }

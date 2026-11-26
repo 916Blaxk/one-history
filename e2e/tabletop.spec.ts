@@ -332,7 +332,8 @@ test('mesa: mapa, névoa, combate, magia e ferramentas na mesma sessão', async 
   await jogador.locator('.mini-sheet-group summary', { hasText: 'Armas' }).click();
   await expect(jogador.getByRole('button', { name: /^Rolar Armas leves/ })).toHaveCount(0);
   await jogador.getByRole('button', { name: 'Rolar Ataque com Espada: 1d20' }).click();
-  await expect(mestre.locator('.chat-roll-label').last()).toHaveText('Ataque com Espada');
+  /* O ataque já traz o dano da arma: a mesa mostra o acerto nos dados e o dano no rótulo. */
+  await expect(mestre.locator('.chat-roll-label').last()).toHaveText(/^Ataque com Espada · dano \d+ \(1d8 \(\d\)\)$/);
   await jogador.getByRole('button', { name: 'Rolar Dano de Espada: 1d8' }).click();
   await expect(mestre.locator('.chat-roll-label').last()).toHaveText('Dano de Espada');
   /* Com o chat aberto, a barra de ferramentas do mestre fica escondida. */

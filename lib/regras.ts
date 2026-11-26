@@ -177,6 +177,18 @@ export const atributoDaArma = (a: Pick<Arma, 'categoria' | 'atributo'>): Atribut
 export function ataqueDaArma(f: Pick<DadosFicha, 'corpo' | 'pericias' | 'periciasOutros'>, a: Pick<Arma, 'categoria' | 'atributo'>) {
   return { valor: (f.pericias.combate ?? 0) + (f.periciasOutros.combate ?? 0), vantagem: vantagemDosPontos(f.corpo[atributoDaArma(a)] ?? 0) };
 }
+/* O campo Perícias da habilidade é texto livre ("Canalização mágica, Combate"). O acerto usa a primeira
+   perícia do sistema que aparece nele; acento e maiúscula não contam, porque cada um digita de um jeito. */
+const semAcento = (s: string) => s.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().trim();
+const PERICIA_POR_NOME = new Map(PERICIAS.flatMap(g => g.itens.map(([k, rotulo]) => [semAcento(rotulo), k] as const)));
+export function periciaDaHabilidade(texto: string): string | null {
+  for (const parte of texto.split(/[,;/]|\se\s/)) {
+    const k = PERICIA_POR_NOME.get(semAcento(parte));
+    if (k) return k;
+  }
+  return null;
+}
+
 /* O gasto universal do núcleo desconta do custo de toda magia, sem deixar o custo negativo. */
 export const custoMagia = (f: Pick<DadosFicha, 'nucleo'>, m: Pick<Magia, 'custo'>) => Math.max(0, m.custo - bonusNucleo(f.nucleo).gasto);
 

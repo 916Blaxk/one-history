@@ -35,8 +35,13 @@ export interface ResumoFicha {
 }
 
 /* Uma rolagem como mensagem do chat de dados. */
+/* O dano que sai junto do acerto, no ataque e na habilidade. Fica dentro do `detalhe` da rolagem: não precisou de coluna nova. */
+export interface DanoDaRolagem { expressao: string; total: number; det: string }
+
 export interface Mensagem {
   id: string; em: number; autor: string; rotulo: string; det: string; total: number;
+  /* Com dano, `total` e `det` são do acerto. */
+  dano: DanoDaRolagem | null;
   minha: boolean; fichaId: string | null; fotoV: number;
   /* Versão do banner de quem rolou; zero é sem banner. A imagem vem pela rolagem, para o chat não expor o id da conta. */
   bannerV: number;

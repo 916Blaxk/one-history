@@ -5,6 +5,7 @@ import type { AjusteImagem, Token, TokenSprite } from '../src/features/tokens/to
 import type { Combate, NevoaDaMesa, RoomGrid, RoomScene } from '../src/shared/room-protocol.js'
 import * as R from '../../lib/regras'
 import type { LinhaRolagem } from '../../lib/servidor/barramento'
+import { danoDaRolagem } from '../../lib/resumoFicha'
 import { db } from '../../lib/servidor/db'
 import { campanhas, fichas, membros, mensagensMesa, mesaImagens, mesas, monstros, rolagens, usuarios, type DadosMonstro, type ImagemMonstro, type VagaMonstro } from '../../lib/servidor/schema'
 
@@ -40,11 +41,14 @@ export async function lerFichasDaCampanha(campanhaId: string) {
 }
 
 export function rolagemParaChat(l: LinhaRolagem): ChatMessage {
+  /* Ataque e habilidade guardam o dano junto do acerto: a mesa mostra o acerto nos dados e o dano no rótulo. */
+  const dano = danoDaRolagem(l.detalhe)
+  const rotulo = dano ? `${l.rotulo || 'Ataque'} · dano ${dano.total} (${dano.det})` : l.rotulo
   return {
     id: l.id, type: 'roll', author: l.autor, timestamp: l.em,
     /* Rolagem antiga não tem os dados um a um: aparece como texto. */
     text: l.detalhe ? String(l.expressao ?? l.det) : `${l.det} = ${l.total}`,
-    label: l.rotulo || undefined,
+    label: rotulo || undefined,
     roll: (l.detalhe ?? undefined) as DiceRollResult | undefined,
   }
 }

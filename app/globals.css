@@ -1251,3 +1251,14 @@ html[data-tema="amarelo"]{--vida:#ff1f1f;--vida-2:#ff8a00;--mana:#1f6bff;--mana-
 
 /* Campo de efeito da habilidade: texto curto, não precisa da altura da descrição. */
 .campo textarea.campo-curto{min-height:64px}
+
+/* ---------- Ataque e habilidade: acerto e dano no mesmo cartão ----------
+   Acerto à esquerda, dano à direita, separados por um fio, cada número com o nome embaixo (como no C.R.I.S). */
+.cartao-linha .cartao-duplo{grid-template-columns:auto minmax(0,1fr) auto auto auto;column-gap:10px}
+.cartao-par{display:grid;justify-items:center;gap:3px}
+.cartao-par small{font:700 10px/1 var(--f-texto);letter-spacing:.12em;text-transform:uppercase;color:#ffffffa6}
+.cartao-duplo .cartao-total{font-size:36px;min-width:1.2em}
+.cartao-par-dano .cartao-total{text-shadow:0 0 18px #ff3b3b,0 0 3px #000}
+.cartao-divisor{align-self:stretch;width:1px;margin-block:4px;background:linear-gradient(transparent,#ffffff59,transparent)}
+.cartao-prefixo{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#ffffff99}
+.chat-popup .cartao-duplo{padding-right:30px}
