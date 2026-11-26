@@ -6,6 +6,22 @@ import { PontoElemento, origemDoElemento } from '@/components/ElementosCriados';
 
 const novoId = () => `m${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 
+/* Os campos de texto da habilidade, na ordem da ficha do sistema. Os tamanhos são os mesmos de normalizar(). */
+type CampoTexto = 'alcance' | 'area' | 'alvo' | 'duracao' | 'efeito' | 'resistencia' | 'dano' | 'pericias' | 'critico' | 'multiplicador';
+const CAMPOS_TEXTO: { chave: CampoTexto; rotulo: string; max: number; exemplo?: string; largo?: boolean }[] = [
+  { chave: 'alcance', rotulo: 'Alcance', max: 60, exemplo: 'Ex.: 30 m' },
+  { chave: 'area', rotulo: 'Área', max: 60, exemplo: 'Ex.: cone de 9 m' },
+  { chave: 'alvo', rotulo: 'Alvo', max: 60, exemplo: 'Ex.: uma criatura' },
+  { chave: 'duracao', rotulo: 'Duração', max: 60, exemplo: 'Ex.: instantânea' },
+  { chave: 'efeito', rotulo: 'Efeito', max: 500, exemplo: 'O que acontece com o alvo', largo: true },
+  { chave: 'resistencia', rotulo: 'Resistência', max: 80, exemplo: 'Ex.: Esquiva reduz à metade' },
+  { chave: 'dano', rotulo: 'Dano', max: 40, exemplo: 'Ex.: 2d6+3' },
+  { chave: 'pericias', rotulo: 'Perícias', max: 120, exemplo: 'Ex.: Canalização mágica' },
+  { chave: 'critico', rotulo: 'Crítico', max: 20, exemplo: 'Ex.: 19-20' },
+  { chave: 'multiplicador', rotulo: 'Multiplicador', max: 20, exemplo: 'Ex.: ×2' },
+];
+const NOMES_PERICIAS = R.PERICIAS.flatMap(g => g.itens.map(([, rotulo]) => rotulo));
+
 /* A aba de feitiços da ficha. O custo mostrado já desconta o gasto universal do núcleo. */
 export default function Magias({ magias, criados, elementos, gastoUniversal, aoMudar, aoConjurar }: {
   magias: R.Magia[]; criados: readonly R.ElementoCriado[]; elementos: readonly (readonly string[])[]; gastoUniversal: number;
@@ -21,7 +37,10 @@ export default function Magias({ magias, criados, elementos, gastoUniversal, aoM
   const mudar = (id: string, campos: Partial<R.Magia>) => aoMudar(magias.map(m => (m.id === id ? { ...m, ...campos } : m)));
   function adicionar() {
     const id = novoId();
-    aoMudar([...magias, { id, nome: '', elemento: '', custo: 0, dano: '', alcance: '', duracao: '', descricao: '' }]);
+    aoMudar([...magias, {
+      id, nome: '', elemento: '', custo: 0, dano: '', alcance: '', area: '', alvo: '', duracao: '', efeito: '',
+      resistencia: '', pericias: '', critico: '', multiplicador: '', descricao: '',
+    }]);
     setAbertas(a => new Set(a).add(id));
   }
 
@@ -65,18 +84,14 @@ export default function Magias({ magias, criados, elementos, gastoUniversal, aoM
                     <label className="rotulo" htmlFor={`m-custo-${m.id}`}>Custo de mana</label>
                     <CampoNumero id={`m-custo-${m.id}`} min={0} valor={m.custo} aoMudar={v => mudar(m.id, { custo: R.inteiro(v, 0, 9999) })} />
                   </div>
-                  <div className="campo">
-                    <label className="rotulo" htmlFor={`m-dano-${m.id}`}>Dano</label>
-                    <input id={`m-dano-${m.id}`} type="text" maxLength={40} placeholder="Ex.: 2d6+3" value={m.dano} onChange={ev => mudar(m.id, { dano: ev.target.value })} />
-                  </div>
-                  <div className="campo">
-                    <label className="rotulo" htmlFor={`m-alcance-${m.id}`}>Alcance</label>
-                    <input id={`m-alcance-${m.id}`} type="text" maxLength={60} value={m.alcance} onChange={ev => mudar(m.id, { alcance: ev.target.value })} />
-                  </div>
-                  <div className="campo">
-                    <label className="rotulo" htmlFor={`m-duracao-${m.id}`}>Duração</label>
-                    <input id={`m-duracao-${m.id}`} type="text" maxLength={60} value={m.duracao} onChange={ev => mudar(m.id, { duracao: ev.target.value })} />
-                  </div>
+                  {CAMPOS_TEXTO.map(c => (
+                    <div className={`campo${c.largo ? ' campo-largo' : ''}`} key={c.chave}>
+                      <label className="rotulo" htmlFor={`m-${c.chave}-${m.id}`}>{c.rotulo}</label>
+                      {c.largo
+                        ? <textarea id={`m-${c.chave}-${m.id}`} className="campo-curto" maxLength={c.max} placeholder={c.exemplo} value={m[c.chave]} onChange={ev => mudar(m.id, { [c.chave]: ev.target.value })} />
+                        : <input id={`m-${c.chave}-${m.id}`} type="text" maxLength={c.max} placeholder={c.exemplo} list={c.chave === 'pericias' ? 'lista-pericias' : undefined} value={m[c.chave]} onChange={ev => mudar(m.id, { [c.chave]: ev.target.value })} />}
+                    </div>
+                  ))}
                   <div className="campo campo-largo">
                     <label className="rotulo" htmlFor={`m-descricao-${m.id}`}>Descrição</label>
                     <textarea id={`m-descricao-${m.id}`} maxLength={4000} value={m.descricao} onChange={ev => mudar(m.id, { descricao: ev.target.value })} />
@@ -91,6 +106,8 @@ export default function Magias({ magias, criados, elementos, gastoUniversal, aoM
         })}
       </ul>
       {magias.length < R.LIMITE_MAGIAS && <button type="button" className="btn" onClick={adicionar}>Adicionar magia</button>}
+      {/* Sugestões para o campo Perícias: dá para escolher da lista ou escrever mais de uma. */}
+      <datalist id="lista-pericias">{NOMES_PERICIAS.map(n => <option key={n} value={n} />)}</datalist>
     </div>
   );
 }

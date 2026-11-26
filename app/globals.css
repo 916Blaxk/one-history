@@ -1220,3 +1220,34 @@ html.tremor-falha .ficha-grade,html.tremor-falha .placa,html.tremor-falha .camp-
 .cartao-linha.msg-nova[data-extremo="falha"] .cartao{animation:falha-tranco .4s ease-out}
 /* Os cartões tremem e crescem um pouco ao chegar: sem isto, a lista ganha uma barra de rolagem lateral por um instante. */
 .chat-lista{overflow-x:hidden}
+
+/* ---------- Vida e mana vivas ----------
+   Vida continua vermelha e mana continua azul, porque significam algo no jogo. O que muda com o tema
+   é a ponta do degradê: no laranja a vida puxa para o laranja, no roxo a mana puxa para o violeta.
+   A barra é cor chapada e saturada; o reflexo branco de antes deixava as duas desbotadas. */
+:root,html[data-tema="roxo"]{--vida:#ff1f5a;--vida-2:#ff5cb0;--mana:#4f5bff;--mana-2:#b04dff}
+html[data-tema="azul"]{--vida:#ff2448;--vida-2:#ff6a5c;--mana:#0a84ff;--mana-2:#22e0ff}
+html[data-tema="laranja"]{--vida:#ff1a1a;--vida-2:#ff7a1a;--mana:#2f6bff;--mana-2:#36c5ff}
+html[data-tema="verde"]{--vida:#ff1f4b;--vida-2:#ff6a3d;--mana:#00a8ff;--mana-2:#2bffd5}
+html[data-tema="rosa"]{--vida:#ff1744;--vida-2:#ff4fa3;--mana:#6a5cff;--mana-2:#c06bff}
+html[data-tema="branco"]{--vida:#ff2a4a;--vida-2:#ff8a9a;--mana:#3d7bff;--mana-2:#a9c4ff}
+html[data-tema="vermelho"]{--vida:#e0001f;--vida-2:#ff4a1f;--mana:#3355ff;--mana-2:#8a5cff}
+html[data-tema="marrom"]{--vida:#e8261b;--vida-2:#ff7a2e;--mana:#2a7fe0;--mana-2:#45d0c9}
+html[data-tema="amarelo"]{--vida:#ff1f1f;--vida-2:#ff8a00;--mana:#1f6bff;--mana-2:#38d4ff}
+.cor-vida{--cor:var(--vida);--cor-2:var(--vida-2)}
+.cor-mana{--cor:var(--mana);--cor-2:var(--mana-2)}
+
+.barra i{background:linear-gradient(90deg,var(--cor),var(--cor-2,var(--cor)));box-shadow:inset 0 1px 0 #ffffff4d,inset 0 -2px 3px #00000040,0 0 10px color-mix(in srgb,var(--cor-2,var(--cor)) 65%,transparent)}
+.barra i::after{background:linear-gradient(100deg,transparent 35%,#ffffff40 50%,transparent 65%);background-size:220% 100%}
+.vital .barra{height:14px;background:color-mix(in srgb,var(--cor) 12%,var(--surface-2));border-color:color-mix(in srgb,var(--cor) 35%,var(--border))}
+.vital .barra i{box-shadow:inset 0 1px 0 #ffffff59,inset 0 -2px 3px #00000040,0 0 16px color-mix(in srgb,var(--cor) 80%,transparent),0 0 4px var(--cor-2,var(--cor))}
+
+/* O nome do bloco leva o mesmo degradê da barra. Sombra por filtro: com o texto recortado, text-shadow vazaria por cima das letras. */
+.vital.cor-vida .vital-rot,.vital.cor-mana .vital-rot{background:linear-gradient(90deg,var(--cor),var(--cor-2));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;text-shadow:none;filter:drop-shadow(0 0 8px color-mix(in srgb,var(--cor) 70%,transparent))}
+/* O card ganha um tom da própria cor, por cima da moldura do tema. */
+.vital.cor-vida,.vital.cor-mana{border-color:color-mix(in srgb,var(--cor) 40%,var(--border));background-image:linear-gradient(180deg,color-mix(in srgb,var(--cor) 13%,transparent),transparent 120px),var(--cantos)}
+.vital.cor-vida:hover,.vital.cor-mana:hover{border-color:color-mix(in srgb,var(--cor) 70%,var(--border));box-shadow:inset 0 0 0 3px var(--surface),inset 0 0 0 4px color-mix(in srgb,var(--cor) 35%,transparent),0 0 26px color-mix(in srgb,var(--cor) 30%,transparent),0 8px 24px #00000052}
+.vital.cor-vida .vital-botoes button:hover,.vital.cor-mana .vital-botoes button:hover{background:color-mix(in srgb,var(--cor) 16%,var(--surface-2))}
+
+/* Campo de efeito da habilidade: texto curto, não precisa da altura da descrição. */
+.campo textarea.campo-curto{min-height:64px}

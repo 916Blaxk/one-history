@@ -78,7 +78,11 @@ export const AP_INICIAL = 25;
 export const PP_INICIAL = 20;
 export const LIMITE_PERICIA_INICIAL = 5;
 export interface AjustesMestre { vida: number; mana: number; ap: number; pp: number; limitePericia: number }
-export interface Magia { id: string; nome: string; elemento: string; custo: number; dano: string; alcance: string; duracao: string; descricao: string }
+/* Na tela é a aba "Habilidades". Crítico e multiplicador são anotações para a mesa: a rolagem de dano não os aplica. */
+export interface Magia {
+  id: string; nome: string; elemento: string; custo: number; dano: string; alcance: string; area: string; alvo: string;
+  duracao: string; efeito: string; resistencia: string; pericias: string; critico: string; multiplicador: string; descricao: string;
+}
 export const LIMITE_MAGIAS = 100;
 /* Variação de um elemento base ou fusão de dois. A origem é sempre um dos cinco elementos base. */
 export interface ElementoCriado { id: string; nome: string; tipo: 'variacao' | 'fusao'; origens: string[]; valor: number }
@@ -252,7 +256,9 @@ function normalizarMagias(entrada: unknown, criados: readonly ElementoCriado[]):
     const elemento = GRUPOS.elementos.some(([k]) => k === m.elemento) || criados.some((e) => e.id === m.elemento) ? String(m.elemento) : '';
     return {
       id, nome: texto(m.nome, 80), elemento, custo: inteiro(m.custo ?? 0, 0, 9999), dano: texto(m.dano, 40),
-      alcance: texto(m.alcance, 60), duracao: texto(m.duracao, 60), descricao: texto(m.descricao, 4000),
+      alcance: texto(m.alcance, 60), area: texto(m.area, 60), alvo: texto(m.alvo, 60), duracao: texto(m.duracao, 60),
+      efeito: texto(m.efeito, 500), resistencia: texto(m.resistencia, 80), pericias: texto(m.pericias, 120),
+      critico: texto(m.critico, 20), multiplicador: texto(m.multiplicador, 20), descricao: texto(m.descricao, 4000),
     };
   });
 }
