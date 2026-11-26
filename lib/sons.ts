@@ -3,9 +3,14 @@
    e o resultado chega do servidor depois do toque. Destravar o contexto no clique (prepararSons) deixa
    o som tocar quando a resposta chegar. Os arquivos ficam em public/sons, na mesma origem: a CSP não muda. */
 
-export type Som = 'dado' | 'solo' | 'desastre';
-const ARQUIVOS: Record<Som, string> = { dado: '/sons/dado.mp3', solo: '/sons/solo.mp3', desastre: '/sons/desastre.mp3' };
-const VOLUME: Record<Som, number> = { dado: .7, solo: .55, desastre: .7 };
+/* `raio` é o acerto extremo de combate do ícone com raio (lib/estilos.ts). Só esse som se esvai no fim. */
+export type Som = 'dado' | 'solo' | 'desastre' | 'raio';
+const ARQUIVOS: Record<Som, string> = { dado: '/sons/dado.mp3', solo: '/sons/solo.mp3', desastre: '/sons/desastre.mp3', raio: '/sons/acerto-extremo.mp3' };
+const VOLUME: Record<Som, number> = { dado: .7, solo: .55, desastre: .7, raio: .7 };
+/* Segundos finais em que o volume desce até sumir. */
+const ESVAIR: Partial<Record<Som, number>> = { raio: 3.5 };
+/* O som do raio é grande e só uma conta usa: os outros navegadores não precisam baixá-lo a cada clique. */
+const SOB_DEMANDA: ReadonlySet<Som> = new Set(['raio']);
 
 /* Preferência deste navegador. Fica aqui, e não só no hook do tema, porque a rolagem lê fora do React. */
 export const CHAVE_SOM = 'oh-som-critico';
@@ -39,13 +44,13 @@ function carregar(ac: AudioContext, som: Som) {
 }
 
 /* Chamar dentro do clique, antes de qualquer await: é o toque que libera o áudio no celular. */
-export function prepararSons() {
+export function prepararSons(extras: readonly Som[] = []) {
   if (!somLigado()) return;
   try {
     const ac = obterContexto();
     if (!ac) return;
     if (ac.state === 'suspended') void ac.resume();
-    for (const som of Object.keys(ARQUIVOS) as Som[]) void carregar(ac, som);
+    for (const som of Object.keys(ARQUIVOS) as Som[]) if (!SOB_DEMANDA.has(som) || extras.includes(som)) void carregar(ac, som);
   } catch { /* Sem áudio: a rolagem continua igual, só sem som. */ }
 }
 
@@ -62,6 +67,13 @@ export async function tocarSom(som: Som) {
     fonte.buffer = buffer;
     const volume = ac.createGain();
     volume.gain.value = VOLUME[som];
+    const esvair = ESVAIR[som];
+    if (esvair && buffer.duration > esvair) {
+      /* Exponencial soa como o volume indo embora; a rampa linear parece cortar de repente perto do fim. */
+      const inicio = ac.currentTime + buffer.duration - esvair;
+      volume.gain.setValueAtTime(VOLUME[som], inicio);
+      volume.gain.exponentialRampToValueAtTime(.0001, ac.currentTime + buffer.duration);
+    }
     fonte.connect(volume).connect(ac.destination);
     fonte.onended = () => { if (tocando === fonte) tocando = null; };
     tocando = fonte;

@@ -74,7 +74,8 @@ export function useSomRolagens(): [boolean, (ligado: boolean) => void] {
 
 /* O ícone dos dados fica na conta, no servidor: é ele que garante que ninguém pegue o ícone de outra pessoa.
    `meu` vazio é o d20 do tema, que todos podem usar. */
-export interface EstilosDado { meu: string | null; ocupados: string[] }
+/* `exclusivos`: os ícones de uma conta só que esta conta pode escolher. Os outros exclusivos nem aparecem. */
+export interface EstilosDado { meu: string | null; ocupados: string[]; exclusivos?: string[] }
 export function useEstiloDado() {
   const { data, mutate } = useSWR<EstilosDado>('/api/conta/estilos-dado', buscar, { shouldRetryOnError: false });
   const escolher = useCallback(async (estilo: string | null) => {
@@ -89,5 +90,5 @@ export function useEstiloDado() {
     }
     void mutate();
   }, [data, mutate]);
-  return { meu: data?.meu ?? null, ocupados: data?.ocupados ?? [], carregado: !!data, escolher, atualizar: mutate };
+  return { meu: data?.meu ?? null, ocupados: data?.ocupados ?? [], exclusivos: data?.exclusivos ?? [], carregado: !!data, escolher, atualizar: mutate };
 }

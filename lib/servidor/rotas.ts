@@ -7,7 +7,8 @@ import { acertoCritico, rolarDanoDoAtaque } from '../critico';
 import { normalizarEnquadramento } from '../enquadramento';
 import { ehEstiloDado } from '../estilos';
 import * as R from '../regras';
-import { danoDaRolagem, danoNoLimite, lerHabilidade, lerRolagem, resumoDaFicha } from '../resumoFicha';
+import { acaoDeCombate, combateDaRolagem, danoDaRolagem, danoNoLimite, lerHabilidade, lerRolagem, resumoDaFicha } from '../resumoFicha';
+import { exclusivosDaConta, podeUsarEstilo } from './exclusivos';
 import type { DanoDaRolagem, Ficha, Mensagem, PaginaChat, Papel, ResumoFicha } from '../tipos';
 import { avisarMesa } from './barramento';
 import { db } from './db';
@@ -251,11 +252,14 @@ const escopoFichaSolo = (fichaId: string) => and(isNull(rolagens.campanhaId), eq
 
 /* Grava e avisa a mesa. É o único caminho de uma rolagem até o banco, venha do site ou da mesa. */
 /* O dano vai dentro do detalhe: quem lê o detalhe como rolagem comum continua vendo o acerto. */
-export const comDano = (r: DiceRollResult, dano: DanoDaRolagem | null): DiceRollResult & { dano?: DanoDaRolagem } => (dano ? { ...r, dano } : r);
+/* A marca de combate também: o chat lê dela se o acerto extremo ganha o raio. */
+export type DetalheGravado = DiceRollResult & { dano?: DanoDaRolagem; combate?: true };
+export const comDano = (r: DiceRollResult, dano: DanoDaRolagem | null, combate = false): DetalheGravado =>
+  ({ ...r, ...(dano ? { dano } : {}), ...(combate ? { combate: true as const } : {}) });
 
 export async function gravarRolagem(d: {
   campanhaId: string | null; fichaId: string | null; usuarioId: string; autor: string; rotulo: string;
-  det: string; total: number; expressao: string; detalhe: DiceRollResult & { dano?: DanoDaRolagem };
+  det: string; total: number; expressao: string; detalhe: DetalheGravado;
 }) {
   const linha = { id: novoId('r'), em: Date.now(), ...d };
   await db.insert(rolagens).values(linha);
@@ -267,11 +271,11 @@ export async function gravarRolagem(d: {
 }
 async function registrarRolagem(
   campanhaId: string | null, fichaId: string | null, usuario: UsuarioSessao,
-  autor: string, rotulo: string, r: ReturnType<typeof rolar>, fotoV = 0, det = detalheRolagem(r.detalhe), dano: DanoDaRolagem | null = null,
+  autor: string, rotulo: string, r: ReturnType<typeof rolar>, fotoV = 0, det = detalheRolagem(r.detalhe), dano: DanoDaRolagem | null = null, combate = false,
 ): Promise<Mensagem> {
   const total = r.detalhe.total;
-  const linha = await gravarRolagem({ campanhaId, fichaId, usuarioId: usuario.id, autor, rotulo, det, total, expressao: r.expressao, detalhe: comDano(r.detalhe, dano) });
-  return { id: linha.id, em: linha.em, autor, rotulo, det: linha.det, total, dano, minha: true, fichaId, fotoV, bannerV: usuario.bannerV, estilo: usuario.estiloDado };
+  const linha = await gravarRolagem({ campanhaId, fichaId, usuarioId: usuario.id, autor, rotulo, det, total, expressao: r.expressao, detalhe: comDano(r.detalhe, dano, combate) });
+  return { id: linha.id, em: linha.em, autor, rotulo, det: linha.det, total, dano, minha: true, fichaId, fotoV, bannerV: usuario.bannerV, estilo: usuario.estiloDado, combate };
 }
 
 /* Página do histórico, da mais antiga para a mais nova. `antes` é o cursor "em_id" da mensagem mais antiga já carregada. */
@@ -292,7 +296,7 @@ async function listarChat(escopo: SQL, url: string, usuarioId: string): Promise<
     temMais: linhas.length > PAGINA_CHAT,
     mensagens: linhas.slice(0, PAGINA_CHAT).reverse().map(({ r, fotoV, campanhaDaFicha, bannerV, estilo }) => ({
       bannerV: bannerV ?? 0, estilo: estilo ?? null,
-      id: r.id, em: r.em, autor: r.autor, rotulo: r.rotulo, det: r.det, total: r.total, dano: danoDaRolagem(r.detalhe),
+      id: r.id, em: r.em, autor: r.autor, rotulo: r.rotulo, det: r.det, total: r.total, dano: danoDaRolagem(r.detalhe), combate: combateDaRolagem(r.detalhe),
       minha: r.usuarioId === usuarioId, fichaId: r.fichaId,
       /* Quem não tem mais acesso à foto (a ficha saiu da campanha) vê a inicial, não uma imagem quebrada. */
       fotoV: fotoV && campanhaDaFicha === r.campanhaId ? fotoV : 0,
@@ -386,11 +390,13 @@ rota('GET', '/api/conta/banner', async ctx => {
 rota('GET', '/api/conta/estilos-dado', async ctx => {
   const linhas = await db.select({ estilo: usuarios.estiloDado }).from(usuarios)
     .where(and(isNotNull(usuarios.estiloDado), ne(usuarios.id, ctx.usuario.id)));
-  return { meu: ctx.usuario.estiloDado, ocupados: linhas.map(l => l.estilo!) };
+  return { meu: ctx.usuario.estiloDado, ocupados: linhas.map(l => l.estilo!), exclusivos: exclusivosDaConta(ctx.usuario.email) };
 });
 rota('PATCH', '/api/conta/estilo-dado', async ctx => {
   const pedido = ctx.corpo.estilo ?? null;
   if (pedido !== null && !ehEstiloDado(pedido)) throw new Erro(400, 'Esse ícone não existe.');
+  /* O exclusivo é checado aqui, e não só escondido na tela: a escolha pelo navegador não basta para pegar o ícone. */
+  if (pedido !== null && !podeUsarEstilo(pedido, ctx.usuario.email)) throw new Erro(403, 'Esse ícone é exclusivo de outra conta.');
   const ocupado = () => new Erro(409, 'Esse ícone já é de outra pessoa. Escolha outro.');
   if (pedido) {
     const [dono] = await db.select({ id: usuarios.id }).from(usuarios).where(and(eq(usuarios.estiloDado, pedido), ne(usuarios.id, ctx.usuario.id)));
@@ -563,12 +569,14 @@ rota('POST', '/api/fichas/:id/rolar', async ctx => {
   /* Dano tem vários dados e somas: o texto curto das rolagens de atributo leria 2d6 como vantagem. */
   let livre = false;
   let dano: DanoDaRolagem | null = null;
+  let combate = false;
   if (ctx.corpo.atributo) {
     /* Valor e vantagem vêm do que está guardado na ficha: o navegador não escolhe o bônus. */
     const item = lerRolagem(R.normalizar(f.dados), String(ctx.corpo.atributo));
     if (!item) throw new Erro(400, 'Esse atributo não existe na ficha.');
     rotulo = item.rotulo;
     livre = item.livre;
+    combate = acaoDeCombate(String(ctx.corpo.atributo));
     r = livre ? rolarDano(item.expressao, item.nome) : { expressao: item.expressao, detalhe: rollDice(item.expressao) };
     /* Ataque com arma: o dano da arma sai junto, na mesma rolagem. */
     if (item.dano) dano = danoJunto(item.dano, item.nome, r.detalhe);
@@ -577,6 +585,8 @@ rota('POST', '/api/fichas/:id/rolar', async ctx => {
     const h = lerHabilidade(R.normalizar(f.dados), String(ctx.corpo.magia));
     if (!h) throw new Erro(400, 'Essa magia não existe na ficha.');
     rotulo = h.rotulo;
+    /* Habilidade que causa dano é ataque; a que só tem acerto (cura, utilidade) não é combate. */
+    combate = !!h.dano;
     if (h.acerto) {
       r = { expressao: h.acerto, detalhe: rollDice(h.acerto) };
       if (h.dano) dano = danoJunto(h.dano, rotulo, r.detalhe);
@@ -590,8 +600,8 @@ rota('POST', '/api/fichas/:id/rolar', async ctx => {
   const [campanha] = f.campanhaId ? await db.select({ mestreId: campanhas.mestreId }).from(campanhas).where(eq(campanhas.id, f.campanhaId)) : [];
   /* Todos da mesa veem a rolagem: o nome, a foto e o id entregariam a ficha privada. */
   const det = livre ? textoDaRolagem(r.detalhe) : detalheRolagem(r.detalhe);
-  if (campanha && R.fichaPrivada(f, campanha.mestreId)) return { rolagem: await registrarRolagem(f.campanhaId, null, ctx.usuario, 'Mestre', rotulo, r, 0, det, dano) };
-  return { rolagem: await registrarRolagem(f.campanhaId, f.id, ctx.usuario, nomeFicha(f.dados), rotulo, r, f.fotoV, det, dano) };
+  if (campanha && R.fichaPrivada(f, campanha.mestreId)) return { rolagem: await registrarRolagem(f.campanhaId, null, ctx.usuario, 'Mestre', rotulo, r, 0, det, dano, combate) };
+  return { rolagem: await registrarRolagem(f.campanhaId, f.id, ctx.usuario, nomeFicha(f.dados), rotulo, r, f.fotoV, det, dano, combate) };
 });
 
 /* Chat de uma ficha fora de campanha: só o dono vê. Em campanha, o chat é o da mesa. */

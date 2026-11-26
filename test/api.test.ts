@@ -783,7 +783,7 @@ describe('chat de dados', () => {
     expect(recusado.status).toBe(409);
     expect(recusado.corpo.erro).toMatch(/outra pessoa/);
     const lista = (await mestre.c('GET', '/api/conta/estilos-dado')).corpo;
-    expect(lista).toEqual({ meu: null, ocupados: expect.arrayContaining(['diabo']) });
+    expect(lista).toEqual({ meu: null, ocupados: expect.arrayContaining(['diabo']), exclusivos: [] });
     expect(JSON.stringify(lista)).not.toContain(jog.id);
     expect((await jog.c('GET', '/api/conta/estilos-dado')).corpo.ocupados).not.toContain('diabo');
 
@@ -796,6 +796,30 @@ describe('chat de dados', () => {
     /* Quem larga o ícone o libera para os outros. */
     expect((await jog.c('PATCH', '/api/conta/estilo-dado', { estilo: null })).corpo.usuario.estiloDado).toBeNull();
     expect((await mestre.c('PATCH', '/api/conta/estilo-dado', { estilo: 'diabo' })).status).toBe(200);
+  });
+
+  it('o ícone exclusivo só pode ser escolhido pela conta dona, e a rolagem diz se é de combate', async () => {
+    const outra = await novaConta();
+    /* O servidor recusa, mesmo pedindo direto pela API: esconder na tela não basta. */
+    const recusado = await outra.c('PATCH', '/api/conta/estilo-dado', { estilo: 'engrenagem' });
+    expect(recusado.status).toBe(403);
+    expect(recusado.corpo.erro).toMatch(/exclusivo/);
+    expect((await outra.c('GET', '/api/conta/estilos-dado')).corpo.exclusivos).toEqual([]);
+
+    const dono = cliente();
+    /* O e-mail vale sem diferença de maiúsculas. */
+    expect((await dono('POST', '/api/conta/cadastro', { nome: 'Dono', email: 'CaioBlackStar@gmail.com', senha: 'senha-forte-1' })).status).toBe(201);
+    expect((await dono('GET', '/api/conta/estilos-dado')).corpo.exclusivos).toEqual(['engrenagem']);
+    expect((await dono('PATCH', '/api/conta/estilo-dado', { estilo: 'engrenagem' })).corpo.usuario.estiloDado).toBe('engrenagem');
+
+    const f = await novaFicha(dono);
+    const esquiva = (await dono('POST', `/api/fichas/${f.id}/rolar`, { atributo: 'pericias.esquiva' })).corpo.rolagem;
+    expect(esquiva).toMatchObject({ estilo: 'engrenagem', combate: true });
+    expect((await dono('POST', `/api/fichas/${f.id}/rolar`, { atributo: 'pericias.historia' })).corpo.rolagem.combate).toBe(false);
+    expect((await dono('POST', `/api/fichas/${f.id}/rolar`, { lados: 20 })).corpo.rolagem.combate).toBe(false);
+    /* A marca fica gravada: o histórico mostra o raio no dado também depois de recarregar. */
+    const chat = (await dono('GET', `/api/fichas/${f.id}/chat`)).corpo.mensagens;
+    expect(chat.map((m: { combate: boolean }) => m.combate)).toEqual([true, false, false]);
   });
 
   it('histórico da ficha e da campanha não se misturam quando a ficha muda de lugar', async () => {

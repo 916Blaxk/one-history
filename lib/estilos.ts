@@ -7,6 +7,11 @@ export interface EstiloDado {
   nome: string;
   /* A cor principal, a clara (texto e brilho) e a escura (fundo do cartão). As chamas do crítico usam as mesmas. */
   cor: string; claro: string; escuro: string;
+  /* Ícone de uma conta só. Quem pode usar fica no servidor (lib/servidor/exclusivos.ts), e não aqui:
+     esta lista vai para o navegador, e o e-mail do dono não precisa ir junto. */
+  exclusivo?: boolean;
+  /* No acerto extremo de combate, troca o fogo e o solo por raio, tremor e o som próprio do ícone. */
+  raio?: boolean;
 }
 
 export const ESTILOS_DADO: readonly EstiloDado[] = [
@@ -29,7 +34,10 @@ export const ESTILOS_DADO: readonly EstiloDado[] = [
   { id: 'veneno', nome: 'Veneno', cor: '#7cff00', claro: '#eaff8f', escuro: '#173300' },
   { id: 'ampulheta', nome: 'Ampulheta', cor: '#ff8a3d', claro: '#7cf4ff', escuro: '#2e1405' },
   { id: 'cometa', nome: 'Cometa', cor: '#ff3dbb', claro: '#fff0a8', escuro: '#330a26' },
+  { id: 'engrenagem', nome: 'Engrenagem', cor: '#e0001b', claro: '#ff3b3b', escuro: '#000000', exclusivo: true, raio: true },
 ];
 
 export const ehEstiloDado = (id: unknown): id is string => typeof id === 'string' && ESTILOS_DADO.some(e => e.id === id);
 export const estiloDado = (id: string | null | undefined) => ESTILOS_DADO.find(e => e.id === id) ?? null;
+/* O raio só vale no acerto extremo de uma rolagem de combate, com um ícone que tem raio. */
+export const temRaio = (estilo: string | null | undefined, combate: boolean) => combate && !!estiloDado(estilo)?.raio;

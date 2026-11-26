@@ -7,11 +7,12 @@ import type { Mensagem } from '@/lib/tipos';
 import { urlBanner } from '@/lib/cliente';
 import type { ChatDados, RolagemPendente } from '@/lib/useChat';
 import { useEstiloDado, useSomRolagens } from '@/lib/tema';
-import { ESTILOS_DADO, estiloDado } from '@/lib/estilos';
+import { ESTILOS_DADO, estiloDado, temRaio } from '@/lib/estilos';
 import { extremoDaRolagem, separarDetalhe, type DetalheSeparado } from '@/lib/extremo';
 import { Capitular } from './comuns';
 import { IconeDado, coresDoEstilo } from './IconeDado';
 import ChamasCritico from './ChamasCritico';
+import RaioCritico from './RaioCritico';
 
 const horaCurta = (ms: number) => new Date(ms).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 function nomeDoDia(ms: number) {
@@ -38,7 +39,7 @@ function EfeitoTela({ chat }: { chat: ChatDados }) {
   useEffect(() => {
     if (!efeito) return;
     const raiz = document.documentElement;
-    const classe = efeito.tipo === 'critico' ? 'tremor-critico' : 'tremor-falha';
+    const classe = efeito.tipo === 'raio' ? 'tremor-raio' : efeito.tipo === 'critico' ? 'tremor-critico' : 'tremor-falha';
     raiz.classList.add(classe);
     let fim: ReturnType<typeof setTimeout> | undefined;
     /* O crítico some quando as chamas acabam (ChamasCritico avisa); a falha tem tempo fixo. */
@@ -50,7 +51,9 @@ function EfeitoTela({ chat }: { chat: ChatDados }) {
   const e = estiloDado(meu);
   const cor = e?.cor ?? corDoTema('--secondary', '#8f6bff'), claro = e?.claro ?? corDoTema('--secondary-claro', '#d04dff');
   return createPortal(
-    efeito.tipo === 'critico'
+    efeito.tipo === 'raio'
+      ? <RaioCritico key={efeito.id} aoTerminar={() => setEfeito(null)} />
+      : efeito.tipo === 'critico'
       ? <ChamasCritico key={efeito.id} cor={cor} claro={claro} aoTerminar={() => setEfeito(null)} />
       : <div key={efeito.id} className="efeito-falha" aria-hidden="true" />,
     document.body,
@@ -81,17 +84,33 @@ function ChamasDoCartao() {
   );
 }
 
+/* Raios curtos em volta do ícone, piscando sem parar: o acerto extremo de combate fica marcado no dado. */
+const RAIOS_DO_ICONE = ['M5 0 2 6h3.5L1.5 13', 'M19 1l3.5 6h-3.5l3 6', 'M1 15l4 3.5-2.5 1L7 24', 'M23 14l-4 4h3L17.5 24', 'M12 0l-1.5 3h2L11 6'];
+function RaiosDoIcone() {
+  return (
+    <svg className="cartao-raios" viewBox="0 0 24 24" aria-hidden="true" fill="none" strokeLinecap="round" strokeLinejoin="round">
+      {RAIOS_DO_ICONE.map((d, i) => (
+        <g key={d} style={{ '--atraso': `${i * 130}ms` } as React.CSSProperties}>
+          <path d={d} stroke="#000" strokeWidth="3" />
+          <path d={d} stroke="#ff2a3a" strokeWidth="1.5" />
+        </g>
+      ))}
+    </svg>
+  );
+}
+
 /* O cartão leva o ícone e as cores de quem rolou, para todos que o veem: o ícone é a assinatura do jogador. */
 function CartaoRolagem({ m, nova }: { m: Mensagem; nova: boolean }) {
   const banner = m.bannerV ? { '--banner': `url("${urlBanner(m.id, m.bannerV)}")` } as React.CSSProperties : undefined;
   const partes = separarDetalhe(m.det);
   const extremo = extremoDaRolagem(m.det);
+  const raio = extremo === 'critico' && temRaio(m.estilo, m.combate);
   return (
-    <li className={`cartao-linha msg${m.minha ? ' msg-minha' : ''}${nova ? ' msg-nova' : ''}`} data-estilo={m.estilo ?? 'tema'} style={coresDoEstilo(m.estilo)} data-extremo={extremo ?? undefined}>
+    <li className={`cartao-linha msg${m.minha ? ' msg-minha' : ''}${nova ? ' msg-nova' : ''}`} data-estilo={m.estilo ?? 'tema'} style={coresDoEstilo(m.estilo)} data-extremo={extremo ?? undefined} data-raio={raio || undefined}>
       {!m.minha && <Capitular className="msg-foto" nome={m.autor} fichaId={m.fichaId ?? undefined} fotoV={m.fotoV} />}
       <div className={`cartao msg-balao${m.dano ? ' cartao-duplo' : ''}${banner ? ' msg-com-banner' : ''}`} style={banner}>
-        {extremo === 'critico' && <ChamasDoCartao />}
-        <span className="cartao-icone"><IconeDado estilo={m.estilo} /></span>
+        {extremo === 'critico' && !raio && <ChamasDoCartao />}
+        <span className="cartao-icone"><IconeDado estilo={m.estilo} />{raio && <RaiosDoIcone />}</span>
         <div className="cartao-meio">
           <p className="cartao-titulo">
             {m.rotulo ? <span className="msg-rotulo">{m.rotulo}</span> : <span aria-hidden="true">{partes?.expr ?? 'Rolagem'}</span>}
@@ -170,10 +189,11 @@ function CartaoPendente({ p, estilo }: { p: RolagemPendente; estilo: string | nu
 /* Os ícones dos dados, só o desenho, sem nome. Ícone com cadeado já é de outra pessoa e não pode ser escolhido.
    O nome fica no título e no leitor de tela. */
 function EscolhaEstilo() {
-  const { meu, ocupados, carregado, escolher, atualizar } = useEstiloDado();
+  const { meu, ocupados, exclusivos, carregado, escolher, atualizar } = useEstiloDado();
   /* A lista de ocupados muda quando outras pessoas escolhem: abrir o painel busca a versão nova. */
   useEffect(() => { void atualizar(); }, [atualizar]);
-  const opcoes = [{ id: null, nome: 'D20 do tema (de todos)' }, ...ESTILOS_DADO];
+  /* Exclusivo de outra conta nem aparece: não é um ícone ocupado, é um que esta conta nunca pode ter. */
+  const opcoes = [{ id: null, nome: 'D20 do tema (de todos)' }, ...ESTILOS_DADO.filter(e => !e.exclusivo || exclusivos.includes(e.id))];
   return (
     <div className="estilos" role="radiogroup" aria-label="Ícone dos seus dados" aria-busy={!carregado}>
       {opcoes.map(e => {

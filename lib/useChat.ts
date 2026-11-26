@@ -6,10 +6,13 @@ import { api, buscar, mensagem as textoErro } from './cliente';
 import type { Mensagem, PaginaChat } from './tipos';
 import { extremoDaRolagem, type Extremo } from './extremo';
 import { prepararSons, tocarSom } from './sons';
+import { estiloDado, temRaio } from './estilos';
+import { useEstiloDado } from './tema';
 
 /* O efeito de tela cheia de uma rolagem extrema. Só para a rolagem que a própria pessoa fez:
    a de outro jogador mostra o cartão marcado, sem tomar a tela de quem não rolou. */
-export interface EfeitoExtremo { id: number; tipo: Extremo }
+/* `raio`: acerto extremo de combate com um ícone de raio. Toma o lugar do fogo e do solo. */
+export interface EfeitoExtremo { id: number; tipo: Extremo | 'raio' }
 
 /* A rolagem que acabou de ser pedida e ainda não voltou do servidor. O cartão aparece no clique,
    com o número girando: o resultado de verdade continua vindo só do servidor. */
@@ -31,6 +34,7 @@ export function useChat(url: string) {
   const [destaque, setDestaque] = useState<Mensagem | null>(null);
   const [pendente, setPendente] = useState<RolagemPendente | null>(null);
   const [efeito, setEfeito] = useState<EfeitoExtremo | null>(null);
+  const { meu: meuEstilo } = useEstiloDado();
 
   /* A ficha entrou ou saiu de uma campanha: é outro chat. */
   const [urlAtual, setUrlAtual] = useState(url);
@@ -59,7 +63,7 @@ export function useChat(url: string) {
   const rolar = useCallback(async (info: { rotulo: string; lados?: number; popup?: boolean; comDano?: boolean }, pedir: () => Promise<Mensagem>) => {
     const p: RolagemPendente = { id: proximaPendente++, rotulo: info.rotulo, lados: info.lados ?? 20, popup: !!info.popup, comDano: !!info.comDano };
     const desde = performance.now();
-    prepararSons();
+    prepararSons(estiloDado(meuEstilo)?.raio ? ['raio'] : []);
     setPendente(p);
     if (info.popup) setDestaque(null);
     try {
@@ -69,16 +73,18 @@ export function useChat(url: string) {
       setProprias(l => [...l, m]);
       if (info.popup) setDestaque(m);
       const extremo = extremoDaRolagem(m.det);
-      /* No extremo toca só o som dele, sem o dado rolando por baixo. */
-      void tocarSom(extremo === 'critico' ? 'solo' : extremo === 'falha' ? 'desastre' : 'dado');
-      if (extremo) setEfeito({ id: p.id, tipo: extremo });
+      /* O estilo e a marca de combate vêm do servidor, na própria rolagem: o navegador não escolhe o efeito. */
+      const raio = extremo === 'critico' && temRaio(m.estilo, m.combate);
+      /* No extremo toca só o som dele, sem o dado rolando por baixo. A falha segue com o desastre de sempre. */
+      void tocarSom(raio ? 'raio' : extremo === 'critico' ? 'solo' : extremo === 'falha' ? 'desastre' : 'dado');
+      if (extremo) setEfeito({ id: p.id, tipo: raio ? 'raio' : extremo });
       void mutate();
     } catch (e) {
       toast.error(textoErro(e));
     } finally {
       setPendente(atual => (atual?.id === p.id ? null : atual));
     }
-  }, [mutate]);
+  }, [mutate, meuEstilo]);
 
   const carregarAnteriores = useCallback(async () => {
     const primeira = mensagens[0];

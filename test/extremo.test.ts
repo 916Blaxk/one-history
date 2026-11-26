@@ -31,3 +31,13 @@ describe('rolagem extrema', () => {
     expect(separarDetalhe('2d20, fica o maior (14, 7) + 3')).toEqual({ expr: '2d20', maior: true, valores: ['14', '7'], guardado: 0, resto: '+ 3' });
   });
 });
+
+describe('rolagem de combate', () => {
+  it('armas, dano, a categoria Combate, Destreza e vontade são combate; o resto não', async () => {
+    const { acaoDeCombate } = await import('../lib/resumoFicha');
+    for (const a of ['arma.x', 'dano.x', 'armas.leves', 'pericias.combate', 'pericias.lutaDesarmada', 'pericias.esquiva', 'pericias.aparar', 'pericias.arremesso', 'pericias.resistenciaEspiritual', 'corpo.destreza', 'mente.onipotencia'])
+      expect(acaoDeCombate(a), a).toBe(true);
+    for (const a of ['pericias.historia', 'pericias.investigacao', 'corpo.tracao', 'mente.encanto', 'elementos.fogo', 'criados.e1'])
+      expect(acaoDeCombate(a), a).toBe(false);
+  });
+});

@@ -75,6 +75,25 @@ export function lerHabilidade(d: R.DadosFicha, id: string): { rotulo: string; ac
   return { rotulo: m.nome || 'Magia sem nome', acerto, dano: m.dano.trim() || undefined };
 }
 
+/* Rolagens de combate: armas (ataque e dano), a categoria Combate das perícias, Destreza (reflexo),
+   Determinação e Resistência espiritual (vontade). O efeito de raio do acerto extremo só vale nelas.
+   A magia com dano também é de combate, mas é decidida na rota, que sabe se a habilidade tem dano. */
+const PERICIAS_DE_COMBATE = new Set([
+  ...(R.PERICIAS.find(c => c.categoria === 'Combate')?.itens.map(([k]) => k) ?? []),
+  'resistenciaEspiritual',
+]);
+export function acaoDeCombate(acao: string) {
+  const [tipo, chave] = [acao.slice(0, acao.indexOf('.')), acao.slice(acao.indexOf('.') + 1)];
+  if (tipo === 'arma' || tipo === 'dano' || tipo === 'armas') return true;
+  if (tipo === 'pericias') return PERICIAS_DE_COMBATE.has(chave);
+  if (tipo === 'corpo') return chave === 'destreza';
+  if (tipo === 'mente') return chave === 'onipotencia';
+  return false;
+}
+/* A marca de combate vai dentro do `detalhe`, como o dano: rolagem antiga não tem e conta como fora de combate. */
+export const combateDaRolagem = (detalhe: unknown) =>
+  !!detalhe && typeof detalhe === 'object' && (detalhe as { combate?: unknown }).combate === true;
+
 /* O dano guardado dentro do `detalhe` da rolagem. Rolagem antiga ou sem dano devolve null. */
 export function danoDaRolagem(detalhe: unknown): DanoDaRolagem | null {
   const dano = (detalhe && typeof detalhe === 'object' ? (detalhe as { dano?: unknown }).dano : null) as Partial<DanoDaRolagem> | null | undefined;

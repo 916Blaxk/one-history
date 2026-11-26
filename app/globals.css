@@ -1210,6 +1210,26 @@ html.tremor-falha .chat-flutuante,html.tremor-falha .chat-popup{animation:falha-
 .cartao-linha[data-extremo="falha"] .cartao-total{color:#9aa0ad;text-shadow:none}
 .cartao-linha[data-extremo="falha"] .cartao-selo{background:#3a3e48;color:#d6d9e0}
 .cartao-linha.msg-nova[data-extremo="falha"] .cartao{animation:falha-tranco .4s ease-out}
+/* Acerto extremo de combate com o ícone de raio (components/RaioCritico.tsx): raios vermelhos e pretos de uma vez,
+   clarão vermelho e escuro nas bordas e um tremor mais forte que o do crítico comum. */
+.raio-critico{position:fixed;inset:0;z-index:200;pointer-events:none;overflow:hidden}
+.raio-critico canvas{position:absolute;inset:0;width:100%;height:100%}
+.raio-clarao{position:absolute;inset:0;opacity:0;background:radial-gradient(ellipse at 50% 50%,transparent 35%,#000000c0 100%);box-shadow:inset 0 0 120px 24px #e0001bcc,inset 0 0 40px 4px #ff3b3b;animation:raio-clarao 1.4s ease-out both}
+@keyframes raio-clarao{0%{opacity:0;background-color:#ff00221f}4%{opacity:1;background-color:#ff002240}9%{opacity:.25;background-color:#0009}14%{opacity:1;background-color:#ff00222e}22%{opacity:.4;background-color:#0006}30%{opacity:.9;background-color:transparent}100%{opacity:0;background-color:transparent}}
+@media (prefers-reduced-motion:reduce){.raio-clarao{animation:none;opacity:.8}}
+html.tremor-raio .ficha-grade,html.tremor-raio .placa,html.tremor-raio .camp-grade{animation:raio-tremor 1.1s cubic-bezier(.3,.7,.4,1)}
+html.tremor-raio .chat-flutuante,html.tremor-raio .chat-popup{animation:cn-tremor-chat 1.1s cubic-bezier(.3,.7,.4,1)}
+@keyframes raio-tremor{0%,100%{transform:none}4%{transform:translate(-14px,8px) rotate(-.8deg)}9%{transform:translate(13px,-9px) rotate(.8deg)}14%{transform:translate(-11px,-6px) rotate(-.5deg)}20%{transform:translate(10px,7px) rotate(.4deg)}28%{transform:translate(-8px,4px)}38%{transform:translate(6px,-5px)}50%{transform:translate(-4px,3px)}64%{transform:translate(3px,-2px)}80%{transform:translate(-1px,1px)}}
+@media (prefers-reduced-motion:reduce){html.tremor-raio .ficha-grade,html.tremor-raio .placa,html.tremor-raio .camp-grade,html.tremor-raio .chat-flutuante,html.tremor-raio .chat-popup{animation:none}}
+/* No cartão, o raio fica no dado: faíscas piscando em volta do ícone e o brilho dele tremulando, sem parar. */
+.cartao-linha[data-raio] .cartao-icone{position:relative;animation:raio-icone 1.3s steps(1,end) infinite}
+@keyframes raio-icone{0%,100%{filter:drop-shadow(0 0 6px #e0001b) drop-shadow(0 0 16px #ff3b3b)}8%{filter:drop-shadow(0 0 2px #000) drop-shadow(0 0 4px #000)}12%{filter:drop-shadow(0 0 10px #ff2a3a) drop-shadow(0 0 26px #e0001b) brightness(1.6)}40%{filter:drop-shadow(0 0 7px #e0001b) drop-shadow(0 0 18px #ff3b3b)}46%{filter:drop-shadow(0 0 2px #000)}50%{filter:drop-shadow(0 0 12px #ff2a3a) drop-shadow(0 0 30px #e0001b) brightness(1.4)}}
+.cartao-raios{position:absolute;inset:-6px;width:calc(100% + 12px);height:calc(100% + 12px);overflow:visible;pointer-events:none}
+.cartao-raios g{opacity:0;animation:raio-faisca .9s steps(1,end) var(--atraso) infinite;filter:drop-shadow(0 0 3px #ff0022)}
+@keyframes raio-faisca{0%{opacity:1}8%{opacity:.2}14%{opacity:1}30%{opacity:.6}36%{opacity:1}48%,100%{opacity:0}}
+.cartao-linha[data-raio] .cartao:not(.msg-com-banner){background:radial-gradient(ellipse at 10% 50%,#e0001b55,transparent 55%),radial-gradient(ellipse at 50% 140%,#e0001b88,transparent 60%),linear-gradient(100deg,#000 10%,#1a0004)}
+@media (prefers-reduced-motion:reduce){.cartao-linha[data-raio] .cartao-icone,.cartao-raios g{animation:none;opacity:1}}
+
 /* Os cartões tremem e crescem um pouco ao chegar: sem isto, a lista ganha uma barra de rolagem lateral por um instante. */
 .chat-lista{overflow-x:hidden}
 

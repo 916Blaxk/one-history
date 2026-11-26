@@ -4,9 +4,15 @@ import { estiloDado } from '@/lib/estilos';
 
 /* Os desenhos dos ícones de dado, em 24×24. `p` são traços; `f`, áreas cheias; `c`, círculos [x, y, raio, cheio].
    Traço e preenchimento usam o degradê da cor do dono: o ícone não fica de uma cor chapada só. */
-interface Forma { p?: string[]; f?: string[]; c?: [number, number, number, boolean?][] }
+/* `b`: áreas pintadas de preto com contorno na cor, desenhadas antes de tudo (o corpo da engrenagem). */
+interface Forma { p?: string[]; f?: string[]; c?: [number, number, number, boolean?][]; b?: string[] }
 
 const FORMAS: Record<string, Forma> = {
+  engrenagem: {
+    b: ['M12 3.8 13 1.45l2.12.42.02 2.55L17.8 6.2l2.37-.96 1.2 1.8-1.79 1.82L20.2 12l2.35 1-.42 2.12-2.55.02-1.78 2.66.96 2.37-1.8 1.2-1.82-1.79L12 20.2l-1 2.35-2.12-.42-.02-2.55L6.2 17.8l-2.37.96-1.2-1.8 1.79-1.82L3.8 12l-2.35-1 .42-2.12 2.55-.02L6.2 6.2l-.96-2.37 1.8-1.2 1.82 1.79z'],
+    c: [[12, 12, 4.6], [12, 12, 1.9, true]],
+    p: ['M12 7.4v1.4M12 15.2v1.4M7.4 12h1.4M15.2 12h1.4'],
+  },
   diabo: {
     p: [
       'M6.2 9.6C4.4 8.2 3.6 5.6 4.3 2.8c.9 2 2.4 3.2 4.3 3.7',
@@ -170,6 +176,7 @@ export function IconeDado({ estilo }: { estilo: string | null }) {
           <stop offset="1" style={{ stopColor: 'var(--e-cor)' }} />
         </linearGradient>
       </defs>
+      {forma.b?.map(d => <path key={d} d={d} fill="#050505" />)}
       {forma.p?.map(d => <path key={d} d={d} />)}
       {forma.f?.map(d => <path key={d} d={d} fill={tinta} strokeWidth=".6" />)}
       {forma.c?.map(([x, y, r, cheio]) => <circle key={`${x}-${y}`} cx={x} cy={y} r={r} fill={cheio ? tinta : 'none'} strokeWidth={cheio ? .6 : 1.6} />)}

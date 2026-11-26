@@ -47,6 +47,8 @@ export interface Mensagem {
   bannerV: number;
   /* Ícone dos dados de quem rolou, o mesmo para todos que veem o chat. Vazio: o d20 do tema. */
   estilo: string | null;
+  /* Rolagem de combate (arma, dano, esquiva...): o efeito de raio do acerto extremo só vale nelas. */
+  combate: boolean;
 }
 export interface PaginaChat { mensagens: Mensagem[]; temMais: boolean }
 

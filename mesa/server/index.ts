@@ -17,7 +17,7 @@ import { CAMADA_MUNDO, MAX_NUMEROS_NEVOA, MAX_OPS_NEVOA, celulasParaOps, tamanho
 import * as R from '../../lib/regras'
 import type { ImagemMonstro } from '../../lib/servidor/schema'
 import { acertoCritico, rolarDanoDoAtaque } from '../../lib/critico'
-import { danoNoLimite, expressaoDaRolagem, lerRolagem } from '../../lib/resumoFicha'
+import { acaoDeCombate, danoNoLimite, expressaoDaRolagem, lerRolagem } from '../../lib/resumoFicha'
 import { ouvirMesa, type EventoMesa } from '../../lib/servidor/barramento'
 import { alterarFicha, comDano, detalheRolagem, gravarRolagem, textoDaRolagem } from '../../lib/servidor/rotas'
 import { COOKIE, usuarioDoToken } from '../../lib/servidor/sessao'
@@ -960,7 +960,7 @@ async function handleCommand(socket: TableSocket, room: RoomState, player: RoomP
       const privada = R.fichaPrivada(ficha, room.mestreId)
       await gravarRolagem({
         campanhaId: room.code, fichaId: privada ? null : ficha.id, usuarioId: player.id, autor: privada ? 'Mestre' : ficha.dados.nome || 'Sem nome',
-        rotulo: item.rotulo, det: item.livre ? textoDaRolagem(roll) : detalheRolagem(roll), total: roll.total, expressao: expression, detalhe: comDano(roll, dano),
+        rotulo: item.rotulo, det: item.livre ? textoDaRolagem(roll) : detalheRolagem(roll), total: roll.total, expressao: expression, detalhe: comDano(roll, dano, acaoDeCombate(message.acao)),
       })
       return
     }
