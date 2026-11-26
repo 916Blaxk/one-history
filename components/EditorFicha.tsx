@@ -88,18 +88,18 @@ export default function EditorFicha({ f, ed, chat }: {
     mudarVital('manaAtual', f.manaAtual - custo);
     toast(`${nome}: −${custo} de mana`);
     /* O dano rola no chat de dados, como as outras rolagens; `rolar` salva a mana antes. */
-    if (m.dano.trim()) void rolar({ magia: m.id });
+    if (m.dano.trim()) rolar({ magia: m.id }, nome);
   }
 
-  async function rolar(corpo: Record<string, unknown>) {
-    try {
-      /* A rolagem de atributo usa o valor guardado no servidor: salva antes o que ainda está pendente. */
-      await ed.salvarAgora();
-      const r = await api<{ rolagem: Mensagem }>('POST', `${url}/rolar`, corpo);
-      chat.receber(r.rolagem);
-      /* Com o chat aberto, o resultado já aparece nele. */
-      if (!chat.aberto) chat.setDestaque(r.rolagem);
-    } catch (err) { toast.error(mensagem(err)); }
+  /* `rotulo` só aparece no cartão enquanto o número gira; o nome final vem do servidor. */
+  function rolar(corpo: { atributo?: string; magia?: string; lados?: number; bonus?: number }, rotulo?: string) {
+    /* O cartão aparece no clique; com o chat aberto, o resultado já aparece nele. */
+    void chat.rolar({ rotulo: rotulo ?? (corpo.lados ? `d${corpo.lados}` : 'Rolando…'), lados: corpo.lados, popup: !chat.aberto }, async () => {
+      /* Atributo, arma e magia usam o que está guardado no servidor (e a magia, a mana já gasta):
+         salva antes o que ainda está pendente. Dado avulso não depende da ficha, então não espera. */
+      if (!corpo.lados) await ed.salvarAgora();
+      return (await api<{ rolagem: Mensagem }>('POST', `${url}/rolar`, corpo)).rolagem;
+    });
   }
   async function encerrarCena() {
     try {
@@ -379,7 +379,7 @@ export default function EditorFicha({ f, ed, chat }: {
             <Armas
               armas={f.arsenal} ataque={a => { const { valor, vantagem } = R.ataqueDaArma(f, a); return expressaoDaRolagem(valor, vantagem); }}
               aoMudar={arsenal => ed.definir({ ...f, arsenal }, { arsenal })}
-              aoAtacar={a => void rolar({ atributo: `arma.${a.id}` })} aoRolarDano={a => void rolar({ atributo: `dano.${a.id}` })}
+              aoAtacar={a => rolar({ atributo: `arma.${a.id}` }, a.nome || undefined)} aoRolarDano={a => rolar({ atributo: `dano.${a.id}` }, a.nome ? `Dano: ${a.nome}` : undefined)}
             />
           </div>
           <div className="painel-aba" id="painel-magias" role="tabpanel" aria-labelledby="aba-magias" hidden={aba !== 'magias'}>

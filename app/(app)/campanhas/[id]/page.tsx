@@ -202,11 +202,9 @@ export default function PaginaCampanha() {
       <ChatFlutuante
         chat={chat}
         escopo={`${c.nome}: todos da mesa veem`}
-        aoRolar={async (lados, bonus) => {
-          try {
-            const r = await api<{ rolagem: Mensagem }>('POST', `${url}/rolar`, { lados, bonus });
-            chat.receber(r.rolagem);
-          } catch (e) { toast.error(mensagem(e)); }
+        aoRolar={(lados, bonus) => {
+          void chat.rolar({ rotulo: `d${lados}`, lados },
+            async () => (await api<{ rolagem: Mensagem }>('POST', `${url}/rolar`, { lados, bonus })).rolagem);
         }}
       />
     </>
