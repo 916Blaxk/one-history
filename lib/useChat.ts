@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { api, buscar, mensagem as textoErro } from './cliente';
 import type { Mensagem, PaginaChat } from './tipos';
 import { extremoDaRolagem, type Extremo } from './extremo';
+import { prepararSons, tocarSom } from './sons';
 
 /* O efeito de tela cheia de uma rolagem extrema. Só para a rolagem que a própria pessoa fez:
    a de outro jogador mostra o cartão marcado, sem tomar a tela de quem não rolou. */
@@ -58,6 +59,7 @@ export function useChat(url: string) {
   const rolar = useCallback(async (info: { rotulo: string; lados?: number; popup?: boolean; comDano?: boolean }, pedir: () => Promise<Mensagem>) => {
     const p: RolagemPendente = { id: proximaPendente++, rotulo: info.rotulo, lados: info.lados ?? 20, popup: !!info.popup, comDano: !!info.comDano };
     const desde = performance.now();
+    prepararSons();
     setPendente(p);
     if (info.popup) setDestaque(null);
     try {
@@ -67,6 +69,8 @@ export function useChat(url: string) {
       setProprias(l => [...l, m]);
       if (info.popup) setDestaque(m);
       const extremo = extremoDaRolagem(m.det);
+      /* No extremo toca só o som dele, sem o dado rolando por baixo. */
+      void tocarSom(extremo === 'critico' ? 'solo' : extremo === 'falha' ? 'desastre' : 'dado');
       if (extremo) setEfeito({ id: p.id, tipo: extremo });
       void mutate();
     } catch (e) {

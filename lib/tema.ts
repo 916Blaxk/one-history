@@ -3,6 +3,7 @@ import { useCallback, useSyncExternalStore } from 'react';
 import useSWR from 'swr';
 import { toast } from 'sonner';
 import { api, buscar, mensagem } from './cliente';
+import { CHAVE_SOM } from './sons';
 import { CHAVE_TEMA, IDS_TEMA } from './temaScript';
 
 /* Preferências só de aparência, guardadas no navegador de cada pessoa: não mudam nada no jogo
@@ -22,8 +23,6 @@ export const TEMAS: { id: Tema; nome: string; desc: string; cores: [string, stri
 ];
 export const TEMA_PADRAO: Tema = 'roxo';
 
-/* O som do crítico é preferência deste navegador: quem joga em silêncio desliga uma vez e pronto. */
-const CHAVE_SOM = 'oh-som-critico';
 
 const ouvintes = new Set<() => void>();
 function avisar() { for (const o of ouvintes) o(); }
@@ -67,7 +66,8 @@ export function useTema(): [Tema, (t: Tema) => void] {
   }];
 }
 
-export function useSomCritico(): [boolean, (ligado: boolean) => void] {
+/* Os sons das rolagens são preferência deste navegador: quem joga em silêncio desliga uma vez e pronto. */
+export function useSomRolagens(): [boolean, (ligado: boolean) => void] {
   const som = useSyncExternalStore(assinar, () => ler(CHAVE_SOM, ['sim', 'nao'], 'sim'), () => 'sim') === 'sim';
   return [som, (ligado: boolean) => { gravar(CHAVE_SOM, ligado ? 'sim' : 'nao'); avisar(); }];
 }

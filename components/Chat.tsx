@@ -6,9 +6,8 @@ import { DADOS, inteiro } from '@/lib/regras';
 import type { Mensagem } from '@/lib/tipos';
 import { urlBanner } from '@/lib/cliente';
 import type { ChatDados, RolagemPendente } from '@/lib/useChat';
-import { useEstiloDado, useSomCritico } from '@/lib/tema';
+import { useEstiloDado, useSomRolagens } from '@/lib/tema';
 import { ESTILOS_DADO, estiloDado } from '@/lib/estilos';
-import { tocarSolo } from '@/lib/solo';
 import { extremoDaRolagem, separarDetalhe, type DetalheSeparado } from '@/lib/extremo';
 import { Capitular } from './comuns';
 import { IconeDado, coresDoEstilo } from './IconeDado';
@@ -36,18 +35,14 @@ function corDoTema(nome: string, reserva: string) {
 function EfeitoTela({ chat }: { chat: ChatDados }) {
   const { efeito, setEfeito } = chat;
   const { meu } = useEstiloDado();
-  const [som] = useSomCritico();
-  /* Lido por ref: ligar ou desligar o som no meio das chamas não pode tocar o solo de novo. */
-  const somLigado = useRef(som);
-  useEffect(() => { somLigado.current = som; });
   useEffect(() => {
     if (!efeito) return;
     const raiz = document.documentElement;
     const classe = efeito.tipo === 'critico' ? 'tremor-critico' : 'tremor-falha';
     raiz.classList.add(classe);
     let fim: ReturnType<typeof setTimeout> | undefined;
-    if (efeito.tipo === 'critico') { if (somLigado.current) tocarSolo(); }
-    else fim = setTimeout(() => setEfeito(null), 900);
+    /* O crítico some quando as chamas acabam (ChamasCritico avisa); a falha tem tempo fixo. */
+    if (efeito.tipo === 'falha') fim = setTimeout(() => setEfeito(null), 1400);
     return () => { clearTimeout(fim); raiz.classList.remove(classe); };
   }, [efeito, setEfeito]);
   if (!efeito) return null;
@@ -73,6 +68,19 @@ function NumeroGirando({ teto }: { teto: number }) {
   return <span aria-hidden="true">{n}</span>;
 }
 
+/* Línguas de fogo subindo do pé do cartão do crítico, na cor do ícone. Posições e ritmos fixos:
+   gerar ao acaso faria o fogo pular a cada nova mensagem que chega no chat. */
+const LINGUAS = [[2, 0, .9], [12, 180, 1.1], [23, 60, .8], [34, 260, 1.2], [46, 120, 1], [57, 320, .85], [68, 30, 1.15], [79, 220, .95], [90, 140, 1.05]];
+function ChamasDoCartao() {
+  return (
+    <span className="cartao-chamas" aria-hidden="true">
+      {LINGUAS.map(([x, atraso, alto]) => (
+        <i key={x} style={{ '--x': `${x}%`, '--atraso': `${atraso}ms`, '--alto': alto } as React.CSSProperties} />
+      ))}
+    </span>
+  );
+}
+
 /* O cartão leva o ícone e as cores de quem rolou, para todos que o veem: o ícone é a assinatura do jogador. */
 function CartaoRolagem({ m, nova }: { m: Mensagem; nova: boolean }) {
   const banner = m.bannerV ? { '--banner': `url("${urlBanner(m.id, m.bannerV)}")` } as React.CSSProperties : undefined;
@@ -82,6 +90,7 @@ function CartaoRolagem({ m, nova }: { m: Mensagem; nova: boolean }) {
     <li className={`cartao-linha msg${m.minha ? ' msg-minha' : ''}${nova ? ' msg-nova' : ''}`} data-estilo={m.estilo ?? 'tema'} style={coresDoEstilo(m.estilo)} data-extremo={extremo ?? undefined}>
       {!m.minha && <Capitular className="msg-foto" nome={m.autor} fichaId={m.fichaId ?? undefined} fotoV={m.fotoV} />}
       <div className={`cartao msg-balao${m.dano ? ' cartao-duplo' : ''}${banner ? ' msg-com-banner' : ''}`} style={banner}>
+        {extremo === 'critico' && <ChamasDoCartao />}
         <span className="cartao-icone"><IconeDado estilo={m.estilo} /></span>
         <div className="cartao-meio">
           <p className="cartao-titulo">
@@ -274,7 +283,7 @@ function PopupRolagem({ m, pendente, aoFechar }: { m: Mensagem | null; pendente:
 /* Painel lateral da ficha: mostra o pop-up ao rolar, abre pela pílula e avisa quando chega rolagem de outra pessoa com ela fechada. */
 export function ChatFlutuante({ chat, aoRolar, escopo }: { chat: ChatDados; aoRolar: (lados: number, bonus: number) => void; escopo: string }) {
   const { aberto, setAberto, mensagens, carregando, destaque, setDestaque, pendente } = chat;
-  const [som, setSom] = useSomCritico();
+  const [som, setSom] = useSomRolagens();
   const [personalizando, setPersonalizando] = useState(false);
   /* O chat inteiro já mostra o resultado: fechar o chat não traz de volta um pop-up antigo. */
   if (aberto && destaque) setDestaque(null);
@@ -331,7 +340,7 @@ export function ChatFlutuante({ chat, aoRolar, escopo }: { chat: ChatDados; aoRo
           <EscolhaEstilo />
           <button type="button" className="estilo-som" aria-pressed={som} onClick={() => setSom(!som)}>
             {som ? <Volume2 aria-hidden="true" /> : <VolumeX aria-hidden="true" />}
-            {som ? 'Solo de guitarra no crítico: ligado' : 'Solo de guitarra no crítico: desligado'}
+            {som ? 'Sons das rolagens: ligados' : 'Sons das rolagens: desligados'}
           </button>
         </div>
       )}

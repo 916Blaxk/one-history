@@ -1,12 +1,13 @@
 'use client';
 import { useEffect, useRef } from 'react';
 
-/* Crítico: chamas sobem das bordas da tela na cor do ícone de quem rolou. Nada aparece no meio:
-   o fogo sai de baixo e dos lados e some antes de cobrir o conteúdo.
+/* Crítico: a borda inteira da tela pega fogo na cor do ícone de quem rolou. Nada aparece no meio:
+   as chamas lambem para dentro e somem antes de cobrir o conteúdo.
    É um canvas com partículas somadas (modo "lighter"): onde várias se cruzam, a cor esquenta até o claro. */
 
-const DURACAO_FOGO = 1250;
-const DURACAO_TOTAL = 2300;
+/* O fogo dura o solo de guitarra (public/sons/solo.mp3, uns 3,5 s). */
+const DURACAO_FOGO = 2600;
+const DURACAO_TOTAL = 3600;
 
 function rgb(cor: string): [number, number, number] {
   const c = cor.trim();
@@ -44,7 +45,8 @@ export default function ChamasCritico({ cor, claro, aoTerminar }: { cor: string;
     const ctx = el?.getContext('2d');
     if (!el || !ctx) return;
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      const t = setTimeout(() => fim.current(), 600);
+      /* Com "reduzir movimento", fica só o brilho parado nas bordas (o CSS cuida dele), sem partículas. */
+      const t = setTimeout(() => fim.current(), 1500);
       return () => clearTimeout(t);
     }
     const escala = Math.min(window.devicePixelRatio || 1, 1.5);
@@ -58,9 +60,11 @@ export default function ChamasCritico({ cor, claro, aoTerminar }: { cor: string;
     const inicio = performance.now();
     let anterior = inicio, quadro = 0;
 
-    const nascer = (borda: 'baixo' | 'esquerda' | 'direita', faisca = false) => {
+    type Borda = 'baixo' | 'cima' | 'esquerda' | 'direita';
+    const nascer = (borda: Borda, faisca = false) => {
       const w = innerWidth, h = innerHeight;
-      const base = Math.min(w, h);
+      /* Medida com piso: numa tela de celular, o tamanho proporcional deixava as chamas pequenas demais para ver. */
+      const base = Math.max(Math.min(w, h), 520);
       const p: Particula = {
         x: 0, y: 0, vx: 0, vy: 0, vida: 0, faisca, fase: Math.random() * 6.3,
         max: faisca ? 900 + Math.random() * 700 : 520 + Math.random() * 520,
@@ -69,9 +73,12 @@ export default function ChamasCritico({ cor, claro, aoTerminar }: { cor: string;
       if (borda === 'baixo') {
         p.x = Math.random() * w; p.y = h + p.tam * .3;
         p.vy = -(base * (faisca ? .9 : .42) * (.7 + Math.random() * .6)); p.vx = (Math.random() - .5) * 40;
+      } else if (borda === 'cima') {
+        /* No alto a chama desce um pouco para dentro da tela e logo é puxada de volta para cima. */
+        p.x = Math.random() * w; p.y = -p.tam * .3;
+        p.vy = base * (faisca ? .5 : .3) * (.6 + Math.random() * .6); p.vx = (Math.random() - .5) * 40;
       } else {
-        /* Nos lados o fogo nasce na metade de baixo e lambe para dentro e para cima. */
-        p.y = h * (.45 + Math.random() * .6); p.x = borda === 'esquerda' ? -p.tam * .2 : w + p.tam * .2;
+        p.y = Math.random() * h; p.x = borda === 'esquerda' ? -p.tam * .2 : w + p.tam * .2;
         p.vx = (borda === 'esquerda' ? 1 : -1) * base * (.12 + Math.random() * .1);
         p.vy = -(base * (faisca ? .7 : .32) * (.7 + Math.random() * .5));
       }
@@ -82,16 +89,20 @@ export default function ChamasCritico({ cor, claro, aoTerminar }: { cor: string;
       const dt = Math.min(48, agora - anterior) / 1000;
       anterior = agora;
       const decorrido = agora - inicio;
-      const w = innerWidth;
+      const w = innerWidth, h = innerHeight;
 
       if (decorrido < DURACAO_FOGO) {
-        /* O fogo explode no começo e vai minguando: a quantidade cai com o tempo. */
+        /* O fogo explode no começo e vai minguando. A quantidade segue o comprimento de cada borda. */
         const forca = 1 - decorrido / DURACAO_FOGO;
-        const porQuadro = Math.round((w / 34) * (.3 + forca) * dt * 60 / 4);
-        for (let i = 0; i < porQuadro; i++) nascer('baixo');
-        for (let i = 0; i < porQuadro / 3; i++) { nascer('esquerda'); nascer('direita'); }
-        if (Math.random() < .9) nascer('baixo', true);
-        if (Math.random() < .5) nascer(Math.random() < .5 ? 'esquerda' : 'direita', true);
+        const taxa = (.3 + forca) * dt * 60 / 136;
+        const quantas = (comprimento: number) => Math.floor(comprimento * taxa + Math.random());
+        for (let i = quantas(w); i > 0; i--) nascer('baixo');
+        for (let i = quantas(w * .6); i > 0; i--) nascer('cima');
+        for (let i = quantas(h * .5); i > 0; i--) nascer('esquerda');
+        for (let i = quantas(h * .5); i > 0; i--) nascer('direita');
+        const bordas: Borda[] = ['baixo', 'cima', 'esquerda', 'direita'];
+        if (Math.random() < .9) nascer(bordas[Math.floor(Math.random() * 4)]!, true);
+        if (Math.random() < .6) nascer('baixo', true);
       }
 
       ctx.setTransform(escala, 0, 0, escala, 0, 0);
@@ -105,7 +116,8 @@ export default function ChamasCritico({ cor, claro, aoTerminar }: { cor: string;
         /* O balanço lateral é o que faz a chama dançar em vez de subir reta. */
         p.x += (p.vx + Math.sin(p.fase + p.vida / 90) * (p.faisca ? 60 : 30)) * dt;
         p.y += p.vy * dt;
-        p.vy *= p.faisca ? .995 : .985;
+        /* As de cima freiam rápido e voltam a subir; as outras só perdem força. */
+        p.vy = p.vy > 0 ? p.vy * .93 - 6 : p.vy * (p.faisca ? .995 : .985);
         const tam = p.faisca ? p.tam : p.tam * (1 - idade * .75);
         const img = p.faisca ? quente : idade < .2 ? quente : idade < .55 ? media : fria;
         ctx.globalAlpha = p.faisca ? (1 - idade) * (.6 + Math.random() * .4) : (1 - idade) ** 1.2 * .78;
