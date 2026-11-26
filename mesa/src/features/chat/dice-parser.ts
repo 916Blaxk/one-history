@@ -19,13 +19,27 @@ export function secureRandomInt(sides: number): number {
   if (!Number.isInteger(sides) || sides < 2 || sides > 1000) {
     throw new DiceExpressionError('Os dados precisam ter entre 2 e 1000 lados.')
   }
+  /* Decisão da mesa: os dados tendem ao alto. O peso cresce em linha reta,
+     e a face máxima sai 3 vezes mais que a face 1 (no d20: 20 em 7,5%, 1 em 2,5%,
+     acima de 10 em ~63%). Pesos inteiros, para o sorteio continuar exato. */
+  const total = 2 * sides * (sides - 1)
+  let sorteio = uniformInt(total)
+  for (let face = 1; face <= sides; face += 1) {
+    sorteio -= sides - 1 + 2 * (face - 1)
+    if (sorteio < 0) return face
+  }
+  return sides
+}
+
+/* Inteiro uniforme em [0, n), com rejeição para não favorecer os primeiros valores. */
+function uniformInt(n: number): number {
   const range = 0x1_0000_0000
-  const limit = Math.floor(range / sides) * sides
+  const limit = Math.floor(range / n) * n
   const sample = new Uint32Array(1)
   do {
     crypto.getRandomValues(sample)
   } while (sample[0] >= limit)
-  return (sample[0] % sides) + 1
+  return sample[0] % n
 }
 
 function rollGroup(
