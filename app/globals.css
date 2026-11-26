@@ -1272,6 +1272,24 @@ html[data-tema="amarelo"]{--vida:#ff1f1f;--vida-2:#ff8a00;--mana:#1f6bff;--mana-
 @media (min-width:1280px){
   .ficha-grade{grid-template-columns:290px minmax(0,1.05fr) minmax(0,1fr);grid-template-areas:"cena atributos abas";column-gap:36px}
 }
+/* Um fio fino entre as colunas: a vida não encosta nos atributos, nem os atributos nas abas.
+   Metade do espaço fica antes do fio e metade depois. */
+@media (min-width:860px){
+  .ficha-grade{column-gap:18px}
+  .col-atributos,.col-abas{padding-left:18px;border-left:1px solid color-mix(in srgb,var(--secondary) 28%,var(--border))}
+}
+/* O chat aberto empurra a ficha em tela larga, e o espaço dele sai de dentro da largura máxima do .folio:
+   sobram uns 1000 px, onde três colunas não cabem e o nome dos atributos ficava sem largura e sumia.
+   Com o chat aberto, a ficha volta às duas colunas. */
+@media (min-width:1500px){
+  body:has(.chat-flutuante) .ficha-grade{grid-template-columns:290px minmax(0,1fr);grid-template-areas:"cena atributos" "cena abas"}
+}
+.medidor+.medidor{padding-top:12px;border-top:1px solid var(--border)}
+.pericias-cab{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:4px 12px}
+.pericias-cab .grupo-desc{margin:0;font-size:12.5px;color:var(--text-muted)}
+.pericias-cab .sp-saldo{font:700 13px/1 var(--f-titulo);letter-spacing:.04em;color:var(--secondary-claro)}
+.pericias-cab .sp-saldo.sp-acima{color:var(--vida)}
+#painel-pericias{gap:10px}
 
 .secao-cab{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding-bottom:6px;border-bottom:1px solid color-mix(in srgb,var(--secondary) 35%,var(--border))}
 .secao-cab:not(:first-child){margin-top:8px}
@@ -1339,7 +1357,6 @@ html[data-tema="amarelo"]{--vida:#ff1f1f;--vida-2:#ff8a00;--mana:#1f6bff;--mana-
 .col-atributos .passo,.proficiencias .passo{height:30px;background:var(--surface-2)}
 .col-atributos .rolar,.proficiencias .rolar{height:30px}
 .col-atributos .attr[data-grupo="elementos"]{padding-bottom:6px}
-.col-atributos .pericias{margin-top:-4px}
 
 /* Abas da direita: o conteúdo de cada aba sem moldura própria; armas e magias continuam como itens de lista. */
 .col-abas .abas{flex-wrap:wrap}

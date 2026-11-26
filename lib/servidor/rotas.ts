@@ -3,6 +3,7 @@ import { and, count, desc, eq, inArray, isNotNull, isNull, lt, ne, notInArray, o
 import { z } from 'zod';
 import { DiceExpressionError, rollDice } from '../../mesa/src/features/chat/dice-parser';
 import type { DiceRollResult } from '../../mesa/src/features/chat/dice-types';
+import { acertoCritico, rolarDanoDoAtaque } from '../critico';
 import { normalizarEnquadramento } from '../enquadramento';
 import { ehEstiloDado } from '../estilos';
 import * as R from '../regras';
@@ -212,20 +213,21 @@ function rolar(lados: number, bonus: number) {
   return { expressao, detalhe: rollDice(expressao) };
 }
 /* O dano é texto livre na ficha: aceita o que o rolador da mesa aceita, com o mesmo limite de dados. */
-function rolarDano(dano: string, nome: string) {
+function rolarDano(dano: string, nome: string, critico = false) {
   const expressao = dano.trim();
   if (!expressao) throw new Erro(400, `${nome} não tem dano para rolar.`);
   if (!danoNoLimite(expressao)) throw new Erro(400, `O dano de ${nome} excede o limite do rolador.`);
   try {
-    return { expressao, detalhe: rollDice(expressao) };
+    return { expressao, detalhe: rolarDanoDoAtaque(expressao, critico) };
   } catch (erro) {
     if (erro instanceof DiceExpressionError) throw new Erro(400, `O dano de ${nome} não é uma rolagem válida (ex.: 2d6+3). ${erro.message}`);
     throw erro;
   }
 }
-/* O dano que acompanha o acerto. Rola antes de gravar: dano digitado errado barra a rolagem inteira, não sai meio ataque. */
-function danoJunto(dano: string, nome: string): DanoDaRolagem {
-  const r = rolarDano(dano, nome);
+/* O dano que acompanha o acerto. Rola antes de gravar: dano digitado errado barra a rolagem inteira, não sai meio ataque.
+   Rola depois do acerto, porque o crítico no acerto leva o dano ao máximo. */
+function danoJunto(dano: string, nome: string, acerto: DiceRollResult): DanoDaRolagem {
+  const r = rolarDano(dano, nome, acertoCritico(acerto));
   return { expressao: r.expressao, total: r.detalhe.total, det: textoDaRolagem(r.detalhe) };
 }
 /* Com vantagem, mostra todos os d20: quem joga precisa ver qual valeu. */
@@ -567,17 +569,17 @@ rota('POST', '/api/fichas/:id/rolar', async ctx => {
     if (!item) throw new Erro(400, 'Esse atributo não existe na ficha.');
     rotulo = item.rotulo;
     livre = item.livre;
-    /* Ataque com arma: o dano da arma sai junto, na mesma rolagem. */
-    if (item.dano) dano = danoJunto(item.dano, item.nome);
     r = livre ? rolarDano(item.expressao, item.nome) : { expressao: item.expressao, detalhe: rollDice(item.expressao) };
+    /* Ataque com arma: o dano da arma sai junto, na mesma rolagem. */
+    if (item.dano) dano = danoJunto(item.dano, item.nome, r.detalhe);
   } else if (ctx.corpo.magia) {
     /* Acerto pela perícia e dano vêm da habilidade guardada: o navegador só diz qual conjurou. */
     const h = lerHabilidade(R.normalizar(f.dados), String(ctx.corpo.magia));
     if (!h) throw new Erro(400, 'Essa magia não existe na ficha.');
     rotulo = h.rotulo;
     if (h.acerto) {
-      if (h.dano) dano = danoJunto(h.dano, rotulo);
       r = { expressao: h.acerto, detalhe: rollDice(h.acerto) };
+      if (h.dano) dano = danoJunto(h.dano, rotulo, r.detalhe);
     } else {
       r = rolarDano(h.dano ?? '', rotulo);
       livre = true;
