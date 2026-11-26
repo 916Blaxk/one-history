@@ -272,7 +272,7 @@ describe('regras do sistema', () => {
 });
 
 describe('habilidades (magias da ficha)', () => {
-  it('guardam todos os campos da ficha de habilidade, cortados no tamanho', () => {
+  it('guardam os campos da ficha de habilidade, cortados no tamanho, e descartam crítico e multiplicador', () => {
     const m = R.normalizar({ magias: [{
       id: 'h1', nome: 'Lança de fogo', elemento: 'fogo', custo: 6, dano: '3d6+2', alcance: '30 m', area: 'Linha de 10 m',
       alvo: 'Uma criatura', duracao: 'Instantânea', efeito: 'Queima por 2 turnos', resistencia: 'Reflexos reduz à metade',
@@ -281,14 +281,14 @@ describe('habilidades (magias da ficha)', () => {
     expect(m).toEqual({
       id: 'h1', nome: 'Lança de fogo', elemento: 'fogo', custo: 6, dano: '3d6+2', alcance: '30 m', area: 'Linha de 10 m',
       alvo: 'Uma criatura', duracao: 'Instantânea', efeito: 'Queima por 2 turnos', resistencia: 'Reflexos reduz à metade',
-      pericias: 'Canalização mágica', critico: '19-20', multiplicador: '×3', descricao: 'Uma lança de chamas.',
+      pericias: 'Canalização mágica', descricao: 'Uma lança de chamas.',
     });
-    expect(R.normalizar({ magias: [{ id: 'h2', critico: 'x'.repeat(500) }] }).magias[0]!.critico.length).toBeLessThan(500);
+    expect(R.normalizar({ magias: [{ id: 'h2', pericias: 'x'.repeat(500) }] }).magias[0]!.pericias.length).toBeLessThan(500);
   });
 
   it('habilidades de antes destes campos abrem com eles vazios', () => {
     const m = R.normalizar({ magias: [{ id: 'h1', nome: 'Faísca', dano: '1d6' }] }).magias[0]!;
-    expect(m).toMatchObject({ area: '', alvo: '', efeito: '', resistencia: '', pericias: '', critico: '', multiplicador: '' });
+    expect(m).toMatchObject({ area: '', alvo: '', efeito: '', resistencia: '', pericias: '' });
   });
 });
 

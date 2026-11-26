@@ -1,14 +1,18 @@
 'use client';
 import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Crown, Droplet, FlaskConical, Flame, Moon, Paintbrush, Snowflake } from 'lucide-react';
+import { Lock, Paintbrush, Volume2, VolumeX } from 'lucide-react';
 import { DADOS, inteiro } from '@/lib/regras';
 import type { Mensagem } from '@/lib/tipos';
 import { urlBanner } from '@/lib/cliente';
 import type { ChatDados, RolagemPendente } from '@/lib/useChat';
-import { ESTILOS_DADO, useEstiloDado, type EstiloDado } from '@/lib/tema';
+import { useEstiloDado, useSomCritico } from '@/lib/tema';
+import { ESTILOS_DADO, estiloDado } from '@/lib/estilos';
+import { tocarSolo } from '@/lib/solo';
 import { extremoDaRolagem, separarDetalhe, type DetalheSeparado } from '@/lib/extremo';
 import { Capitular } from './comuns';
+import { IconeDado, coresDoEstilo } from './IconeDado';
+import ChamasCritico from './ChamasCritico';
 
 const horaCurta = (ms: number) => new Date(ms).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 function nomeDoDia(ms: number) {
@@ -21,97 +25,39 @@ function nomeDoDia(ms: number) {
   return new Date(ms).toLocaleDateString('pt-BR');
 }
 
-/* ---------- Ícones dos estilos de dado ---------- */
-function IconeD20() {
-  return (
-    <svg viewBox="0 0 32 32" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round">
-      <path d="M16 2 28.500 9v14L16 30 3.500 23V9z" />
-      <path d="M16 9 23.500 21h-15zM16 2v7M3.500 9 16 9l12.500 0M3.500 23l5-2-5-12M28.500 23l-5-2 5-12M16 30l-7.500-9M16 30l7.500-9" />
-    </svg>
-  );
-}
-function IconeDemonio() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M4 2.500c-.4 4 1 6.500 3.600 7.700M20 2.500c.4 4-1 6.500-3.600 7.700" />
-      <path d="M5.500 10.500C5.500 17 8.500 21.500 12 21.500s6.500-4.500 6.500-11c-1.700-1.300-4-2-6.500-2s-4.800.7-6.500 2z" />
-      <path d="m8.200 13.200 2.600 1.300M15.800 13.200l-2.600 1.300M9.500 18c1.600.9 3.400.9 5 0" />
-    </svg>
-  );
-}
-function IconeEstilo({ estilo }: { estilo: EstiloDado }) {
-  switch (estilo) {
-    case 'demonio': return <IconeDemonio />;
-    case 'brasa': return <Flame aria-hidden="true" />;
-    case 'gelo': return <Snowflake aria-hidden="true" />;
-    case 'veneno': return <FlaskConical aria-hidden="true" />;
-    case 'sombra': return <Moon aria-hidden="true" />;
-    case 'ouro': return <Crown aria-hidden="true" />;
-    case 'sangue': return <Droplet aria-hidden="true" />;
-    default: return <IconeD20 />;
-  }
-}
-
 /* ---------- Rolagem extrema ----------
-   Máximo no dado: um clarão negro toma a tela (raios pretos com brilho vermelho, a tela inverte
-   e treme). 1 no dado: a tela perde a cor por um instante. Só na rolagem da própria pessoa. */
-interface Raio { pontos: string; atraso: number }
-function gerarRaios(): Raio[] {
-  const raios: Raio[] = [];
-  const total = 11;
-  for (let i = 0; i < total; i++) {
-    const angulo = (i / total) * Math.PI * 2 + (Math.random() - .5) * .5;
-    const pontos: string[] = [];
-    let r = 6 + Math.random() * 6;
-    while (r < 160) {
-      /* Desvio para o lado do raio: é o zigue-zague que faz parecer um relâmpago. */
-      const desvio = (Math.random() - .5) * 18;
-      const x = Math.cos(angulo) * r - Math.sin(angulo) * desvio;
-      const y = Math.sin(angulo) * r + Math.cos(angulo) * desvio;
-      pontos.push(`${x.toFixed(1)},${y.toFixed(1)}`);
-      r += 8 + Math.random() * 14;
-    }
-    raios.push({ pontos: pontos.join(' '), atraso: Math.round(Math.random() * 120) });
-  }
-  return raios;
-}
-
-function ClaraoNegro() {
-  const [raios] = useState(gerarRaios);
-  return (
-    <div className="clarao-negro" aria-hidden="true">
-      <div className="cn-inverte" />
-      <div className="cn-escuro" />
-      <div className="cn-vermelho" />
-      <svg className="cn-raios" viewBox="-100 -100 200 200" preserveAspectRatio="xMidYMid slice">
-        {raios.map((r, i) => (
-          <g key={i} style={{ '--atraso': `${r.atraso}ms` } as React.CSSProperties}>
-            <polyline className="cn-raio-brilho" points={r.pontos} pathLength={1} />
-            <polyline className="cn-raio-nucleo" points={r.pontos} pathLength={1} />
-          </g>
-        ))}
-      </svg>
-      <div className="cn-faiscas">
-        {Array.from({ length: 16 }, (_, i) => <i key={i} style={{ '--a': `${i * 22.5 + 7}deg`, '--d': `${(i % 4) * 40}ms` } as React.CSSProperties} />)}
-      </div>
-      <p className="cn-texto"><span>Clarão</span><span>negro</span></p>
-    </div>
-  );
+   Máximo no dado: chamas sobem das bordas na cor do ícone de quem rolou, a ficha treme e toca um solo
+   de guitarra. Nada aparece no meio da tela. 1 no dado: a tela perde a cor por um instante.
+   Só na rolagem da própria pessoa: a de outro jogador mostra o cartão marcado, sem tomar a tela. */
+function corDoTema(nome: string, reserva: string) {
+  return getComputedStyle(document.documentElement).getPropertyValue(nome).trim() || reserva;
 }
 
 function EfeitoTela({ chat }: { chat: ChatDados }) {
   const { efeito, setEfeito } = chat;
+  const { meu } = useEstiloDado();
+  const [som] = useSomCritico();
+  /* Lido por ref: ligar ou desligar o som no meio das chamas não pode tocar o solo de novo. */
+  const somLigado = useRef(som);
+  useEffect(() => { somLigado.current = som; });
   useEffect(() => {
     if (!efeito) return;
     const raiz = document.documentElement;
     const classe = efeito.tipo === 'critico' ? 'tremor-critico' : 'tremor-falha';
     raiz.classList.add(classe);
-    const fim = setTimeout(() => setEfeito(null), efeito.tipo === 'critico' ? 1500 : 900);
+    let fim: ReturnType<typeof setTimeout> | undefined;
+    if (efeito.tipo === 'critico') { if (somLigado.current) tocarSolo(); }
+    else fim = setTimeout(() => setEfeito(null), 900);
     return () => { clearTimeout(fim); raiz.classList.remove(classe); };
   }, [efeito, setEfeito]);
   if (!efeito) return null;
+  /* Sem ícone escolhido, o fogo segue a cor do tema do site. */
+  const e = estiloDado(meu);
+  const cor = e?.cor ?? corDoTema('--secondary', '#8f6bff'), claro = e?.claro ?? corDoTema('--secondary-claro', '#d04dff');
   return createPortal(
-    efeito.tipo === 'critico' ? <ClaraoNegro key={efeito.id} /> : <div key={efeito.id} className="efeito-falha" aria-hidden="true" />,
+    efeito.tipo === 'critico'
+      ? <ChamasCritico key={efeito.id} cor={cor} claro={claro} aoTerminar={() => setEfeito(null)} />
+      : <div key={efeito.id} className="efeito-falha" aria-hidden="true" />,
     document.body,
   );
 }
@@ -127,16 +73,16 @@ function NumeroGirando({ teto }: { teto: number }) {
   return <span aria-hidden="true">{n}</span>;
 }
 
-function CartaoRolagem({ m, nova, estilo }: { m: Mensagem; nova: boolean; estilo: EstiloDado }) {
+/* O cartão leva o ícone e as cores de quem rolou, para todos que o veem: o ícone é a assinatura do jogador. */
+function CartaoRolagem({ m, nova }: { m: Mensagem; nova: boolean }) {
   const banner = m.bannerV ? { '--banner': `url("${urlBanner(m.id, m.bannerV)}")` } as React.CSSProperties : undefined;
   const partes = separarDetalhe(m.det);
   const extremo = extremoDaRolagem(m.det);
-  const meuEstilo: EstiloDado = m.minha ? estilo : 'tema';
   return (
-    <li className={`cartao-linha msg${m.minha ? ' msg-minha' : ''}${nova ? ' msg-nova' : ''}`} data-estilo={meuEstilo} data-extremo={extremo ?? undefined}>
+    <li className={`cartao-linha msg${m.minha ? ' msg-minha' : ''}${nova ? ' msg-nova' : ''}`} data-estilo={m.estilo ?? 'tema'} style={coresDoEstilo(m.estilo)} data-extremo={extremo ?? undefined}>
       {!m.minha && <Capitular className="msg-foto" nome={m.autor} fichaId={m.fichaId ?? undefined} fotoV={m.fotoV} />}
       <div className={`cartao msg-balao${m.dano ? ' cartao-duplo' : ''}${banner ? ' msg-com-banner' : ''}`} style={banner}>
-        <span className="cartao-icone"><IconeEstilo estilo={meuEstilo} /></span>
+        <span className="cartao-icone"><IconeDado estilo={m.estilo} /></span>
         <div className="cartao-meio">
           <p className="cartao-titulo">
             {m.rotulo ? <span className="msg-rotulo">{m.rotulo}</span> : <span aria-hidden="true">{partes?.expr ?? 'Rolagem'}</span>}
@@ -185,11 +131,11 @@ function DadosVisuais({ det, partes, prefixo }: { det: string; partes: DetalheSe
 }
 
 /* O cartão que aparece no clique, antes de o servidor responder. */
-function CartaoPendente({ p, estilo }: { p: RolagemPendente; estilo: EstiloDado }) {
+function CartaoPendente({ p, estilo }: { p: RolagemPendente; estilo: string | null }) {
   return (
-    <li className="cartao-linha cartao-pendente msg-minha" data-estilo={estilo} aria-label="Rolando os dados">
+    <li className="cartao-linha cartao-pendente msg-minha" data-estilo={estilo ?? 'tema'} style={coresDoEstilo(estilo)} aria-label="Rolando os dados">
       <div className="cartao">
-        <span className="cartao-icone"><IconeEstilo estilo={estilo} /></span>
+        <span className="cartao-icone"><IconeDado estilo={estilo} /></span>
         <div className="cartao-meio">
           <p className="cartao-titulo">{p.rotulo}</p>
           <p className="cartao-dados">rolando…</p>
@@ -211,16 +157,29 @@ function CartaoPendente({ p, estilo }: { p: RolagemPendente; estilo: EstiloDado 
   );
 }
 
-/* Estilos prontos do cartão. Ficam salvos neste navegador e valem para as rolagens da própria pessoa. */
-function EscolhaEstilo({ estilo, setEstilo }: { estilo: EstiloDado; setEstilo: (e: EstiloDado) => void }) {
+/* Os ícones dos dados, só o desenho, sem nome. Ícone com cadeado já é de outra pessoa e não pode ser escolhido.
+   O nome fica no título e no leitor de tela. */
+function EscolhaEstilo() {
+  const { meu, ocupados, carregado, escolher, atualizar } = useEstiloDado();
+  /* A lista de ocupados muda quando outras pessoas escolhem: abrir o painel busca a versão nova. */
+  useEffect(() => { void atualizar(); }, [atualizar]);
+  const opcoes = [{ id: null, nome: 'D20 do tema (de todos)' }, ...ESTILOS_DADO];
   return (
-    <div className="estilos" role="radiogroup" aria-label="Estilo dos dados">
-      {ESTILOS_DADO.map(e => (
-        <button key={e.id} type="button" role="radio" aria-checked={estilo === e.id} className="estilo-opcao" data-estilo={e.id} onClick={() => setEstilo(e.id)}>
-          <span className="cartao-icone"><IconeEstilo estilo={e.id} /></span>
-          <span className="estilo-nome">{e.nome}</span>
-        </button>
-      ))}
+    <div className="estilos" role="radiogroup" aria-label="Ícone dos seus dados" aria-busy={!carregado}>
+      {opcoes.map(e => {
+        const ocupado = !!e.id && ocupados.includes(e.id);
+        return (
+          <button
+            key={e.id ?? 'tema'} type="button" role="radio" aria-checked={meu === e.id} className="estilo-opcao"
+            data-estilo={e.id ?? 'tema'} style={coresDoEstilo(e.id)} disabled={ocupado || !carregado}
+            title={ocupado ? `${e.nome}: já é de outra pessoa` : e.nome} aria-label={ocupado ? `${e.nome}, já é de outra pessoa` : e.nome}
+            onClick={() => { if (meu !== e.id) void escolher(e.id); }}
+          >
+            <span className="cartao-icone"><IconeDado estilo={e.id} /></span>
+            {ocupado && <Lock className="estilo-cadeado" aria-hidden="true" />}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -229,7 +188,7 @@ function EscolhaEstilo({ estilo, setEstilo }: { estilo: EstiloDado; setEstilo: (
 export function CorpoChat({ chat, aoRolar }: { chat: ChatDados; aoRolar: (lados: number, bonus: number) => void }) {
   const lista = useRef<HTMLDivElement>(null);
   const [bonus, setBonus] = useState('0');
-  const [estilo] = useEstiloDado();
+  const { meu: estilo } = useEstiloDado();
   const { mensagens, carregando, pendente } = chat;
 
   /* Mensagens de antes de abrir o chat entram paradas. Só as que chegam depois têm animação. */
@@ -279,7 +238,7 @@ export function CorpoChat({ chat, aoRolar }: { chat: ChatDados; aoRolar: (lados:
             return (
               <Fragment key={m.id}>
                 {separador && <li className="chat-dia"><span>{dia}</span></li>}
-                <CartaoRolagem m={m} nova={corte !== null && m.em > corte} estilo={estilo} />
+                <CartaoRolagem m={m} nova={corte !== null && m.em > corte} />
               </Fragment>
             );
           })}
@@ -299,14 +258,14 @@ export function CorpoChat({ chat, aoRolar }: { chat: ChatDados; aoRolar: (lados:
 /* Só o resultado da última rolagem, sem o histórico. Não some sozinho: a pessoa pode estar olhando para outra parte da ficha.
    É o mesmo elemento do clique até a resposta: a animação de entrada roda uma vez só, e o número para no lugar. */
 function PopupRolagem({ m, pendente, aoFechar }: { m: Mensagem | null; pendente: RolagemPendente | null; aoFechar: () => void }) {
-  const [estilo] = useEstiloDado();
+  const { meu: estilo } = useEstiloDado();
   return (
-    <section className="chat-popup" role="status" aria-label="Última rolagem" data-estilo={estilo}>
+    <section className="chat-popup" role="status" aria-label="Última rolagem">
       <button type="button" className="chat-fechar" aria-label="Fechar o resultado da rolagem" onClick={aoFechar}>×</button>
       <ul>
         {pendente
           ? <CartaoPendente key={`pendente-${pendente.id}`} p={pendente} estilo={estilo} />
-          : m && <CartaoRolagem key={m.id} m={m} nova estilo={estilo} />}
+          : m && <CartaoRolagem key={m.id} m={m} nova />}
       </ul>
     </section>
   );
@@ -315,7 +274,7 @@ function PopupRolagem({ m, pendente, aoFechar }: { m: Mensagem | null; pendente:
 /* Painel lateral da ficha: mostra o pop-up ao rolar, abre pela pílula e avisa quando chega rolagem de outra pessoa com ela fechada. */
 export function ChatFlutuante({ chat, aoRolar, escopo }: { chat: ChatDados; aoRolar: (lados: number, bonus: number) => void; escopo: string }) {
   const { aberto, setAberto, mensagens, carregando, destaque, setDestaque, pendente } = chat;
-  const [estilo, setEstilo] = useEstiloDado();
+  const [som, setSom] = useSomCritico();
   const [personalizando, setPersonalizando] = useState(false);
   /* O chat inteiro já mostra o resultado: fechar o chat não traz de volta um pop-up antigo. */
   if (aberto && destaque) setDestaque(null);
@@ -368,8 +327,12 @@ export function ChatFlutuante({ chat, aoRolar, escopo }: { chat: ChatDados; aoRo
       </header>
       {personalizando && (
         <div className="chat-personalizar">
-          <p className="rotulo">Estilo das suas rolagens</p>
-          <EscolhaEstilo estilo={estilo} setEstilo={setEstilo} />
+          <p className="rotulo">Ícone dos seus dados</p>
+          <EscolhaEstilo />
+          <button type="button" className="estilo-som" aria-pressed={som} onClick={() => setSom(!som)}>
+            {som ? <Volume2 aria-hidden="true" /> : <VolumeX aria-hidden="true" />}
+            {som ? 'Solo de guitarra no crítico: ligado' : 'Solo de guitarra no crítico: desligado'}
+          </button>
         </div>
       )}
       <CorpoChat chat={chat} aoRolar={aoRolar} />

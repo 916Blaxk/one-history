@@ -870,6 +870,24 @@ body::after{content:"";position:fixed;z-index:-1;inset:0;pointer-events:none;bac
 .bloco-foto{gap:40px;width:192px}
 .fenda{z-index:2}
 
+/* Cabeçalho enxuto. Os jogadores acharam o anterior alto demais para o que mostra: o retrato encolhe,
+   os botões da foto viram ícones sobre a borda do círculo (sem linha própria) e o selo do fundo acompanha. */
+.foto-botoes .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.foto-botoes .btn svg{flex:none;width:15px;height:15px}
+@media (min-width:860px){
+  .placa{min-height:0;gap:22px;padding:14px 24px;margin-bottom:16px}
+  .bloco-foto{width:112px;gap:0}
+  .bloco-foto::before{top:-14px;width:128px;height:128px;margin-left:-64px}
+  .capitular.retrato{width:100px;font-size:44px}
+  .foto-botoes{position:absolute;z-index:2;left:50%;top:84px;width:auto;translate:-50% 0;flex-wrap:nowrap;gap:4px}
+  .foto-botoes .btn{width:28px;min-height:28px;padding:0;border-radius:50%;background:var(--surface-2);box-shadow:0 2px 8px #000a}
+  .foto-botoes .btn:hover{background:var(--surface)}
+  .foto-rotulo{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+  .placa-nome{font-size:clamp(28px,3.4vw,42px)}
+  .placa-chips{margin-top:8px}
+  .placa::after{width:240px;height:240px;margin-top:-120px;right:-40px}
+}
+
 /* O núcleo respira */
 .bloco-nucleo .orbe,.orbe-entrada{animation:respirar 4s ease-in-out infinite alternate}
 .orbe-entrada{animation:estagios 28s ease-in-out infinite,respirar 4s ease-in-out infinite alternate}
@@ -1102,22 +1120,16 @@ ul:has(>.rol-item)>li:nth-child(n+4){animation-delay:.18s}
 
 /* ---------- Cartão de rolagem, no estilo do C.R.I.S ----------
    Ícone, nome da rolagem, dados entre colchetes e o total grande depois do "=".
-   O estilo (cor, fundo e ícone) vem de data-estilo; "tema" segue a cor do site. */
-[data-estilo]{--e-cor:var(--secondary);--e-claro:var(--secondary-claro);--e-fundo:radial-gradient(circle at 92% 50%,color-mix(in srgb,var(--secondary) 38%,transparent),transparent 62%),linear-gradient(90deg,var(--surface-2),color-mix(in srgb,var(--primary) 24%,var(--surface)))}
-[data-estilo="demonio"]{--e-cor:#ff2d3d;--e-claro:#ff8a93;--e-fundo:repeating-radial-gradient(circle at 96% 50%,#ff1e2e26 0 2px,transparent 2px 13px),radial-gradient(circle at 92% 50%,#c4001c99,transparent 62%),linear-gradient(90deg,#160306,#3b0710)}
-[data-estilo="sangue"]{--e-cor:#e8173f;--e-claro:#ff7b93;--e-fundo:radial-gradient(circle at 78% 22%,#ff1f4b66 0 5px,transparent 6px),radial-gradient(circle at 88% 72%,#ff1f4b55 0 8px,transparent 9px),radial-gradient(ellipse at 100% 100%,#8a001c,transparent 65%),linear-gradient(90deg,#14020a,#2e0412)}
-[data-estilo="brasa"]{--e-cor:#ff7a1a;--e-claro:#ffc08a;--e-fundo:radial-gradient(ellipse at 70% 150%,#ff5a0acc,transparent 62%),radial-gradient(circle at 92% 40%,#ffb52e44,transparent 50%),linear-gradient(90deg,#180903,#3a1505)}
-[data-estilo="ouro"]{--e-cor:#ffc83d;--e-claro:#ffe39a;--e-fundo:linear-gradient(115deg,transparent 40%,#fff3c41f 50%,transparent 60%),radial-gradient(circle at 92% 50%,#ffc83d55,transparent 60%),linear-gradient(90deg,#171003,#3d2c07)}
-[data-estilo="veneno"]{--e-cor:#3dff8f;--e-claro:#a6ffcb;--e-fundo:radial-gradient(circle at 82% 25%,#22c55e66 0 5px,transparent 6px),radial-gradient(circle at 72% 78%,#22c55e55 0 4px,transparent 5px),radial-gradient(circle at 94% 60%,#22c55e44 0 7px,transparent 8px),radial-gradient(circle at 92% 50%,#0f9f4a77,transparent 62%),linear-gradient(90deg,#03120a,#0a2c17)}
-[data-estilo="gelo"]{--e-cor:#5ee7ff;--e-claro:#c4f6ff;--e-fundo:repeating-linear-gradient(60deg,#9eefff14 0 1px,transparent 1px 11px),radial-gradient(circle at 92% 50%,#22c8ee66,transparent 60%),linear-gradient(90deg,#03101a,#0a2a3d)}
-[data-estilo="sombra"]{--e-cor:#b8b4ff;--e-claro:#e2e0ff;--e-fundo:radial-gradient(circle at 92% 50%,#6d63ff33,transparent 55%),radial-gradient(circle at 10% 50%,#000,transparent 70%),linear-gradient(90deg,#050508,#16141f)}
+   A cor vem do ícone de quem rolou: o React põe --e-cor, --e-claro e --e-escuro no cartão (lib/estilos.ts).
+   Sem ícone, o d20 segue a cor do tema do site. */
+[data-estilo]{--e-cor:var(--secondary);--e-claro:var(--secondary-claro);--e-escuro:color-mix(in srgb,var(--primary) 34%,var(--surface));--e-fundo:radial-gradient(circle at 92% 50%,color-mix(in srgb,var(--e-cor) 55%,transparent),transparent 58%),radial-gradient(ellipse at 0% 120%,color-mix(in srgb,var(--e-claro) 26%,transparent),transparent 55%),linear-gradient(100deg,#060509 10%,var(--e-escuro))}
 
 .cartao-linha{display:flex;align-items:flex-end;gap:7px;min-width:0}
 .cartao-linha.msg-minha{justify-content:flex-end}
-.cartao-linha .cartao{flex:1 1 auto;min-width:0;max-width:100%;display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;align-items:center;gap:4px 10px;padding:10px 14px 10px 10px;border:1px solid color-mix(in srgb,var(--e-cor) 55%,transparent);border-radius:12px;position:relative;overflow:hidden;isolation:isolate;color:#fff;box-shadow:inset 0 0 0 1px #0000004d,0 6px 18px #00000066,0 0 20px color-mix(in srgb,var(--e-cor) 20%,transparent)}
+.cartao-linha .cartao{flex:1 1 auto;min-width:0;max-width:100%;display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;align-items:center;gap:4px 10px;padding:10px 14px 10px 10px;border:1px solid color-mix(in srgb,var(--e-cor) 70%,transparent);border-radius:12px;position:relative;overflow:hidden;isolation:isolate;color:#fff;box-shadow:inset 0 0 0 1px #0000004d,0 6px 18px #00000066,0 0 20px color-mix(in srgb,var(--e-cor) 20%,transparent)}
 .cartao-linha .cartao:not(.msg-com-banner){background:var(--e-fundo)}
 .cartao-linha .msg-com-banner{width:auto}
-.cartao-icone{display:grid;place-items:center;width:42px;height:42px;color:var(--e-cor);filter:drop-shadow(0 0 7px var(--e-cor))}
+.cartao-icone{display:grid;place-items:center;width:42px;height:42px;color:var(--e-cor);filter:drop-shadow(0 0 6px var(--e-cor)) drop-shadow(0 0 14px color-mix(in srgb,var(--e-cor) 55%,transparent))}
 .cartao-icone svg{width:32px;height:32px}
 .cartao-meio{display:grid;gap:1px;min-width:0}
 .cartao-titulo{font:700 16px/1.15 var(--f-titulo);color:#fff;overflow-wrap:anywhere;text-shadow:0 1px 2px #000}
@@ -1153,7 +1165,7 @@ ul:has(>.rol-item)>li:nth-child(n+4){animation-delay:.18s}
 .chat-popup .chat-fechar:hover{background:#000000b3;color:#fff}
 @media (max-width:859px){.chat-popup{width:auto}.chat-popup .chat-fechar{width:32px;height:32px}}
 
-/* Personalizar: oito estilos prontos, cada botão já mostra o fundo e o ícone. */
+/* Personalizar: a grade de ícones. Só o desenho, sem nome; o nome fica na dica e no leitor de tela. */
 .chat-cab-acoes{display:flex;gap:6px}
 .chat-acao{flex:none;display:grid;place-items:center;width:32px;height:32px;padding:0;background:transparent;border:1px solid var(--border);border-radius:10px;color:var(--text-muted)}
 .chat-acao:hover{border-color:var(--primary-claro);color:var(--primary-claro)}
@@ -1162,42 +1174,30 @@ ul:has(>.rol-item)>li:nth-child(n+4){animation-delay:.18s}
 @media (max-width:859px){.chat-acao{width:44px;height:44px}}
 .chat-flutuante:has(.chat-personalizar){grid-template-rows:auto auto minmax(0,1fr) auto}
 .chat-personalizar{display:grid;gap:8px;padding:10px;background:var(--surface-2);border:1px solid var(--border);border-radius:12px;animation:entrar-suave .22s ease-out}
-.estilos{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
-.estilo-opcao{display:grid;justify-items:center;gap:2px;padding:8px 2px 6px;background:var(--e-fundo);border:1px solid color-mix(in srgb,var(--e-cor) 40%,transparent);border-radius:10px;color:#fff;font:600 11.5px/1.1 var(--f-texto);transition:transform .16s cubic-bezier(.3,1.6,.5,1),box-shadow .18s,border-color .18s}
-.estilo-opcao .cartao-icone{width:28px;height:28px}
-.estilo-opcao .cartao-icone svg{width:22px;height:22px}
-.estilo-opcao:hover{transform:translateY(-2px);box-shadow:0 0 16px color-mix(in srgb,var(--e-cor) 45%,transparent)}
-.estilo-opcao[aria-checked="true"]{border-color:var(--e-cor);box-shadow:0 0 0 2px var(--e-cor),0 0 18px color-mix(in srgb,var(--e-cor) 55%,transparent)}
-.estilo-nome{text-shadow:0 1px 2px #000}
+.estilos{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
+.estilo-opcao{position:relative;display:grid;place-items:center;aspect-ratio:1;padding:0;background:var(--e-fundo);border:1px solid color-mix(in srgb,var(--e-cor) 45%,transparent);border-radius:12px;color:#fff;transition:transform .16s cubic-bezier(.3,1.6,.5,1),box-shadow .18s,border-color .18s,opacity .18s}
+.estilo-opcao .cartao-icone{width:32px;height:32px}
+.estilo-opcao .cartao-icone svg{width:28px;height:28px}
+.estilo-opcao:hover:not(:disabled){transform:translateY(-2px) scale(1.06);box-shadow:0 0 18px color-mix(in srgb,var(--e-cor) 60%,transparent)}
+.estilo-opcao[aria-checked="true"]{border-color:var(--e-claro);box-shadow:0 0 0 2px var(--e-cor),0 0 22px color-mix(in srgb,var(--e-cor) 70%,transparent)}
+.estilo-opcao:disabled{cursor:not-allowed;opacity:.38;filter:saturate(.35)}
+.estilo-cadeado{position:absolute;right:3px;bottom:3px;width:13px;height:13px;padding:2px;border-radius:50%;background:#000c;color:#fff}
+.estilo-som{display:flex;align-items:center;gap:8px;min-height:36px;padding:4px 10px;background:transparent;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font:600 13px/1.2 var(--f-texto);text-align:left}
+.estilo-som[aria-pressed="true"]{color:var(--text);border-color:color-mix(in srgb,var(--secondary) 60%,var(--border))}
+.estilo-som svg{flex:none;width:16px;height:16px}
+@media (max-width:859px){.estilo-som{min-height:44px}}
 
 /* ---------- Rolagem extrema ----------
-   Máximo no dado: clarão negro. A tela inverte duas vezes, escurece, raios pretos com brilho
-   vermelho estouram do centro, faíscas voam e a ficha treme. Tudo começa invisível: com
-   "reduzir movimento" ligado, as animações somem e nada aparece. */
-.clarao-negro{position:fixed;inset:0;z-index:200;pointer-events:none;overflow:hidden}
-.clarao-negro>*{position:absolute;inset:0;opacity:0}
-.cn-inverte{background:#fff;mix-blend-mode:difference;animation:cn-inverte .42s linear both}
-@keyframes cn-inverte{0%,12%{opacity:1}13%,24%{opacity:0}25%,31%{opacity:1}32%,100%{opacity:0}}
-.cn-escuro{background:radial-gradient(circle at 50% 50%,#000000b3 0,#000000f2 55%,#000 100%);animation:cn-escuro 1.45s cubic-bezier(.2,.7,.3,1) both}
-@keyframes cn-escuro{0%{opacity:0}10%{opacity:.95}22%{opacity:.35}32%{opacity:.92}70%{opacity:.7}100%{opacity:0}}
-.cn-vermelho{background:radial-gradient(circle at 50% 50%,#ff2a3dcc 0,#d0001f66 18%,#5a000d33 38%,transparent 62%);mix-blend-mode:screen;animation:cn-vermelho 1.3s ease-out .12s both}
-@keyframes cn-vermelho{0%{opacity:0;transform:scale(.4)}18%{opacity:1;transform:scale(1.1)}100%{opacity:0;transform:scale(1.35)}}
-.cn-raios{width:100%;height:100%;animation:cn-estouro 1.3s cubic-bezier(.1,.9,.2,1) .08s both}
-@keyframes cn-estouro{0%{opacity:1;transform:scale(.55)}55%{opacity:1}100%{opacity:0;transform:scale(1.18)}}
-.cn-raios polyline{fill:none;stroke-linejoin:miter;stroke-linecap:square;vector-effect:non-scaling-stroke;stroke-dasharray:1;stroke-dashoffset:1;animation:cn-desenhar .22s cubic-bezier(.3,.9,.4,1) forwards;animation-delay:calc(var(--atraso) + 80ms)}
-.cn-raio-brilho{stroke:#ff1f35;stroke-width:9;filter:blur(4px)}
-.cn-raio-nucleo{stroke:#000;stroke-width:3.5}
-@keyframes cn-desenhar{to{stroke-dashoffset:0}}
-.cn-faiscas{inset:auto;left:50%;top:50%;width:0;height:0;opacity:1}
-.cn-faiscas i{position:absolute;left:-1.5px;top:0;width:3px;height:26px;border-radius:2px;background:linear-gradient(#fff,#ff2a3d 40%,transparent);box-shadow:0 0 10px #ff1f35;opacity:0;transform:rotate(var(--a)) translateY(0);animation:cn-faisca .75s cubic-bezier(.1,.8,.3,1) both;animation-delay:calc(var(--d) + 120ms)}
-@keyframes cn-faisca{0%{opacity:1;transform:rotate(var(--a)) translateY(0) scaleY(.4)}60%{opacity:1}100%{opacity:0;transform:rotate(var(--a)) translateY(-46vmin) scaleY(1.4)}}
-.cn-texto{inset:auto;left:50%;top:50%;display:grid;justify-items:center;margin:0;translate:-50% -50%;font:900 clamp(46px,9vw,120px)/.9 var(--f-decorada);letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;color:#000;-webkit-text-stroke:2px #ff2a3d;text-shadow:0 0 18px #ff1f35,0 0 46px #ff1f35b3;animation:cn-texto 1.4s cubic-bezier(.2,.9,.3,1) .1s both}
-.cn-texto span:last-child{color:#ff2a3d;-webkit-text-stroke:2px #000;font-size:.62em;letter-spacing:.32em}
-@keyframes cn-texto{0%{opacity:0;transform:scale(2.4) skewX(-10deg);filter:blur(10px)}16%{opacity:1;transform:scale(1) skewX(-10deg);filter:blur(0)}22%{transform:translate(-6px,3px) skewX(-10deg)}26%{transform:translate(6px,-3px) skewX(-10deg)}30%{transform:skewX(-10deg)}78%{opacity:1;transform:scale(1.02) skewX(-10deg)}100%{opacity:0;transform:scale(1.08) skewX(-10deg)}}
+   Máximo no dado: chamas sobem das bordas na cor do ícone de quem rolou (components/ChamasCritico.tsx),
+   as bordas da tela acendem e a ficha treme. Nada aparece no meio da tela. */
+.chamas-critico{position:fixed;inset:0;z-index:200;pointer-events:none;overflow:hidden}
+.chamas-critico canvas{position:absolute;inset:0;width:100%;height:100%}
+.chamas-brilho{position:absolute;inset:0;opacity:0;box-shadow:inset 0 0 90px 10px color-mix(in srgb,var(--fogo) 75%,transparent),inset 0 -40px 120px color-mix(in srgb,var(--fogo-claro) 55%,transparent);animation:chamas-brilho 2s ease-out both}
+@keyframes chamas-brilho{0%{opacity:0}8%{opacity:1}20%{opacity:.7}30%{opacity:1}100%{opacity:0}}
 
 /* A ficha treme junto. Só os blocos de conteúdo: um transform no .folio prenderia o chat fixo dentro dele. */
-html.tremor-critico .ficha-grade,html.tremor-critico .placa,html.tremor-critico .camp-grade{animation:cn-tremor .5s cubic-bezier(.3,.7,.4,1) .08s}
-@keyframes cn-tremor{0%,100%{transform:none}12%{transform:translate(-9px,5px) rotate(-.4deg)}24%{transform:translate(8px,-6px) rotate(.4deg)}38%{transform:translate(-6px,-3px)}52%{transform:translate(5px,4px)}68%{transform:translate(-3px,2px)}84%{transform:translate(2px,-1px)}}
+html.tremor-critico .ficha-grade,html.tremor-critico .placa,html.tremor-critico .camp-grade{animation:cn-tremor .9s cubic-bezier(.3,.7,.4,1) .04s}
+@keyframes cn-tremor{0%,100%{transform:none}6%{transform:translate(-10px,6px) rotate(-.5deg)}12%{transform:translate(9px,-7px) rotate(.5deg)}19%{transform:translate(-8px,-4px) rotate(-.3deg)}26%{transform:translate(7px,5px)}34%{transform:translate(-6px,3px)}44%{transform:translate(5px,-4px)}55%{transform:translate(-4px,2px)}67%{transform:translate(3px,-2px)}80%{transform:translate(-2px,1px)}90%{transform:translate(1px,0)}}
 
 /* 1 no dado: a cor some da tela por um instante e ela dá um tranco curto. */
 .efeito-falha{position:fixed;inset:0;z-index:200;pointer-events:none;opacity:0;backdrop-filter:grayscale(1) brightness(.6) contrast(1.15);background:radial-gradient(circle at 50% 50%,transparent 30%,#000000a6 100%);animation:falha .85s ease-out both}
@@ -1207,12 +1207,13 @@ html.tremor-falha .ficha-grade,html.tremor-falha .placa,html.tremor-falha .camp-
 
 /* O cartão marca a rolagem extrema para todos que a veem, com selo e cores próprias. */
 .cartao-selo{display:inline-block;margin-left:8px;padding:1px 7px;border-radius:999px;font:800 10.5px/1.5 var(--f-texto);letter-spacing:.08em;text-transform:uppercase;vertical-align:2px;text-shadow:none}
-.cartao-linha[data-extremo="critico"] .cartao:not(.msg-com-banner){background:radial-gradient(circle at 92% 50%,#ff1f3580,transparent 55%),repeating-linear-gradient(115deg,#ff1f3517 0 2px,transparent 2px 9px),linear-gradient(90deg,#000,#1d0005)}
-.cartao-linha[data-extremo="critico"] .cartao{border-color:#ff2a3d;box-shadow:inset 0 0 0 1px #000,0 0 26px #ff1f3599,0 0 4px #ff1f35}
-.cartao-linha[data-extremo="critico"] .cartao-icone{color:#ff2a3d;filter:drop-shadow(0 0 8px #ff1f35)}
-.cartao-linha[data-extremo="critico"] .cartao-total{color:#000;-webkit-text-stroke:1.5px #ff3b4e;text-shadow:0 0 14px #ff1f35,0 0 30px #ff1f35}
-.cartao-linha[data-extremo="critico"] .cartao-selo{background:#ff1f35;color:#000;box-shadow:0 0 12px #ff1f35}
-.cartao-linha.msg-nova[data-extremo="critico"] .cartao{animation:cn-impacto .7s cubic-bezier(.2,1.2,.4,1) .1s both}
+.cartao-linha[data-extremo="critico"] .cartao:not(.msg-com-banner){background:radial-gradient(ellipse at 50% 140%,color-mix(in srgb,var(--e-cor) 70%,transparent),transparent 60%),radial-gradient(ellipse at 85% 130%,color-mix(in srgb,var(--e-claro) 45%,transparent),transparent 45%),var(--e-fundo)}
+.cartao-linha[data-extremo="critico"] .cartao{border-color:var(--e-claro);box-shadow:inset 0 0 0 1px #000,0 0 26px color-mix(in srgb,var(--e-cor) 70%,transparent),0 0 4px var(--e-cor);animation:critico-brasa 1.6s ease-in-out infinite alternate}
+@keyframes critico-brasa{from{box-shadow:inset 0 0 0 1px #000,0 0 16px color-mix(in srgb,var(--e-cor) 50%,transparent),0 0 3px var(--e-cor)}to{box-shadow:inset 0 0 0 1px #000,0 0 32px color-mix(in srgb,var(--e-cor) 85%,transparent),0 0 6px var(--e-claro)}}
+.cartao-linha[data-extremo="critico"] .cartao-icone{filter:drop-shadow(0 0 8px var(--e-cor)) drop-shadow(0 0 18px var(--e-claro))}
+.cartao-linha[data-extremo="critico"] .cartao-total{color:#fff;-webkit-text-stroke:1px var(--e-claro);text-shadow:0 0 10px var(--e-claro),0 0 24px var(--e-cor),0 0 44px var(--e-cor)}
+.cartao-linha[data-extremo="critico"] .cartao-selo{background:linear-gradient(90deg,var(--e-cor),var(--e-claro));color:#000;box-shadow:0 0 12px var(--e-cor)}
+.cartao-linha.msg-nova[data-extremo="critico"] .cartao{animation:cn-impacto .7s cubic-bezier(.2,1.2,.4,1) .1s both,critico-brasa 1.6s ease-in-out .8s infinite alternate}
 @keyframes cn-impacto{0%{transform:scale(1.04);filter:brightness(3) contrast(1.4)}25%{transform:scale(.97) translateX(-4px);filter:none}45%{transform:translateX(4px)}65%{transform:translateX(-2px)}100%{transform:none}}
 .cartao-linha[data-extremo="falha"] .cartao{filter:saturate(.2) brightness(.85);border-color:#6b7080}
 .cartao-linha[data-extremo="falha"] .cartao-total{color:#9aa0ad;text-shadow:none}

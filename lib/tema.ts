@@ -1,5 +1,8 @@
 'use client';
-import { useSyncExternalStore } from 'react';
+import { useCallback, useSyncExternalStore } from 'react';
+import useSWR from 'swr';
+import { toast } from 'sonner';
+import { api, buscar, mensagem } from './cliente';
 import { CHAVE_TEMA, IDS_TEMA } from './temaScript';
 
 /* Preferências só de aparência, guardadas no navegador de cada pessoa: não mudam nada no jogo
@@ -19,21 +22,8 @@ export const TEMAS: { id: Tema; nome: string; desc: string; cores: [string, stri
 ];
 export const TEMA_PADRAO: Tema = 'roxo';
 
-/* Estilos prontos do cartão de rolagem. "tema" segue a cor do site; os outros têm cor própria. */
-export type EstiloDado = 'tema' | 'demonio' | 'brasa' | 'gelo' | 'veneno' | 'sombra' | 'ouro' | 'sangue';
-export const ESTILOS_DADO: { id: EstiloDado; nome: string }[] = [
-  { id: 'tema', nome: 'Do tema' },
-  { id: 'demonio', nome: 'Demônio' },
-  { id: 'sangue', nome: 'Sangue' },
-  { id: 'brasa', nome: 'Brasa' },
-  { id: 'ouro', nome: 'Ouro' },
-  { id: 'veneno', nome: 'Veneno' },
-  { id: 'gelo', nome: 'Gelo' },
-  { id: 'sombra', nome: 'Sombra' },
-];
-export const ESTILO_PADRAO: EstiloDado = 'tema';
-
-const CHAVE_ESTILO = 'oh-estilo-dado';
+/* O som do crítico é preferência deste navegador: quem joga em silêncio desliga uma vez e pronto. */
+const CHAVE_SOM = 'oh-som-critico';
 
 const ouvintes = new Set<() => void>();
 function avisar() { for (const o of ouvintes) o(); }
@@ -42,7 +32,7 @@ function assinar(o: () => void) {
   /* Outra aba trocou o tema: esta acompanha. */
   const aoArmazenar = (e: StorageEvent) => {
     if (e.key === CHAVE_TEMA) aplicarTema(ler(CHAVE_TEMA, TEMAS.map(t => t.id), TEMA_PADRAO));
-    if (e.key === CHAVE_TEMA || e.key === CHAVE_ESTILO) o();
+    if (e.key === CHAVE_TEMA || e.key === CHAVE_SOM) o();
   };
   window.addEventListener('storage', aoArmazenar);
   return () => { ouvintes.delete(o); window.removeEventListener('storage', aoArmazenar); };
@@ -77,7 +67,27 @@ export function useTema(): [Tema, (t: Tema) => void] {
   }];
 }
 
-export function useEstiloDado(): [EstiloDado, (e: EstiloDado) => void] {
-  const estilo = useSyncExternalStore(assinar, () => ler(CHAVE_ESTILO, ESTILOS_DADO.map(e => e.id), ESTILO_PADRAO), () => ESTILO_PADRAO);
-  return [estilo, (e: EstiloDado) => { gravar(CHAVE_ESTILO, e); avisar(); }];
+export function useSomCritico(): [boolean, (ligado: boolean) => void] {
+  const som = useSyncExternalStore(assinar, () => ler(CHAVE_SOM, ['sim', 'nao'], 'sim'), () => 'sim') === 'sim';
+  return [som, (ligado: boolean) => { gravar(CHAVE_SOM, ligado ? 'sim' : 'nao'); avisar(); }];
+}
+
+/* O ícone dos dados fica na conta, no servidor: é ele que garante que ninguém pegue o ícone de outra pessoa.
+   `meu` vazio é o d20 do tema, que todos podem usar. */
+export interface EstilosDado { meu: string | null; ocupados: string[] }
+export function useEstiloDado() {
+  const { data, mutate } = useSWR<EstilosDado>('/api/conta/estilos-dado', buscar, { shouldRetryOnError: false });
+  const escolher = useCallback(async (estilo: string | null) => {
+    const antes = data;
+    if (antes) void mutate({ ...antes, meu: estilo }, { revalidate: false });
+    try {
+      await api('PATCH', '/api/conta/estilo-dado', { estilo });
+    } catch (e) {
+      /* Alguém pegou o ícone antes: volta ao anterior e busca a lista nova, com ele marcado como ocupado. */
+      if (antes) void mutate(antes, { revalidate: false });
+      toast.error(mensagem(e));
+    }
+    void mutate();
+  }, [data, mutate]);
+  return { meu: data?.meu ?? null, ocupados: data?.ocupados ?? [], carregado: !!data, escolher, atualizar: mutate };
 }

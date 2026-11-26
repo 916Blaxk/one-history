@@ -1,6 +1,6 @@
 import type { DadosFicha } from './regras';
 
-export interface Usuario { id: string; nome: string; email: string; bannerV: number }
+export interface Usuario { id: string; nome: string; email: string; bannerV: number; estiloDado: string | null }
 export interface EntradaRegistro { em: number; txt: string }
 
 export interface Ficha extends DadosFicha {
@@ -45,6 +45,8 @@ export interface Mensagem {
   minha: boolean; fichaId: string | null; fotoV: number;
   /* Versão do banner de quem rolou; zero é sem banner. A imagem vem pela rolagem, para o chat não expor o id da conta. */
   bannerV: number;
+  /* Ícone dos dados de quem rolou, o mesmo para todos que veem o chat. Vazio: o d20 do tema. */
+  estilo: string | null;
 }
 export interface PaginaChat { mensagens: Mensagem[]; temMais: boolean }
 

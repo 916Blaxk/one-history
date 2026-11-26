@@ -762,6 +762,34 @@ describe('chat de dados', () => {
     expect((await b.c('GET', `/api/rolagens/${r.id}/banner`)).status).toBe(404);
   });
 
+  it('cada ícone de dado tem um dono só, e todos veem o ícone de quem rolou', async () => {
+    const { mestre, jog, c, codigo, f } = await mesa();
+    await jog.c('POST', `/api/convites/${codigo}/entrar`);
+    await jog.c('POST', `/api/campanhas/${c.id}/fichas`, { fichaId: f.id });
+    expect((await jog.c('GET', '/api/conta')).corpo.usuario.estiloDado).toBeNull();
+    expect((await jog.c('PATCH', '/api/conta/estilo-dado', { estilo: 'nao-existe' })).status).toBe(400);
+    expect((await jog.c('PATCH', '/api/conta/estilo-dado', { estilo: 'diabo' })).corpo.usuario.estiloDado).toBe('diabo');
+    /* Escolher de novo o próprio ícone não é conflito. */
+    expect((await jog.c('PATCH', '/api/conta/estilo-dado', { estilo: 'diabo' })).status).toBe(200);
+    const recusado = await mestre.c('PATCH', '/api/conta/estilo-dado', { estilo: 'diabo' });
+    expect(recusado.status).toBe(409);
+    expect(recusado.corpo.erro).toMatch(/outra pessoa/);
+    const lista = (await mestre.c('GET', '/api/conta/estilos-dado')).corpo;
+    expect(lista).toEqual({ meu: null, ocupados: expect.arrayContaining(['diabo']) });
+    expect(JSON.stringify(lista)).not.toContain(jog.id);
+    expect((await jog.c('GET', '/api/conta/estilos-dado')).corpo.ocupados).not.toContain('diabo');
+
+    const r = (await jog.c('POST', `/api/fichas/${f.id}/rolar`, { lados: 20 })).corpo.rolagem;
+    expect(r.estilo).toBe('diabo');
+    await mestre.c('POST', `/api/campanhas/${c.id}/rolar`, { lados: 6 });
+    const visao = (await mestre.c('GET', `/api/campanhas/${c.id}/chat`)).corpo.mensagens;
+    expect(visao.map((m: { estilo: string | null }) => m.estilo)).toEqual(['diabo', null]);
+
+    /* Quem larga o ícone o libera para os outros. */
+    expect((await jog.c('PATCH', '/api/conta/estilo-dado', { estilo: null })).corpo.usuario.estiloDado).toBeNull();
+    expect((await mestre.c('PATCH', '/api/conta/estilo-dado', { estilo: 'diabo' })).status).toBe(200);
+  });
+
   it('histórico da ficha e da campanha não se misturam quando a ficha muda de lugar', async () => {
     const { jog, c, codigo, f } = await mesa();
     await jog.c('POST', `/api/convites/${codigo}/entrar`);

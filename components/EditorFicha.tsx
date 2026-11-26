@@ -2,7 +2,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useRef, useState } from 'react';
-import { Axe, Droplets, Feather, Flame, HeartPulse, Mountain, Sword, Wind, type LucideIcon } from 'lucide-react';
+import { Axe, Camera, Crop, Droplets, Feather, Flame, HeartPulse, Mountain, Sword, Trash2, Wind, type LucideIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import AjusteFoto, { arquivoDeDataUrl, fotoDaTela } from '@/components/AjusteFoto';
 import Armas from '@/components/Armas';
@@ -213,9 +213,10 @@ export default function EditorFicha({ f, ed, chat }: {
         <div className="bloco-foto">
           {perdido ? <span className="capitular retrato">???</span> : <Capitular className="retrato" nome={f.nome} fichaId={f.id} fotoV={f.fotoV} />}
           <div className="foto-botoes">
-            <button type="button" className="btn" onClick={() => entradaFoto.current?.click()}>Trocar foto</button>
-            {f.fotoV > 0 && <button type="button" className="btn" onClick={reajustarFoto}>Ajustar</button>}
-            {f.fotoV > 0 && <button type="button" className="btn" onClick={() => enviarFoto('')}>Remover</button>}
+            {/* No computador ficam só os ícones, sobre a borda do retrato: o nome continua para o leitor de tela e na dica. */}
+            <button type="button" className="btn" title="Trocar foto" onClick={() => entradaFoto.current?.click()}><Camera aria-hidden="true" /><span className="foto-rotulo">Trocar foto</span></button>
+            {f.fotoV > 0 && <button type="button" className="btn" title="Ajustar" onClick={reajustarFoto}><Crop aria-hidden="true" /><span className="foto-rotulo">Ajustar</span></button>}
+            {f.fotoV > 0 && <button type="button" className="btn" title="Remover" onClick={() => enviarFoto('')}><Trash2 aria-hidden="true" /><span className="foto-rotulo">Remover</span></button>}
           </div>
           <input ref={entradaFoto} id="foto-arquivo" type="file" accept="image/*" hidden onChange={ev => {
             const a = ev.target.files?.[0];

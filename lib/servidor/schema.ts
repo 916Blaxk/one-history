@@ -1,4 +1,4 @@
-import { index, integer, primaryKey, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import { index, integer, primaryKey, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
 import type { Enquadramento } from '../enquadramento';
 import type { DadosFicha } from '../regras';
 import type { EntradaRegistro, Papel } from '../tipos';
@@ -12,7 +12,9 @@ export const usuarios = sqliteTable('usuarios', {
   /* Fundo das rolagens da pessoa no chat de dados. Fica na conta, e não na ficha: os jogadores pediram um só para todas as fichas. */
   banner: text('banner'),
   bannerV: integer('banner_v').notNull().default(0),
-});
+  /* O ícone dos dados da pessoa (lib/estilos.ts). Único: dois jogadores nunca rolam com o mesmo. Vazio é o d20 do tema, que é de todos. */
+  estiloDado: text('estilo_dado'),
+}, t => [uniqueIndex('usuarios_estilo_dado').on(t.estiloDado)]);
 
 /* Guarda só o hash do token: quem ler o banco não consegue se passar por ninguém. */
 export const sessoes = sqliteTable('sessoes', {

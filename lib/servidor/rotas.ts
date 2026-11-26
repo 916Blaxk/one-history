@@ -1,9 +1,10 @@
 import crypto from 'crypto';
-import { and, count, desc, eq, inArray, isNull, lt, notInArray, or, sql, type SQL } from 'drizzle-orm';
+import { and, count, desc, eq, inArray, isNotNull, isNull, lt, ne, notInArray, or, sql, type SQL } from 'drizzle-orm';
 import { z } from 'zod';
 import { DiceExpressionError, rollDice } from '../../mesa/src/features/chat/dice-parser';
 import type { DiceRollResult } from '../../mesa/src/features/chat/dice-types';
 import { normalizarEnquadramento } from '../enquadramento';
+import { ehEstiloDado } from '../estilos';
 import * as R from '../regras';
 import { danoDaRolagem, danoNoLimite, lerHabilidade, lerRolagem, resumoDaFicha } from '../resumoFicha';
 import type { DanoDaRolagem, Ficha, Mensagem, PaginaChat, Papel, ResumoFicha } from '../tipos';
@@ -77,7 +78,9 @@ function cabecalhoCookie(req: Request, valor: string, maxAge: number) {
   const https = req.headers.get('x-forwarded-proto') === 'https' || req.url.startsWith('https:');
   return `${COOKIE}=${valor}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${maxAge}${https ? '; Secure' : ''}`;
 }
-const usuarioPublico = (u: { id: string; nome: string; email: string; bannerV?: number }) => ({ id: u.id, nome: u.nome, email: u.email, bannerV: u.bannerV ?? 0 });
+const usuarioPublico = (u: { id: string; nome: string; email: string; bannerV?: number; estiloDado?: string | null }) => ({
+  id: u.id, nome: u.nome, email: u.email, bannerV: u.bannerV ?? 0, estiloDado: u.estiloDado ?? null,
+});
 const nomeFicha = (d: R.DadosFicha) => d.nome || 'Sem nome';
 const colunasFicha = {
   id: fichas.id, donoId: fichas.donoId, campanhaId: fichas.campanhaId, dados: fichas.dados, registro: fichas.registro,
@@ -266,7 +269,7 @@ async function registrarRolagem(
 ): Promise<Mensagem> {
   const total = r.detalhe.total;
   const linha = await gravarRolagem({ campanhaId, fichaId, usuarioId: usuario.id, autor, rotulo, det, total, expressao: r.expressao, detalhe: comDano(r.detalhe, dano) });
-  return { id: linha.id, em: linha.em, autor, rotulo, det: linha.det, total, dano, minha: true, fichaId, fotoV, bannerV: usuario.bannerV };
+  return { id: linha.id, em: linha.em, autor, rotulo, det: linha.det, total, dano, minha: true, fichaId, fotoV, bannerV: usuario.bannerV, estilo: usuario.estiloDado };
 }
 
 /* Página do histórico, da mais antiga para a mais nova. `antes` é o cursor "em_id" da mensagem mais antiga já carregada. */
@@ -280,13 +283,13 @@ async function listarChat(escopo: SQL, url: string, usuarioId: string): Promise<
     const id = antes.slice(corte + 1);
     filtros.push(or(lt(rolagens.em, em), and(eq(rolagens.em, em), lt(rolagens.id, id)))!);
   }
-  const linhas = await db.select({ r: rolagens, fotoV: fichas.fotoV, campanhaDaFicha: fichas.campanhaId, bannerV: usuarios.bannerV }).from(rolagens)
+  const linhas = await db.select({ r: rolagens, fotoV: fichas.fotoV, campanhaDaFicha: fichas.campanhaId, bannerV: usuarios.bannerV, estilo: usuarios.estiloDado }).from(rolagens)
     .leftJoin(fichas, eq(rolagens.fichaId, fichas.id)).leftJoin(usuarios, eq(rolagens.usuarioId, usuarios.id)).where(and(...filtros))
     .orderBy(desc(rolagens.em), desc(rolagens.id)).limit(PAGINA_CHAT + 1);
   return {
     temMais: linhas.length > PAGINA_CHAT,
-    mensagens: linhas.slice(0, PAGINA_CHAT).reverse().map(({ r, fotoV, campanhaDaFicha, bannerV }) => ({
-      bannerV: bannerV ?? 0,
+    mensagens: linhas.slice(0, PAGINA_CHAT).reverse().map(({ r, fotoV, campanhaDaFicha, bannerV, estilo }) => ({
+      bannerV: bannerV ?? 0, estilo: estilo ?? null,
       id: r.id, em: r.em, autor: r.autor, rotulo: r.rotulo, det: r.det, total: r.total, dano: danoDaRolagem(r.detalhe),
       minha: r.usuarioId === usuarioId, fichaId: r.fichaId,
       /* Quem não tem mais acesso à foto (a ficha saiu da campanha) vê a inicial, não uma imagem quebrada. */
@@ -374,6 +377,31 @@ rota('GET', '/api/conta/banner', async ctx => {
   const [u] = await db.select({ banner: usuarios.banner }).from(usuarios).where(eq(usuarios.id, ctx.usuario.id));
   if (!u?.banner) throw new Erro(404, 'Você ainda não tem banner.');
   return respostaFoto(u.banner, 'private, max-age=31536000, immutable');
+});
+
+/* Ícone dos dados. Cada ícone tem um dono só no site: quem escolhe primeiro fica com ele até trocar ou apagar a conta.
+   A lista diz só quais estão ocupados, e não de quem: o site inteiro disputa os ícones, não só a mesa da pessoa. */
+rota('GET', '/api/conta/estilos-dado', async ctx => {
+  const linhas = await db.select({ estilo: usuarios.estiloDado }).from(usuarios)
+    .where(and(isNotNull(usuarios.estiloDado), ne(usuarios.id, ctx.usuario.id)));
+  return { meu: ctx.usuario.estiloDado, ocupados: linhas.map(l => l.estilo!) };
+});
+rota('PATCH', '/api/conta/estilo-dado', async ctx => {
+  const pedido = ctx.corpo.estilo ?? null;
+  if (pedido !== null && !ehEstiloDado(pedido)) throw new Erro(400, 'Esse ícone não existe.');
+  const ocupado = () => new Erro(409, 'Esse ícone já é de outra pessoa. Escolha outro.');
+  if (pedido) {
+    const [dono] = await db.select({ id: usuarios.id }).from(usuarios).where(and(eq(usuarios.estiloDado, pedido), ne(usuarios.id, ctx.usuario.id)));
+    if (dono) throw ocupado();
+  }
+  try {
+    await db.update(usuarios).set({ estiloDado: pedido }).where(eq(usuarios.id, ctx.usuario.id));
+  } catch (e) {
+    /* Duas pessoas no mesmo clique: o índice único do banco decide, e a segunda recebe o aviso. */
+    if (/UNIQUE/i.test(`${e} ${(e as { cause?: unknown }).cause}`)) throw ocupado();
+    throw e;
+  }
+  return { usuario: { ...usuarioPublico(ctx.usuario), estiloDado: pedido } };
 });
 
 rota('POST', '/api/conta/senha', async ctx => {

@@ -7,7 +7,7 @@ import { PontoElemento, origemDoElemento } from '@/components/ElementosCriados';
 const novoId = () => `m${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 
 /* Os campos de texto da habilidade, na ordem da ficha do sistema. Os tamanhos são os mesmos de normalizar(). */
-type CampoTexto = 'alcance' | 'area' | 'alvo' | 'duracao' | 'efeito' | 'resistencia' | 'dano' | 'pericias' | 'critico' | 'multiplicador';
+type CampoTexto = 'alcance' | 'area' | 'alvo' | 'duracao' | 'efeito' | 'resistencia' | 'dano' | 'pericias';
 const CAMPOS_TEXTO: { chave: CampoTexto; rotulo: string; max: number; exemplo?: string; largo?: boolean }[] = [
   { chave: 'alcance', rotulo: 'Alcance', max: 60, exemplo: 'Ex.: 30 m' },
   { chave: 'area', rotulo: 'Área', max: 60, exemplo: 'Ex.: cone de 9 m' },
@@ -17,8 +17,6 @@ const CAMPOS_TEXTO: { chave: CampoTexto; rotulo: string; max: number; exemplo?: 
   { chave: 'resistencia', rotulo: 'Resistência', max: 80, exemplo: 'Ex.: Esquiva reduz à metade' },
   { chave: 'dano', rotulo: 'Dano', max: 40, exemplo: 'Ex.: 2d6+3' },
   { chave: 'pericias', rotulo: 'Perícias', max: 120, exemplo: 'Ex.: Canalização mágica' },
-  { chave: 'critico', rotulo: 'Crítico', max: 20, exemplo: 'Ex.: 19-20' },
-  { chave: 'multiplicador', rotulo: 'Multiplicador', max: 20, exemplo: 'Ex.: ×2' },
 ];
 const NOMES_PERICIAS = R.PERICIAS.flatMap(g => g.itens.map(([, rotulo]) => rotulo));
 
@@ -39,7 +37,7 @@ export default function Magias({ magias, criados, elementos, gastoUniversal, aoM
     const id = novoId();
     aoMudar([...magias, {
       id, nome: '', elemento: '', custo: 0, dano: '', alcance: '', area: '', alvo: '', duracao: '', efeito: '',
-      resistencia: '', pericias: '', critico: '', multiplicador: '', descricao: '',
+      resistencia: '', pericias: '', descricao: '',
     }]);
     setAbertas(a => new Set(a).add(id));
   }
