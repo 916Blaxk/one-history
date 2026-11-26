@@ -4,6 +4,7 @@ import { usePathname } from 'next/navigation';
 import { ScrollText, Swords } from 'lucide-react';
 import { toast } from 'sonner';
 import { api, mensagem } from '@/lib/cliente';
+import SeletorTema from './SeletorTema';
 
 export default function Navegacao({ nome }: { nome: string }) {
   const caminho = usePathname();
@@ -18,6 +19,7 @@ export default function Navegacao({ nome }: { nome: string }) {
           <Link href="/campanhas" className="topo-link" aria-current={atual('/campanhas')}><Swords aria-hidden="true" />Campanhas</Link>
         </div>
         <span className="topo-espaco" />
+        <SeletorTema />
         <Link href="/conta" className="topo-link" aria-current={atual('/conta')}>{nome}</Link>
         <button type="button" className="topo-sair" onClick={async () => {
           try {

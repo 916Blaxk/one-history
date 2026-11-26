@@ -87,15 +87,14 @@ export default function EditorFicha({ f, ed, chat }: {
     toast(`${nome}: −${custo} de mana${m.dano ? `. Dano: ${m.dano}` : ''}`);
   }
 
-  async function rolar(corpo: Record<string, unknown>) {
-    try {
-      /* A rolagem de atributo usa o valor guardado no servidor: salva antes o que ainda está pendente. */
-      await ed.salvarAgora();
-      const r = await api<{ rolagem: Mensagem }>('POST', `${url}/rolar`, corpo);
-      chat.receber(r.rolagem);
-      /* Com o chat aberto, o resultado já aparece nele. */
-      if (!chat.aberto) chat.setDestaque(r.rolagem);
-    } catch (err) { toast.error(mensagem(err)); }
+  function rolar(corpo: { atributo?: string; lados?: number; bonus?: number }) {
+    /* O cartão aparece no clique; com o chat aberto, o resultado já aparece nele. */
+    void chat.rolar({ rotulo: corpo.lados ? `d${corpo.lados}` : 'Rolando…', lados: corpo.lados, popup: !chat.aberto }, async () => {
+      /* A rolagem de atributo usa o valor guardado no servidor: salva antes o que ainda está pendente.
+         Dado avulso não depende da ficha, então não espera o salvamento. */
+      if (corpo.atributo) await ed.salvarAgora();
+      return (await api<{ rolagem: Mensagem }>('POST', `${url}/rolar`, corpo)).rolagem;
+    });
   }
   async function encerrarCena() {
     try {

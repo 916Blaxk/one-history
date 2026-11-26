@@ -5,6 +5,13 @@ import { toast } from 'sonner';
 import { api, buscar, mensagem as textoErro } from './cliente';
 import type { Mensagem, PaginaChat } from './tipos';
 
+/* A rolagem que acabou de ser pedida e ainda não voltou do servidor. O cartão aparece no clique,
+   com o número girando: o resultado de verdade continua vindo só do servidor. */
+export interface RolagemPendente { id: number; rotulo: string; lados: number; popup: boolean }
+let proximaPendente = 1;
+/* O número gira pelo menos isto, mesmo com o servidor respondendo antes: abaixo disso o giro vira um piscar. */
+const GIRO_MINIMO = 260;
+
 /* O chat de dados: junta o que chega a cada 3 segundos, o que a pessoa acabou de rolar
    e as páginas antigas que ela pediu para carregar. */
 export function useChat(url: string) {
@@ -15,6 +22,7 @@ export function useChat(url: string) {
   const [carregandoAntigas, setCarregandoAntigas] = useState(false);
   const [aberto, setAberto] = useState(false);
   const [destaque, setDestaque] = useState<Mensagem | null>(null);
+  const [pendente, setPendente] = useState<RolagemPendente | null>(null);
 
   /* A ficha entrou ou saiu de uma campanha: é outro chat. */
   const [urlAtual, setUrlAtual] = useState(url);
@@ -24,6 +32,7 @@ export function useChat(url: string) {
     setProprias([]);
     setTemMaisAntigas(null);
     setDestaque(null);
+    setPendente(null);
   }
 
   const mensagens = useMemo(() => {
@@ -35,6 +44,27 @@ export function useChat(url: string) {
   const receber = useCallback((m: Mensagem) => {
     setProprias(l => [...l, m]);
     void mutate();
+  }, [mutate]);
+
+  /* Mostra o cartão na hora e troca pelo resultado quando o servidor responde.
+     `popup`: com o chat fechado, o resultado fica num pop-up ao lado da aba. */
+  const rolar = useCallback(async (info: { rotulo: string; lados?: number; popup?: boolean }, pedir: () => Promise<Mensagem>) => {
+    const p: RolagemPendente = { id: proximaPendente++, rotulo: info.rotulo, lados: info.lados ?? 20, popup: !!info.popup };
+    const desde = performance.now();
+    setPendente(p);
+    if (info.popup) setDestaque(null);
+    try {
+      const m = await pedir();
+      const falta = GIRO_MINIMO - (performance.now() - desde);
+      if (falta > 0 && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) await new Promise(r => setTimeout(r, falta));
+      setProprias(l => [...l, m]);
+      if (info.popup) setDestaque(m);
+      void mutate();
+    } catch (e) {
+      toast.error(textoErro(e));
+    } finally {
+      setPendente(atual => (atual?.id === p.id ? null : atual));
+    }
   }, [mutate]);
 
   const carregarAnteriores = useCallback(async () => {
@@ -53,7 +83,7 @@ export function useChat(url: string) {
   }, [mensagens, url]);
 
   return {
-    mensagens, receber, carregarAnteriores, carregandoAntigas, aberto, setAberto, destaque, setDestaque,
+    mensagens, receber, rolar, pendente, carregarAnteriores, carregandoAntigas, aberto, setAberto, destaque, setDestaque,
     carregando: isLoading,
     temMais: temMaisAntigas ?? data?.temMais ?? false,
   };
