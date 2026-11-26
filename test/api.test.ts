@@ -762,6 +762,14 @@ describe('chat de dados', () => {
     expect((await b.c('GET', `/api/rolagens/${r.id}/banner`)).status).toBe(404);
   });
 
+  it('rolagem sem bônus no pedido soma 0, e não o mínimo', async () => {
+    const { c } = await novaConta();
+    const f = await novaFicha(c);
+    const r = (await c('POST', `/api/fichas/${f.id}/rolar`, { lados: 6 })).corpo.rolagem;
+    expect(r.total).toBeGreaterThanOrEqual(1);
+    expect(r.total).toBeLessThanOrEqual(6);
+  });
+
   it('cada ícone de dado tem um dono só, e todos veem o ícone de quem rolou', async () => {
     const { mestre, jog, c, codigo, f } = await mesa();
     await jog.c('POST', `/api/convites/${codigo}/entrar`);

@@ -143,7 +143,8 @@ function DadosVisuais({ det, partes, prefixo }: { det: string; partes: DetalheSe
 function CartaoPendente({ p, estilo }: { p: RolagemPendente; estilo: string | null }) {
   return (
     <li className="cartao-linha cartao-pendente msg-minha" data-estilo={estilo ?? 'tema'} style={coresDoEstilo(estilo)} aria-label="Rolando os dados">
-      <div className="cartao">
+      {/* Com dano, o mesmo molde do resultado: sem ele, o dano caía para a linha de baixo enquanto rolava. */}
+      <div className={`cartao${p.comDano ? ' cartao-duplo' : ''}`}>
         <span className="cartao-icone"><IconeDado estilo={estilo} /></span>
         <div className="cartao-meio">
           <p className="cartao-titulo">{p.rotulo}</p>
@@ -204,25 +205,31 @@ export function CorpoChat({ chat, aoRolar }: { chat: ChatDados; aoRolar: (lados:
   const [corte, setCorte] = useState<number | null>(null);
   if (corte === null && !carregando) setCorte(mensagens.at(-1)?.em ?? 0);
 
-  const primeiraId = mensagens[0]?.id;
+  const primeiraEm = mensagens[0]?.em;
   const ultimaId = pendente && !pendente.popup ? `pendente-${pendente.id}` : mensagens.at(-1)?.id;
   const alturaAntes = useRef(0);
-  const primeiraAntes = useRef<string | undefined>(undefined);
+  const primeiraEmAntes = useRef<number | undefined>(undefined);
   const ultimaAntes = useRef<string | undefined>(undefined);
   const colado = useRef(true);
 
   useLayoutEffect(() => {
     const el = lista.current;
     if (!el) return;
-    if (primeiraAntes.current && primeiraId !== primeiraAntes.current && ultimaId === ultimaAntes.current) {
-      /* Carregou mensagens antigas no topo: mantém a pessoa olhando para o mesmo ponto. */
+    /* Só é "carregou antigas" quando entrou mensagem mais velha no topo. A página do servidor traz as 50
+       mais recentes: depois de uma rolagem nova, a mais velha sai do topo, e tratar isso como carga de
+       antigas jogava a lista para cima. */
+    const carregouAntigas = primeiraEmAntes.current !== undefined && primeiraEm !== undefined
+      && primeiraEm < primeiraEmAntes.current && ultimaId === ultimaAntes.current;
+    if (carregouAntigas) {
+      /* Mantém a pessoa olhando para o mesmo ponto. */
       el.scrollTop += el.scrollHeight - alturaAntes.current;
-    } else if (ultimaId !== ultimaAntes.current && (colado.current || mensagens.at(-1)?.minha || pendente)) {
+    } else if (colado.current || (ultimaId !== ultimaAntes.current && (mensagens.at(-1)?.minha || pendente))) {
+      /* Quem está no fim continua no fim, mesmo quando a lista muda em cima. */
       el.scrollTop = el.scrollHeight;
       colado.current = true;
     }
     alturaAntes.current = el.scrollHeight;
-    primeiraAntes.current = primeiraId;
+    primeiraEmAntes.current = primeiraEm;
     ultimaAntes.current = ultimaId;
   });
 

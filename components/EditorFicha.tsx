@@ -1,8 +1,8 @@
 'use client';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useRef, useState } from 'react';
-import { Axe, Camera, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Crop, Droplets, Feather, Flame, HeartPulse, Mountain, Sword, Trash2, Wind, type LucideIcon } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Axe, Camera, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Crop, Droplets, Feather, Flame, HeartPulse, LayoutGrid, Mountain, Sword, Trash2, Wind, X, type LucideIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import AjusteFoto, { arquivoDeDataUrl, fotoDaTela } from '@/components/AjusteFoto';
 import Armas from '@/components/Armas';
@@ -28,6 +28,15 @@ const ICONES: Record<string, LucideIcon> = { fogo: Flame, agua: Droplets, vento:
 /* Só para desenhar a barra: valores maiores continuam valendo. */
 const TETO_DA_BARRA = 20;
 
+/* O menu do celular, como no C.R.I.S: cada parte da ficha numa tela. As cinco últimas são as abas do computador. */
+const PARTES_MENU = [
+  ['info', 'Informações'], ['cena', 'Cena'], ['atributos', 'Atributos'], ['pericias', 'Perícias'],
+  ['armas', 'Armas'], ['magias', 'Habilidades'], ['habilidades', 'Talentos'], ['inventario', 'Inventário'], ['notas', 'Notas'],
+] as const;
+type ParteMenu = typeof PARTES_MENU[number][0];
+type Aba = 'armas' | 'magias' | 'habilidades' | 'inventario' | 'notas';
+const ABAS: readonly ParteMenu[] = ['armas', 'magias', 'habilidades', 'inventario', 'notas'];
+
 const CAMPOS_TEXTO = [
   ['nome', 'Nome'], ['player', 'Player'], ['raca', 'Raça'], ['idade', 'Idade'], ['estilo', 'Estilo de magia'],
 ] as const;
@@ -39,9 +48,22 @@ export default function EditorFicha({ f, ed, chat }: {
   const entradaFoto = useRef<HTMLInputElement>(null);
   const [fotoEscolhida, setFotoEscolhida] = useState<{ arquivo: File; original?: string; ajuste?: Enquadramento | null } | null>(null);
   const [editandoLimites, setEditandoLimites] = useState(false);
-  const [aba, setAba] = useState<'armas' | 'magias' | 'habilidades' | 'inventario' | 'notas'>('armas');
+  const [aba, setAba] = useState<Aba>('armas');
   /* Só o celular usa: no computador, as três colunas ficam sempre à vista. */
-  const [secao, setSecao] = useState<'cena' | 'atributos' | 'perfil'>('cena');
+  const [secao, setSecao] = useState<'info' | 'cena' | 'atributos' | 'pericias' | 'abas'>('cena');
+  const [menuAberto, setMenuAberto] = useState(false);
+  const parteAtual: ParteMenu = secao === 'abas' ? aba : secao;
+  function irPara(p: ParteMenu) {
+    if (ABAS.includes(p)) { setAba(p as Aba); setSecao('abas'); } else setSecao(p as Exclude<ParteMenu, Aba>);
+    setMenuAberto(false);
+    window.scrollTo({ top: 0 });
+  }
+  useEffect(() => {
+    if (!menuAberto) return;
+    const tecla = (ev: KeyboardEvent) => { if (ev.key === 'Escape') setMenuAberto(false); };
+    window.addEventListener('keydown', tecla);
+    return () => window.removeEventListener('keydown', tecla);
+  }, [menuAberto]);
   const url = `/api/fichas/${f.id}`;
   const vm = R.vidaMax(f), mm = R.manaMax(f), e = R.estagio(f.fadiga), perdido = e.min === 100, perda = R.perdaDeCena(f);
   const campanha = f.contexto.campanha;
@@ -262,7 +284,7 @@ export default function EditorFicha({ f, ed, chat }: {
         <div className="placa-texto">
           <h1 className="placa-nome">{perdido ? '???' : f.nome || 'Sem nome'}</h1>
           {/* Os dados de quem é o personagem ficam no cabeçalho, em linha, como numa ficha de papel. */}
-          <div className="placa-campos">
+          <div className="placa-campos" data-parte="info">
             {CAMPOS_TEXTO.map(([k, rotulo]) => (
               <div className={`campo-linha campo-${k}`} key={k}>
                 <label htmlFor={`c-${k}`}>{rotulo}</label>
@@ -278,13 +300,8 @@ export default function EditorFicha({ f, ed, chat }: {
         </svg>
       </header>
 
-      <div className="ficha-secoes" role="group" aria-label="Parte da ficha">
-        {([['cena', 'Cena'], ['atributos', 'Atributos'], ['perfil', 'Perfil']] as const).map(([id, rotulo]) => (
-          <button type="button" key={id} aria-pressed={secao === id} onClick={() => { setSecao(id); window.scrollTo({ top: 0 }); }}>{rotulo}</button>
-        ))}
-      </div>
       <div className="ficha-grade">
-        <aside className="col-cena" aria-label="Em cena">
+        <aside className="col-cena" data-parte="cena" aria-label="Em cena">
           {medidor('vidaAtual', 'Vida', 'cor-vida', f.vidaAtual, vm, `15 + vitalidade ${f.corpo.vitalidade} × 2${parcelaAjuste(f.ajustes.vida)} = ${vm}`, soAjustes(campoBonus('vida', 'vida')))}
           {medidor('manaAtual', 'Mana', 'cor-mana', f.manaAtual, mm,
             `30 + determinação ${f.mente.onipotencia} × ${R.MULTIPLICADOR_MANA}${bonus.mana ? ` + núcleo ${bonus.mana}` : ''}${parcelaAjuste(f.ajustes.mana)} = ${base}${f.manaPerdida ? `, menos ${f.manaPerdida} perdida = ${mm}` : ''}`,
@@ -336,6 +353,7 @@ export default function EditorFicha({ f, ed, chat }: {
         </aside>
 
         <section className="col-atributos" aria-label="Atributos e perícias">
+          <div className="parte" data-parte="atributos">
           <div className="secao-cab">
             <h2 className="titulo-grupo">Atributos</h2>
             <span className={`sp-saldo${apUsados > apMax ? ' sp-acima' : ''}`} title="Atributos, armas e elementos usam os mesmos pontos.">{apUsados} de {apMax} AP usados</span>
@@ -366,7 +384,9 @@ export default function EditorFicha({ f, ed, chat }: {
               </select>
             )}
           </div>
+          </div>
 
+          <div className="parte" data-parte="pericias">
           <div className="secao-cab">
             <h2 className="titulo-grupo">Perícias</h2>
             <span className={`sp-saldo${ppUsados > ppMax ? ' sp-acima' : ''}`}>{ppUsados} de {ppMax} PP usados</span>
@@ -389,9 +409,10 @@ export default function EditorFicha({ f, ed, chat }: {
             aoMudarLimite={mudarLimite}
             aoRolar={k => rolar({ atributo: `pericias.${k}` })}
           />
+          </div>
         </section>
 
-        <section className="col-abas" aria-label="Armas, habilidades e anotações">
+        <section className="col-abas" data-parte="abas" aria-label="Armas, habilidades e anotações">
           <div className="abas" role="tablist" aria-label="Seções da ficha">
             {abas.map(([id, rotulo]) => (
               <button type="button" role="tab" key={id} id={`aba-${id}`} aria-controls={`painel-${id}`} aria-selected={aba === id} onClick={() => setAba(id)}>{rotulo}</button>
@@ -427,6 +448,31 @@ export default function EditorFicha({ f, ed, chat }: {
           ))}
         </section>
       </div>
+      {/* Só no celular: o menu substitui a barra de ações, as partes da ficha e a barra de baixo. */}
+      {menuAberto && (
+        <>
+          <div className="menu-ficha-fundo" aria-hidden="true" onClick={() => setMenuAberto(false)} />
+          <div className="menu-ficha" id="menu-ficha" role="dialog" aria-label="Menu da ficha">
+            <div className="menu-ficha-topo">
+              <Link className="btn" href={voltar.href}>← {voltar.txt}</Link>
+              <span className="salvo">{ed.status}</span>
+            </div>
+            <nav className="menu-ficha-partes" aria-label="Parte da ficha">
+              {PARTES_MENU.map(([id, rotulo]) => (
+                <button type="button" key={id} aria-current={parteAtual === id ? 'true' : undefined} onClick={() => irPara(id)}>{rotulo}</button>
+              ))}
+            </nav>
+            <div className="menu-ficha-acoes">
+              <button type="button" className="btn" aria-pressed={editandoLimites} onClick={() => setEditandoLimites(a => !a)}>{editandoLimites ? 'Concluir ajustes' : 'Ajustes e limites'}</button>
+              {f.contexto.souDono && <button type="button" className="btn" onClick={duplicar}>Duplicar</button>}
+              {f.contexto.souDono && <BotaoConfirmar rotulo="Apagar" confirmar="Confirmar: apagar para sempre" aoConfirmar={apagar} />}
+            </div>
+          </div>
+        </>
+      )}
+      <button type="button" className="menu-ficha-botao" aria-expanded={menuAberto} aria-controls="menu-ficha" aria-label={menuAberto ? 'Fechar o menu da ficha' : 'Abrir o menu da ficha'} onClick={() => setMenuAberto(a => !a)}>
+        {menuAberto ? <X aria-hidden="true" /> : <LayoutGrid aria-hidden="true" />}
+      </button>
       <ChatFlutuante
         chat={chat}
         escopo={campanha ? `${campanha.nome}: todos da mesa veem` : 'Só você vê: esta ficha não está em campanha'}

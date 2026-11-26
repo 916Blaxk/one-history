@@ -1340,6 +1340,7 @@ html[data-tema="amarelo"]{--vida:#ff1f1f;--vida-2:#ff8a00;--mana:#1f6bff;--mana-
 .col-atributos .rolar,.proficiencias .rolar{height:30px}
 .col-atributos .attr[data-grupo="elementos"]{padding-bottom:6px}
 .col-atributos .pericias{margin-top:-4px}
+.col-atributos .parte{display:grid;gap:14px;align-content:start;min-width:0}
 
 /* Abas da direita: o conteúdo de cada aba sem moldura própria; armas e magias continuam como itens de lista. */
 .col-abas .abas{flex-wrap:wrap}
@@ -1372,11 +1373,14 @@ html[data-tema="amarelo"]{--vida:#ff1f1f;--vida-2:#ff8a00;--mana:#1f6bff;--mana-
   .placa-campos{grid-column:1 / -1;grid-row:3;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 16px;margin-top:4px}
   .campo-nome,.campo-estilo{grid-column:1 / -1}
   .campo-linha input,.campo-linha select{min-height:44px;font-size:16px}
-  /* As três partes do celular: Cena, Atributos e Perfil (identidade e abas). */
-  .ficha:not([data-secao="perfil"]) .placa-campos,
-  .ficha[data-secao="cena"] .col-atributos,.ficha[data-secao="cena"] .col-abas,
-  .ficha[data-secao="atributos"] .col-cena,.ficha[data-secao="atributos"] .col-abas,
-  .ficha[data-secao="perfil"] .col-cena,.ficha[data-secao="perfil"] .col-atributos{display:none}
+  /* Uma parte por vez no celular, escolhida no menu. A barra de ações e as abas também moram no menu. */
+  .ficha:not([data-secao="info"]) [data-parte="info"],
+  .ficha:not([data-secao="cena"]) [data-parte="cena"],
+  .ficha:not([data-secao="atributos"]) [data-parte="atributos"],
+  .ficha:not([data-secao="pericias"]) [data-parte="pericias"],
+  .ficha:not([data-secao="abas"]) [data-parte="abas"],
+  .ficha-barra,.col-abas .abas{display:none}
+  .ficha{padding-bottom:96px}
   .medidor-barra{height:52px}
   .medidor-barra button{width:46px}
   .medidor-num,.medidor-num input,.fadiga-num input{font-size:22px}
@@ -1389,4 +1393,49 @@ html[data-tema="amarelo"]{--vida:#ff1f1f;--vida-2:#ff8a00;--mana:#1f6bff;--mana-
   .col-atributos .rolar,.proficiencias .rolar{height:44px}
   /* Fora da aba, as perícias agora aparecem direto no celular: letra de 16 px para o iPhone não dar zoom. */
   .pericias input,.pericias select{font-size:16px}
+}
+
+
+/* ---------- Celular: só o essencial na tela ----------
+   Sem barra de ações, sem abas de partes e sem barra embaixo. No canto ficam dois botões redondos:
+   o chat de dados e o menu, que abre as partes da ficha e as ações (como no C.R.I.S). */
+.menu-ficha-botao,.menu-ficha,.menu-ficha-fundo{display:none}
+@media (max-width:859px){
+  /* A barra de baixo sai: Minhas fichas e Campanhas viram ícones no topo. */
+  :root{--barra-inferior:0px}
+  body{padding-bottom:0}
+  .topo-abas{position:static;display:flex;height:auto;padding:0;gap:2px;background:none;border:0;box-shadow:none}
+  .topo-abas .topo-link{display:grid;place-items:center;width:42px;min-height:44px;padding:0;font-size:0;background:none;box-shadow:none}
+  .topo-abas .topo-link svg{width:22px;height:22px}
+  .topo-abas .topo-link[aria-current="page"]{background:none;color:var(--secondary-claro);box-shadow:inset 0 -2px 0 var(--secondary)}
+
+  .menu-ficha-botao{position:fixed;z-index:14;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));display:grid;place-items:center;width:52px;height:52px;padding:0;background:var(--surface-2);border:1px solid var(--border);border-radius:50%;color:var(--text);box-shadow:0 6px 18px #000a}
+  .menu-ficha-botao svg{width:24px;height:24px}
+  .menu-ficha-botao[aria-expanded="true"]{background:var(--gradient);border-color:transparent;color:var(--sobre-gradiente)}
+  .menu-ficha-fundo{position:fixed;z-index:12;inset:0;display:block;background:#0009;backdrop-filter:blur(2px)}
+  .menu-ficha{position:fixed;z-index:13;inset:auto 0 0;display:grid;gap:14px;max-height:85vh;overflow:auto;padding:16px 16px calc(84px + env(safe-area-inset-bottom,0px));background:var(--surface);border-top:1px solid var(--border);border-radius:16px 16px 0 0;box-shadow:0 -10px 30px #000a;animation:entrar-suave .2s ease-out}
+  .menu-ficha-topo{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .menu-ficha-partes{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .menu-ficha-partes button{min-height:48px;padding:0 8px;background:var(--surface-2);border:1px solid color-mix(in srgb,var(--secondary) 45%,var(--border));border-radius:10px;color:var(--text);font:700 13px/1 var(--f-titulo);letter-spacing:.08em;text-transform:uppercase}
+  .menu-ficha-partes button[aria-current="true"]{background:color-mix(in srgb,var(--secondary) 22%,var(--surface-2));border-color:var(--secondary-claro);color:var(--secondary-claro)}
+  .menu-ficha-acoes{display:flex;flex-wrap:wrap;gap:8px}
+  .menu-ficha-acoes>*{flex:1 1 auto}
+  /* Item sozinho na última linha ocupa a largura toda. */
+  .menu-ficha-partes button:last-child:nth-child(odd){grid-column:1 / -1}
+  /* Com o chat aberto, o botão do menu sai: ficaria por cima dos dados do chat. */
+  body:has(.chat-flutuante) .menu-ficha-botao{display:none}
+
+  /* O chat vira uma bolha redonda no canto, acima do botão do menu. */
+  .chat-pilula,.chat-pilula:hover{top:auto;bottom:calc(16px + env(safe-area-inset-bottom,0px));right:16px;translate:none;justify-content:center;width:52px;height:52px;min-height:0;padding:0;border-radius:50%;font-size:0;box-shadow:0 6px 18px #000a}
+  body:has(.menu-ficha-botao) .chat-pilula{bottom:calc(80px + env(safe-area-inset-bottom,0px))}
+  .chat-pilula::before{width:26px;height:26px}
+  .chat-pilula .chat-contagem{position:absolute;top:-4px;right:-4px}
+  .chat-pilula-aberta{display:none}
+  body:has(.chat-pilula) .folio{padding-right:max(16px,env(safe-area-inset-right,0px))}
+  .chat-flutuante{bottom:0}
+  .chat-popup{top:auto;bottom:calc(144px + env(safe-area-inset-bottom,0px));left:8px;right:8px}
+}
+@media (max-width:420px){
+  /* Fica só o dado da marca: o nome não cabe ao lado dos ícones e da conta. */
+  .topo-marca{font-size:0;gap:0}
 }

@@ -583,7 +583,7 @@ rota('POST', '/api/fichas/:id/rolar', async ctx => {
       livre = true;
     }
   } else {
-    r = rolar(Number(ctx.corpo.lados), R.inteiro(ctx.corpo.bonus, -999, 999));
+    r = rolar(Number(ctx.corpo.lados), R.inteiro(ctx.corpo.bonus ?? 0, -999, 999));
   }
   const [campanha] = f.campanhaId ? await db.select({ mestreId: campanhas.mestreId }).from(campanhas).where(eq(campanhas.id, f.campanhaId)) : [];
   /* Todos da mesa veem a rolagem: o nome, a foto e o id entregariam a ficha privada. */
@@ -712,7 +712,7 @@ rota('POST', '/api/campanhas/:id/codigo', async ctx => {
 
 rota('POST', '/api/campanhas/:id/rolar', async ctx => {
   const c = await campanhaDoMembro(ctx.params.id, ctx.usuario);
-  const r = rolar(Number(ctx.corpo.lados), R.inteiro(ctx.corpo.bonus, -999, 999));
+  const r = rolar(Number(ctx.corpo.lados), R.inteiro(ctx.corpo.bonus ?? 0, -999, 999));
   return { rolagem: await registrarRolagem(c.id, null, ctx.usuario, ctx.usuario.nome, '', r) };
 });
 
