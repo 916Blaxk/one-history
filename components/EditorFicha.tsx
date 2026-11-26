@@ -28,14 +28,14 @@ const ICONES: Record<string, LucideIcon> = { fogo: Flame, agua: Droplets, vento:
 /* Só para desenhar a barra: valores maiores continuam valendo. */
 const TETO_DA_BARRA = 20;
 
-/* O menu do celular, como no C.R.I.S: cada parte da ficha numa tela. As cinco últimas são as abas do computador. */
+/* O menu do celular, como no C.R.I.S: cada parte da ficha numa tela. Da Perícias em diante, são as abas do computador. */
 const PARTES_MENU = [
   ['info', 'Informações'], ['cena', 'Cena'], ['atributos', 'Atributos'], ['pericias', 'Perícias'],
   ['armas', 'Armas'], ['magias', 'Habilidades'], ['habilidades', 'Talentos'], ['inventario', 'Inventário'], ['notas', 'Notas'],
 ] as const;
 type ParteMenu = typeof PARTES_MENU[number][0];
-type Aba = 'armas' | 'magias' | 'habilidades' | 'inventario' | 'notas';
-const ABAS: readonly ParteMenu[] = ['armas', 'magias', 'habilidades', 'inventario', 'notas'];
+type Aba = 'armas' | 'pericias' | 'magias' | 'habilidades' | 'inventario' | 'notas';
+const ABAS: readonly ParteMenu[] = ['armas', 'pericias', 'magias', 'habilidades', 'inventario', 'notas'];
 
 const CAMPOS_TEXTO = [
   ['nome', 'Nome'], ['player', 'Player'], ['raca', 'Raça'], ['idade', 'Idade'], ['estilo', 'Estilo de magia'],
@@ -50,7 +50,7 @@ export default function EditorFicha({ f, ed, chat }: {
   const [editandoLimites, setEditandoLimites] = useState(false);
   const [aba, setAba] = useState<Aba>('armas');
   /* Só o celular usa: no computador, as três colunas ficam sempre à vista. */
-  const [secao, setSecao] = useState<'info' | 'cena' | 'atributos' | 'pericias' | 'abas'>('cena');
+  const [secao, setSecao] = useState<'info' | 'cena' | 'atributos' | 'abas'>('cena');
   const [menuAberto, setMenuAberto] = useState(false);
   const parteAtual: ParteMenu = secao === 'abas' ? aba : secao;
   function irPara(p: ParteMenu) {
@@ -231,7 +231,7 @@ export default function EditorFicha({ f, ed, chat }: {
   /* Bônus e limites são correções do mestre, raras durante o jogo: só aparecem no modo de ajustes. */
   const soAjustes = (no: React.ReactNode) => (editandoLimites ? no : null);
   const abas = [
-    ['armas', `Armas (${f.arsenal.length})`], ['magias', `Habilidades (${f.magias.length})`], ['habilidades', `Talentos (${f.habilidades.length})`],
+    ['armas', `Armas (${f.arsenal.length})`], ['pericias', 'Perícias'], ['magias', `Habilidades (${f.magias.length})`], ['habilidades', `Talentos (${f.habilidades.length})`],
     ['inventario', 'Inventário'], ['notas', 'Notas'],
   ] as const;
 
@@ -352,8 +352,7 @@ export default function EditorFicha({ f, ed, chat }: {
           </div>
         </aside>
 
-        <section className="col-atributos" aria-label="Atributos e perícias">
-          <div className="parte" data-parte="atributos">
+        <section className="col-atributos" data-parte="atributos" aria-label="Atributos e elementos">
           <div className="secao-cab">
             <h2 className="titulo-grupo">Atributos</h2>
             <span className={`sp-saldo${apUsados > apMax ? ' sp-acima' : ''}`} title="Atributos, armas e elementos usam os mesmos pontos.">{apUsados} de {apMax} AP usados</span>
@@ -384,41 +383,38 @@ export default function EditorFicha({ f, ed, chat }: {
               </select>
             )}
           </div>
-          </div>
-
-          <div className="parte" data-parte="pericias">
-          <div className="secao-cab">
-            <h2 className="titulo-grupo">Perícias</h2>
-            <span className={`sp-saldo${ppUsados > ppMax ? ' sp-acima' : ''}`}>{ppUsados} de {ppMax} PP usados</span>
-          </div>
-          <p className="grupo-desc">Limite por perícia: {Math.max(0, R.LIMITE_PERICIA_INICIAL + f.ajustes.limitePericia)}.</p>
-          {soAjustes(<>{campoBonus('pp', 'PP')}{campoBonus('limitePericia', 'limite por perícia')}</>)}
-          <TabelaPericias
-            f={f} editandoLimites={editandoLimites}
-            aoMudarTreino={(k, v) => mudarAttr('pericias', k, v)}
-            aoMudarOutros={(k, v) => {
-              const periciasOutros = { ...f.periciasOutros, [k]: R.inteiro(v, 0, 999) };
-              ed.definir({ ...f, periciasOutros }, { periciasOutros });
-            }}
-            aoMudarAtributo={(k, atributo) => {
-              const periciasAtributo = { ...f.periciasAtributo };
-              if (!atributo || atributo === R.ATRIBUTO_DA_PERICIA[k]) delete periciasAtributo[k];
-              else periciasAtributo[k] = atributo;
-              ed.definir({ ...f, periciasAtributo }, { periciasAtributo });
-            }}
-            aoMudarLimite={mudarLimite}
-            aoRolar={k => rolar({ atributo: `pericias.${k}` })}
-          />
-          </div>
         </section>
 
-        <section className="col-abas" data-parte="abas" aria-label="Armas, habilidades e anotações">
+        <section className="col-abas" data-parte="abas" aria-label="Perícias, armas, habilidades e anotações">
           <div className="abas" role="tablist" aria-label="Seções da ficha">
             {abas.map(([id, rotulo]) => (
               <button type="button" role="tab" key={id} id={`aba-${id}`} aria-controls={`painel-${id}`} aria-selected={aba === id} onClick={() => setAba(id)}>{rotulo}</button>
             ))}
           </div>
           {/* Ficam montadas e só escondidas: trocar de aba não perde as armas e magias abertas. */}
+          <div className="painel-aba" id="painel-pericias" role="tabpanel" aria-labelledby="aba-pericias" hidden={aba !== 'pericias'}>
+            <div className="pericias-cab">
+              <p className="grupo-desc">Limite por perícia: {Math.max(0, R.LIMITE_PERICIA_INICIAL + f.ajustes.limitePericia)}.</p>
+              <span className={`sp-saldo${ppUsados > ppMax ? ' sp-acima' : ''}`}>{ppUsados} de {ppMax} PP usados</span>
+            </div>
+            {soAjustes(<>{campoBonus('pp', 'PP')}{campoBonus('limitePericia', 'limite por perícia')}</>)}
+            <TabelaPericias
+              f={f} editandoLimites={editandoLimites}
+              aoMudarTreino={(k, v) => mudarAttr('pericias', k, v)}
+              aoMudarOutros={(k, v) => {
+                const periciasOutros = { ...f.periciasOutros, [k]: R.inteiro(v, 0, 999) };
+                ed.definir({ ...f, periciasOutros }, { periciasOutros });
+              }}
+              aoMudarAtributo={(k, atributo) => {
+                const periciasAtributo = { ...f.periciasAtributo };
+                if (!atributo || atributo === R.ATRIBUTO_DA_PERICIA[k]) delete periciasAtributo[k];
+                else periciasAtributo[k] = atributo;
+                ed.definir({ ...f, periciasAtributo }, { periciasAtributo });
+              }}
+              aoMudarLimite={mudarLimite}
+              aoRolar={k => rolar({ atributo: `pericias.${k}` })}
+            />
+          </div>
           <div className="painel-aba" id="painel-armas" role="tabpanel" aria-labelledby="aba-armas" hidden={aba !== 'armas'}>
             <div className="proficiencias">
               <h3 className="subtitulo-grupo">Proficiência</h3>

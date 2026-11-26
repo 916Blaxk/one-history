@@ -269,6 +269,7 @@ test('perícias: existe a classe Magia, e as adicionais foram distribuídas', as
   const p = await novaPessoa(browser, 'Lua');
   await criarFicha(p, 'Arcana');
   await expect(p.getByText('Perícias adicionais')).toHaveCount(0);
+  await p.getByRole('tab', { name: 'Perícias' }).click();
 
   /* Tabela única, em ordem alfabética, com o atributo de cada perícia. */
   const nomes = await p.locator('.pericias .pericia-nome').allTextContents();
@@ -327,6 +328,7 @@ test('dono e mestre mudam o núcleo, que soma na mana; perícia conta PP e conti
   await expect(p.getByText(/\+ núcleo 7 = 37$/)).toBeVisible();
   await expect(p.getByText('0 de 49 AP usados')).toBeVisible();
 
+  await p.getByRole('tab', { name: 'Perícias' }).click();
   await p.locator('#a-pericias-esquiva').fill('4');
   await p.locator('#a-pericias-esquiva').press('Enter');
   await expect(p.getByText('4 de 20 PP usados')).toBeVisible();
@@ -334,6 +336,7 @@ test('dono e mestre mudam o núcleo, que soma na mana; perícia conta PP e conti
 
   await p.reload();
   await expect(p.getByLabel('Estágio do núcleo')).toHaveValue('3');
+  await p.getByRole('tab', { name: 'Perícias' }).click();
   await expect(p.getByText('4 de 20 PP usados')).toBeVisible();
 });
 
@@ -354,6 +357,7 @@ test('totais e limites só avisam: dono e mestre passam deles, e o site mostra e
   await expect(jogador.getByText('30 de 25 AP usados')).toHaveClass(/sp-acima/);
 
   /* A perícia começa com limite 5 e os PP com 20, mas o valor é salvo mesmo acima deles. */
+  await jogador.getByRole('tab', { name: 'Perícias' }).click();
   await expect(jogador.getByText('Limite por perícia: 5.')).toBeVisible();
   const esquiva = jogador.locator('.pericia-linha').filter({ hasText: 'Esquiva' });
   await jogador.locator('#a-pericias-esquiva').fill('5');
@@ -380,6 +384,7 @@ test('totais e limites só avisam: dono e mestre passam deles, e o site mostra e
 
   /* O mestre aumenta o limite geral e define o de uma perícia só. */
   await mestre.goto(`/fichas/${fichaId}`);
+  await mestre.getByRole('tab', { name: 'Perícias' }).click();
   await mestre.getByRole('button', { name: 'Ajustes e limites' }).click();
   await mestre.getByLabel('Bônus em limite por perícia').fill('2');
   await mestre.getByLabel('Bônus em limite por perícia').press('Enter');
@@ -388,6 +393,7 @@ test('totais e limites só avisam: dono e mestre passam deles, e o site mostra e
   await expect(mestre.getByRole('status').filter({ hasText: 'Salvo' })).toBeVisible();
 
   await jogador.reload();
+  await jogador.getByRole('tab', { name: 'Perícias' }).click();
   await expect(jogador.getByText('Máx. 2')).toBeVisible();
   await jogador.locator('#a-pericias-aparar').fill('9');
   await jogador.locator('#a-pericias-aparar').press('Enter');

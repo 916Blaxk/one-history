@@ -16,6 +16,7 @@ import { avancarVez, tirarDoCombate } from '../src/shared/combate.js'
 import { CAMADA_MUNDO, MAX_NUMEROS_NEVOA, MAX_OPS_NEVOA, celulasParaOps, tamanhoDaNevoa } from '../src/shared/nevoa.js'
 import * as R from '../../lib/regras'
 import type { ImagemMonstro } from '../../lib/servidor/schema'
+import { acertoCritico, rolarDanoDoAtaque } from '../../lib/critico'
 import { danoNoLimite, expressaoDaRolagem, lerRolagem } from '../../lib/resumoFicha'
 import { ouvirMesa, type EventoMesa } from '../../lib/servidor/barramento'
 import { alterarFicha, comDano, detalheRolagem, gravarRolagem, textoDaRolagem } from '../../lib/servidor/rotas'
@@ -940,15 +941,16 @@ async function handleCommand(socket: TableSocket, room: RoomState, player: RoomP
       /* Ataque com arma traz o dano junto, como no site: acerto e dano na mesma rolagem. */
       let dano: { expressao: string; total: number; det: string } | null = null
       try {
-        if (item.dano) {
-          if (!danoNoLimite(item.dano)) {
-            socket.emit('room:event', { type: 'chat:error', text: `O dano de ${item.nome} excede o limite do rolador.` })
-            return
-          }
-          const rolagemDano = rollDice(item.dano)
-          dano = { expressao: item.dano, total: rolagemDano.total, det: textoDaRolagem(rolagemDano) }
+        if (item.dano && !danoNoLimite(item.dano)) {
+          socket.emit('room:event', { type: 'chat:error', text: `O dano de ${item.nome} excede o limite do rolador.` })
+          return
         }
         roll = rollDice(expression)
+        /* Depois do acerto: crítico no acerto leva o dano ao máximo, como no site. */
+        if (item.dano) {
+          const rolagemDano = rolarDanoDoAtaque(item.dano, acertoCritico(roll))
+          dano = { expressao: item.dano, total: rolagemDano.total, det: textoDaRolagem(rolagemDano) }
+        }
       } catch (error) {
         if (!(error instanceof DiceExpressionError)) throw error
         socket.emit('room:event', { type: 'chat:error', text: `O dano de ${item.nome} não é uma rolagem válida (ex.: 2d6+3). ${error.message}` })
