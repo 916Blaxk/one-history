@@ -596,6 +596,8 @@ rota('POST', '/api/fichas/:id/rolar', async ctx => {
     }
   } else {
     r = rolar(Number(ctx.corpo.lados), R.inteiro(ctx.corpo.bonus ?? 0, -999, 999));
+    /* O dado puro do chat (d4 a d100) também ganha o raio no máximo: foi pedido junto com as de combate. */
+    combate = true;
   }
   const [campanha] = f.campanhaId ? await db.select({ mestreId: campanhas.mestreId }).from(campanhas).where(eq(campanhas.id, f.campanhaId)) : [];
   /* Todos da mesa veem a rolagem: o nome, a foto e o id entregariam a ficha privada. */
@@ -725,7 +727,8 @@ rota('POST', '/api/campanhas/:id/codigo', async ctx => {
 rota('POST', '/api/campanhas/:id/rolar', async ctx => {
   const c = await campanhaDoMembro(ctx.params.id, ctx.usuario);
   const r = rolar(Number(ctx.corpo.lados), R.inteiro(ctx.corpo.bonus ?? 0, -999, 999));
-  return { rolagem: await registrarRolagem(c.id, null, ctx.usuario, ctx.usuario.nome, '', r) };
+  /* Dado puro do chat da campanha: vale o raio no máximo, como o da ficha. */
+  return { rolagem: await registrarRolagem(c.id, null, ctx.usuario, ctx.usuario.nome, '', r, 0, undefined, null, true) };
 });
 
 rota('GET', '/api/campanhas/:id/chat', async ctx => {

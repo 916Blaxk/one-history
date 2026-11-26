@@ -84,17 +84,72 @@ function ChamasDoCartao() {
   );
 }
 
-/* Raios curtos em volta do ícone, piscando sem parar: o acerto extremo de combate fica marcado no dado. */
-const RAIOS_DO_ICONE = ['M5 0 2 6h3.5L1.5 13', 'M19 1l3.5 6h-3.5l3 6', 'M1 15l4 3.5-2.5 1L7 24', 'M23 14l-4 4h3L17.5 24', 'M12 0l-1.5 3h2L11 6'];
-function RaiosDoIcone() {
+/* Eletricidade estática contornando o cartão inteiro: o contorno é redesenhado várias vezes por segundo,
+   sempre torto de um jeito diferente, e de vez em quando um arco salta para fora. Desenhar direto no SVG,
+   sem estado do React, evita renderizar o chat a cada estalo. */
+const RAIO_CANTO = 12;
+function pontoNoContorno(s: number, w: number, h: number): [number, number, number, number] {
+  /* Percorre o retângulo de cantos redondos e devolve o ponto e a normal para fora. */
+  const r = Math.min(RAIO_CANTO, w / 2, h / 2), lw = w - 2 * r, lh = h - 2 * r, arco = Math.PI * r / 2;
+  const trechos: [number, (t: number) => [number, number, number, number]][] = [
+    [lw, t => [r + t, 0, 0, -1]],
+    [arco, t => { const a = -Math.PI / 2 + t / r; return [w - r + Math.cos(a) * r, r + Math.sin(a) * r, Math.cos(a), Math.sin(a)]; }],
+    [lh, t => [w, r + t, 1, 0]],
+    [arco, t => { const a = t / r; return [w - r + Math.cos(a) * r, h - r + Math.sin(a) * r, Math.cos(a), Math.sin(a)]; }],
+    [lw, t => [w - r - t, h, 0, 1]],
+    [arco, t => { const a = Math.PI / 2 + t / r; return [r + Math.cos(a) * r, h - r + Math.sin(a) * r, Math.cos(a), Math.sin(a)]; }],
+    [lh, t => [0, h - r - t, -1, 0]],
+    [arco, t => { const a = Math.PI + t / r; return [r + Math.cos(a) * r, r + Math.sin(a) * r, Math.cos(a), Math.sin(a)]; }],
+  ];
+  for (const [tam, f] of trechos) { if (s <= tam) return f(s); s -= tam; }
+  return [r, 0, 0, -1];
+}
+function contornoEletrico(w: number, h: number, amplitude: number) {
+  const r = Math.min(RAIO_CANTO, w / 2, h / 2), total = 2 * (w - 2 * r) + 2 * (h - 2 * r) + 2 * Math.PI * r;
+  const pts: string[] = [];
+  for (let s = 0; s < total; s += 5 + Math.random() * 5) {
+    const [x, y, nx, ny] = pontoNoContorno(s, w, h);
+    /* Quase sempre perto da borda; às vezes um pico maior, que é o estalo da estática. */
+    const d = (Math.random() - .35) * amplitude * (Math.random() < .08 ? 3 : 1);
+    pts.push(`${(x + nx * d).toFixed(1)},${(y + ny * d).toFixed(1)}`);
+  }
+  return `M${pts.join('L')}Z`;
+}
+function arcoSolto(w: number, h: number) {
+  const r = Math.min(RAIO_CANTO, w / 2, h / 2), total = 2 * (w - 2 * r) + 2 * (h - 2 * r) + 2 * Math.PI * r;
+  const [x, y, nx, ny] = pontoNoContorno(Math.random() * total, w, h);
+  const tx = -ny, ty = nx, passos = 4, pts: string[] = [];
+  for (let i = 0; i <= passos; i++) {
+    const out = Math.sin(Math.PI * i / passos) * (6 + Math.random() * 6), lado = (i - passos / 2) * 7;
+    pts.push(`${(x + nx * out + tx * lado + (Math.random() - .5) * 3).toFixed(1)},${(y + ny * out + ty * lado + (Math.random() - .5) * 3).toFixed(1)}`);
+  }
+  return `M${pts.join('L')}`;
+}
+function EstaticaDoCartao() {
+  const svg = useRef<SVGSVGElement>(null);
+  useEffect(() => {
+    const el = svg.current, cartao = el?.parentElement;
+    if (!el || !cartao) return;
+    const [contorno, fino, arco] = Array.from(el.querySelectorAll('path'));
+    let w = cartao.clientWidth, h = cartao.clientHeight;
+    const desenhar = () => {
+      el.setAttribute('viewBox', `0 0 ${w} ${h}`);
+      contorno!.setAttribute('d', contornoEletrico(w, h, 6));
+      fino!.setAttribute('d', contornoEletrico(w, h, 4));
+      arco!.setAttribute('d', Math.random() < .6 ? `${arcoSolto(w, h)}${Math.random() < .5 ? arcoSolto(w, h) : ''}` : '');
+    };
+    const medida = new ResizeObserver(() => { w = cartao.clientWidth; h = cartao.clientHeight; desenhar(); });
+    medida.observe(cartao);
+    desenhar();
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return () => medida.disconnect();
+    const estalo = setInterval(desenhar, 70);
+    return () => { clearInterval(estalo); medida.disconnect(); };
+  }, []);
   return (
-    <svg className="cartao-raios" viewBox="0 0 24 24" aria-hidden="true" fill="none" strokeLinecap="round" strokeLinejoin="round">
-      {RAIOS_DO_ICONE.map((d, i) => (
-        <g key={d} style={{ '--atraso': `${i * 130}ms` } as React.CSSProperties}>
-          <path d={d} stroke="#000" strokeWidth="3" />
-          <path d={d} stroke="#ff2a3a" strokeWidth="1.5" />
-        </g>
-      ))}
+    <svg ref={svg} className="cartao-estatica" aria-hidden="true" preserveAspectRatio="none" fill="none" strokeLinejoin="round" strokeLinecap="round">
+      <path className="estatica-contorno" />
+      <path className="estatica-fina" />
+      <path className="estatica-arco" />
     </svg>
   );
 }
@@ -110,7 +165,8 @@ function CartaoRolagem({ m, nova }: { m: Mensagem; nova: boolean }) {
       {!m.minha && <Capitular className="msg-foto" nome={m.autor} fichaId={m.fichaId ?? undefined} fotoV={m.fotoV} />}
       <div className={`cartao msg-balao${m.dano ? ' cartao-duplo' : ''}${banner ? ' msg-com-banner' : ''}`} style={banner}>
         {extremo === 'critico' && !raio && <ChamasDoCartao />}
-        <span className="cartao-icone"><IconeDado estilo={m.estilo} />{raio && <RaiosDoIcone />}</span>
+        {raio && <EstaticaDoCartao />}
+        <span className="cartao-icone"><IconeDado estilo={m.estilo} /></span>
         <div className="cartao-meio">
           <p className="cartao-titulo">
             {m.rotulo ? <span className="msg-rotulo">{m.rotulo}</span> : <span aria-hidden="true">{partes?.expr ?? 'Rolagem'}</span>}

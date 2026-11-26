@@ -77,7 +77,7 @@ export function lerHabilidade(d: R.DadosFicha, id: string): { rotulo: string; ac
 
 /* Rolagens de combate: armas (ataque e dano), a categoria Combate das perícias, Destreza (reflexo),
    Determinação e Resistência espiritual (vontade). O efeito de raio do acerto extremo só vale nelas.
-   A magia com dano também é de combate, mas é decidida na rota, que sabe se a habilidade tem dano. */
+   A magia com dano e o dado puro do chat também contam, mas são decididos na rota. */
 const PERICIAS_DE_COMBATE = new Set([
   ...(R.PERICIAS.find(c => c.categoria === 'Combate')?.itens.map(([k]) => k) ?? []),
   'resistenciaEspiritual',

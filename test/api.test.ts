@@ -816,10 +816,11 @@ describe('chat de dados', () => {
     const esquiva = (await dono('POST', `/api/fichas/${f.id}/rolar`, { atributo: 'pericias.esquiva' })).corpo.rolagem;
     expect(esquiva).toMatchObject({ estilo: 'engrenagem', combate: true });
     expect((await dono('POST', `/api/fichas/${f.id}/rolar`, { atributo: 'pericias.historia' })).corpo.rolagem.combate).toBe(false);
-    expect((await dono('POST', `/api/fichas/${f.id}/rolar`, { lados: 20 })).corpo.rolagem.combate).toBe(false);
+    /* O dado puro do chat também conta. */
+    expect((await dono('POST', `/api/fichas/${f.id}/rolar`, { lados: 20 })).corpo.rolagem.combate).toBe(true);
     /* A marca fica gravada: o histórico mostra o raio no dado também depois de recarregar. */
     const chat = (await dono('GET', `/api/fichas/${f.id}/chat`)).corpo.mensagens;
-    expect(chat.map((m: { combate: boolean }) => m.combate)).toEqual([true, false, false]);
+    expect(chat.map((m: { combate: boolean }) => m.combate)).toEqual([true, false, true]);
   });
 
   it('histórico da ficha e da campanha não se misturam quando a ficha muda de lugar', async () => {
