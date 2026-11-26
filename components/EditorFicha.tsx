@@ -84,7 +84,9 @@ export default function EditorFicha({ f, ed, chat }: {
     const custo = R.custoMagia(f, m), nome = m.nome || 'Magia sem nome';
     if (custo > f.manaAtual) { toast.error(`Mana insuficiente: ${nome} custa ${custo} e a ficha tem ${f.manaAtual}.`); return; }
     mudarVital('manaAtual', f.manaAtual - custo);
-    toast(`${nome}: −${custo} de mana${m.dano ? `. Dano: ${m.dano}` : ''}`);
+    toast(`${nome}: −${custo} de mana`);
+    /* O dano rola no chat de dados, como as outras rolagens; `rolar` salva a mana antes. */
+    if (m.dano.trim()) void rolar({ magia: m.id });
   }
 
   async function rolar(corpo: Record<string, unknown>) {

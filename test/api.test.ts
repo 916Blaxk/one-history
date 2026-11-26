@@ -581,6 +581,28 @@ describe('magias', () => {
     await jog.c('POST', `/api/campanhas/${c.id}/fichas`, { fichaId: f.id });
     expect(JSON.stringify((await intruso.c('GET', `/api/campanhas/${c.id}`)).corpo)).not.toContain('Faísca');
   });
+
+  it('conjurar rola o dano guardado da magia no chat de dados', async () => {
+    const a = await novaConta('Maga');
+    const f = await novaFicha(a.c, { nome: 'Lia' });
+    const magias = [
+      { id: 'bola', nome: 'Bola de fogo', custo: 3, dano: '2d6+3' },
+      { id: 'luz', nome: 'Luz', custo: 1, dano: '' },
+      { id: 'torta', nome: 'Torta', custo: 1, dano: 'muito' },
+    ];
+    await a.c('PATCH', `/api/fichas/${f.id}`, { magias });
+    /* O navegador manda só o id: um dano enviado junto é ignorado. */
+    const r = (await a.c('POST', `/api/fichas/${f.id}/rolar`, { magia: 'bola', dano: '100d100' })).corpo.rolagem;
+    expect(r.rotulo).toBe('Bola de fogo');
+    expect(r.total).toBeGreaterThanOrEqual(5);
+    expect(r.total).toBeLessThanOrEqual(15);
+    expect(r.det).toMatch(/^2d6 \(\d, \d\) \+ 3$/);
+    const chat = (await a.c('GET', `/api/fichas/${f.id}/chat`)).corpo;
+    expect(chat.mensagens.map((m: { id: string }) => m.id)).toEqual([r.id]);
+    expect((await a.c('POST', `/api/fichas/${f.id}/rolar`, { magia: 'luz' })).status).toBe(400);
+    expect((await a.c('POST', `/api/fichas/${f.id}/rolar`, { magia: 'torta' })).status).toBe(400);
+    expect((await a.c('POST', `/api/fichas/${f.id}/rolar`, { magia: 'nao-existe' })).status).toBe(400);
+  });
 });
 
 describe('resumo da ficha', () => {

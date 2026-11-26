@@ -83,7 +83,7 @@ function FichaVinculada({ token, fichaId }: { token: Token; fichaId: string }) {
       avisar(mensagem(erro))
     }
   }
-  function conjurar(magia: { nome: string; custo: number; dano: string }) {
+  function conjurar(magia: { id: string; nome: string; custo: number; dano: string }) {
     const mana = data?.recursos.find((recurso) => recurso.id === 'mana')?.atual ?? 0
     const nome = magia.nome || 'Magia sem nome'
     if (magia.custo > mana) {
@@ -92,7 +92,9 @@ function FichaVinculada({ token, fichaId }: { token: Token; fichaId: string }) {
     }
     void agir(async () => {
       await api('PATCH', url, { manaAtual: mana - magia.custo })
-      if (magia.dano) avisar(`${nome}: dano ${magia.dano}`)
+      /* A rolagem gravada chega ao chat da mesa pelo barramento, como as de atributo. */
+      if (magia.dano.trim()) await api('POST', `${url}/rolar`, { magia: magia.id })
+      else avisar(`${nome}: −${magia.custo} de mana`)
     })
   }
   function encerrarCena() {

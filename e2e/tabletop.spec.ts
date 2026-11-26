@@ -254,7 +254,7 @@ test('mesa: mapa, névoa, combate, magia e ferramentas na mesma sessão', async 
     p.on('pageerror', e => erros.push(e.message));
     p.on('dialog', d => void d.accept());
   }
-  await jogador.request.patch(`/api/fichas/${fichaId}`, { data: { magias: [{ id: 'm1', nome: 'Bola de fogo', elemento: 'fogo', custo: 10, alcance: '', duracao: '', descricao: '' }] } });
+  await jogador.request.patch(`/api/fichas/${fichaId}`, { data: { magias: [{ id: 'm1', nome: 'Bola de fogo', elemento: 'fogo', custo: 10, dano: '3d6', alcance: '', duracao: '', descricao: '' }] } });
   await abrirMesa(mestre, campanhaId);
   await abrirMesa(jogador, campanhaId);
 
@@ -312,7 +312,8 @@ test('mesa: mapa, névoa, combate, magia e ferramentas na mesma sessão', async 
   await mestre.getByRole('button', { name: 'Começar' }).click();
   await expect(ordem.locator('li[aria-current=true]')).toContainText('Kael');
   await jogador.getByRole('button', { name: 'Passar a vez' }).click();
-  await expect(ordem).toContainText('Rodada 2');  await mestre.getByRole('button', { name: 'Encerrar', exact: true }).click();
+  await expect(ordem).toContainText('Rodada 2');
+  await mestre.getByRole('button', { name: 'Encerrar', exact: true }).click();
   await expect(ordem).toHaveCount(0);
 
   /* O token da ficha: condição, magia e fadiga sem sair da mesa. */
@@ -324,6 +325,11 @@ test('mesa: mapa, névoa, combate, magia e ferramentas na mesma sessão', async 
   await jogador.getByRole('button', { name: 'Conjurar Bola de fogo' }).click();
   await expect(jogador.locator('.mini-sheet-identity')).toContainText('Mana: 20');
   await expect(jogador.getByLabel('Mana atual')).toHaveValue('20');
+  /* O dano rola no chat da mesa, e o mestre vê. */
+  await mestre.getByRole('button', { name: 'Abrir chat' }).click();
+  await expect(mestre.locator('.chat-roll-label').last()).toHaveText('Bola de fogo');
+  /* Com o chat aberto, a barra de ferramentas do mestre fica escondida. */
+  await mestre.getByRole('button', { name: 'Fechar chat' }).first().click();
   /* O dono edita a fadiga e encerra a cena, como o mestre, e vê o que o mestre mudar. */
   await mestre.request.patch(`/api/fichas/${fichaId}`, { data: { fadiga: 60 } });
   await expect(jogador.getByLabel('Fadiga mental (%)')).toHaveValue('60');
@@ -352,7 +358,8 @@ test('mesa: mapa, névoa, combate, magia e ferramentas na mesma sessão', async 
   await mestre.getByRole('button', { name: 'Medir' }).click();
   await mestre.mouse.move(400, 800);
   await mestre.mouse.down();
-  await mestre.mouse.move(610, 800, { steps: 3 });  await mestre.mouse.up();
+  await mestre.mouse.move(610, 800, { steps: 3 });
+  await mestre.mouse.up();
   await mestre.getByRole('button', { name: 'Medir' }).click();
   await mestre.getByRole('button', { name: 'Ping' }).click();
   await mestre.mouse.click(500, 850);

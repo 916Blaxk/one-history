@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 import { and, count, desc, eq, inArray, isNull, lt, notInArray, or, sql, type SQL } from 'drizzle-orm';
 import { z } from 'zod';
-import { rollDice } from '../../mesa/src/features/chat/dice-parser';
+import { DiceExpressionError, rollDice } from '../../mesa/src/features/chat/dice-parser';
 import type { DiceRollResult } from '../../mesa/src/features/chat/dice-types';
 import { normalizarEnquadramento } from '../enquadramento';
 import * as R from '../regras';
@@ -212,6 +212,18 @@ function rolarDaFicha(valor: number, vantagem: number) {
   const expressao = expressaoDaRolagem(valor, vantagem);
   return { expressao, detalhe: rollDice(expressao) };
 }
+/* O dano é texto livre na ficha: aceita o que o rolador da mesa aceita, com o mesmo limite de dados. */
+function rolarDano(dano: string, nome: string) {
+  const expressao = dano.trim();
+  if (!expressao) throw new Erro(400, `${nome} não tem dano para rolar.`);
+  if ((expressao.match(/[dD]/g)?.length ?? 0) > 10) throw new Erro(400, `O dano de ${nome} excede o limite do rolador.`);
+  try {
+    return { expressao, detalhe: rollDice(expressao) };
+  } catch (erro) {
+    if (erro instanceof DiceExpressionError) throw new Erro(400, `O dano de ${nome} não é uma rolagem válida (ex.: 2d6+3). ${erro.message}`);
+    throw erro;
+  }
+}
 /* Com vantagem, mostra todos os d20: quem joga precisa ver qual valeu. */
 export function detalheRolagem(r: DiceRollResult) {
   const g = r.groups[0], rolados = g.dice.flatMap(d => d.rolls).join(', ');
@@ -246,10 +258,10 @@ export async function gravarRolagem(d: {
 }
 async function registrarRolagem(
   campanhaId: string | null, fichaId: string | null, usuario: UsuarioSessao,
-  autor: string, rotulo: string, r: ReturnType<typeof rolar>, fotoV = 0,
+  autor: string, rotulo: string, r: ReturnType<typeof rolar>, fotoV = 0, det = detalheRolagem(r.detalhe),
 ): Promise<Mensagem> {
   const total = r.detalhe.total;
-  const linha = await gravarRolagem({ campanhaId, fichaId, usuarioId: usuario.id, autor, rotulo, det: detalheRolagem(r.detalhe), total, expressao: r.expressao, detalhe: r.detalhe });
+  const linha = await gravarRolagem({ campanhaId, fichaId, usuarioId: usuario.id, autor, rotulo, det, total, expressao: r.expressao, detalhe: r.detalhe });
   return { id: linha.id, em: linha.em, autor, rotulo, det: linha.det, total, minha: true, fichaId, fotoV, bannerV: usuario.bannerV };
 }
 
@@ -520,13 +532,21 @@ rota('POST', '/api/fichas/:id/rolar', async ctx => {
     if (!item) throw new Erro(400, 'Esse atributo não existe na ficha.');
     rotulo = item.rotulo;
     r = rolarDaFicha(item.valor, item.vantagem);
+  } else if (ctx.corpo.magia) {
+    /* O dano vem da magia guardada: o navegador só diz qual magia conjurou. */
+    const magia = R.normalizar(f.dados).magias.find(m => m.id === String(ctx.corpo.magia));
+    if (!magia) throw new Erro(400, 'Essa magia não existe na ficha.');
+    rotulo = magia.nome || 'Magia sem nome';
+    r = rolarDano(magia.dano, rotulo);
   } else {
     r = rolar(Number(ctx.corpo.lados), R.inteiro(ctx.corpo.bonus, -999, 999));
   }
   const [campanha] = f.campanhaId ? await db.select({ mestreId: campanhas.mestreId }).from(campanhas).where(eq(campanhas.id, f.campanhaId)) : [];
   /* Todos da mesa veem a rolagem: o nome, a foto e o id entregariam a ficha privada. */
-  if (campanha && R.fichaPrivada(f, campanha.mestreId)) return { rolagem: await registrarRolagem(f.campanhaId, null, ctx.usuario, 'Mestre', rotulo, r) };
-  return { rolagem: await registrarRolagem(f.campanhaId, f.id, ctx.usuario, nomeFicha(f.dados), rotulo, r, f.fotoV) };
+  /* Dano tem vários dados e somas: o texto curto das rolagens de atributo leria 2d6 como vantagem. */
+  const det = ctx.corpo.magia ? textoDaRolagem(r.detalhe) : detalheRolagem(r.detalhe);
+  if (campanha && R.fichaPrivada(f, campanha.mestreId)) return { rolagem: await registrarRolagem(f.campanhaId, null, ctx.usuario, 'Mestre', rotulo, r, 0, det) };
+  return { rolagem: await registrarRolagem(f.campanhaId, f.id, ctx.usuario, nomeFicha(f.dados), rotulo, r, f.fotoV, det) };
 });
 
 /* Chat de uma ficha fora de campanha: só o dono vê. Em campanha, o chat é o da mesa. */

@@ -413,11 +413,15 @@ test('magias: adicionar, conjurar com desconto de mana e continuar depois de rec
   await p.getByLabel('Elemento', { exact: true }).selectOption({ label: 'Fogo' });
   await p.getByLabel('Custo de mana').fill('5');
   await p.getByLabel('Custo de mana').press('Enter');
+  await p.getByLabel('Dano').fill('2d6+3');
   await p.getByLabel('Descrição').fill('Uma faísca pequena.');
   await expect(p.getByRole('status').filter({ hasText: 'Salvo' })).toBeVisible();
 
   await p.getByRole('button', { name: 'Conjurar Faísca' }).click();
   await expect(p.locator('#v-manaAtual')).toHaveValue('25');
+  /* O dano rola no chat de dados: com o chat fechado, aparece no pop-up. */
+  await expect(p.locator('.chat-popup .msg-rotulo')).toHaveText('Faísca');
+  await expect(p.locator('.chat-popup .msg-det')).toHaveText(/^2d6 \(\d, \d\) \+ 3$/);
   await expect(p.getByRole('status').filter({ hasText: 'Salvo' })).toBeVisible();
 
   await p.reload();
